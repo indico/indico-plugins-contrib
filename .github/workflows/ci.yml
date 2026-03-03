@@ -1,0 +1,219 @@
+name: CI
+
+env:
+  TZ: Europe/Zurich
+  PYTHON_VERSION: '3.12.11'
+  NODE_VERSION: '22.x'
+
+on:
+  push:
+    branches:
+      - master
+      - '*.x'
+  pull_request:
+    branches:
+      - master
+      - '*.x'
+
+jobs:
+  setup:
+    runs-on: ubuntu-22.04
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Pick Indico core repo
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_BODY: ${{ github.event_name == 'pull_request' && github.event.pull_request.body }}
+          PR_BASE_REF: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.ref }}
+        run: python .github/utils/get_core_repo.py indico/indico INDICO
+
+      - name: Install system dependencies
+        run: sudo apt-get install postgresql-client libpq-dev
+
+      - name: Create virtualenv
+        run: |
+          uv venv --python ${{ env.PYTHON_VERSION }} --seed .venv
+          source .venv/bin/activate
+
+      - name: Activate virtualenv for later steps
+        run: |
+          echo "VIRTUAL_ENV=$(pwd)/.venv" >> $GITHUB_ENV
+          echo "$(pwd)/.venv/bin" >> $GITHUB_PATH
+
+      - uses: actions/cache@v5
+        id: cache-npm
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-npm-${{ hashFiles('package*.json') }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        if: steps.cache-npm.outputs.cache-hit != 'true'
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install Indico
+        run: |
+          uv pip install babel
+          uv pip install "indico[dev] @ git+https://github.com/${INDICO_REPO}.git@${INDICO_BRANCH}"
+
+      - name: Install node dependencies
+        if: steps.cache-npm.outputs.cache-hit != 'true'
+        run: npm ci
+
+      - name: Archive environment
+        run: tar cf /tmp/env.tar .venv node_modules
+
+      - name: Upload environment
+        uses: actions/upload-artifact@v6
+        with:
+          name: environment
+          retention-days: 1
+          path: /tmp/env.tar
+
+  lint:
+    needs: setup
+    runs-on: ubuntu-22.04
+
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Download environment
+        uses: actions/download-artifact@v7
+        with:
+          name: environment
+          path: /tmp
+
+      - name: Restore environment
+        run: tar xf /tmp/env.tar
+
+      - name: Activate virtualenv for later steps
+        run: |
+          echo "VIRTUAL_ENV=$(pwd)/.venv" >> $GITHUB_ENV
+          echo "$(pwd)/.venv/bin" >> $GITHUB_PATH
+
+      - name: Check import sorting
+        if: success() || failure()
+        run: isort --diff --check-only .
+
+      - name: Check headers
+        if: success() || failure()
+        run: |
+          echo '::add-matcher::.github/matchers/headers-problem-matcher.json'
+          unbehead --check
+          echo '::remove-matcher owner=headers::'
+
+      - name: Run ruff
+        if: success() || failure()
+        run: |
+          ruff check --output-format github .
+
+  test-plugin:
+    needs: setup
+    runs-on: ubuntu-22.04
+
+    defaults:
+      run:
+        shell: bash
+
+    services:
+      postgres:
+        image: postgres:14
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432
+        options: --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+
+    strategy:
+      matrix:
+        include:
+          - plugin: some_plugin
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Pick Indico plugins repo
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_BODY: ${{ github.event_name == 'pull_request' && github.event.pull_request.body }}
+          PR_BASE_REF: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.ref }}
+        run: python .github/utils/get_core_repo.py indico/indico-plugins PLUGINS
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Download environment
+        uses: actions/download-artifact@v7
+        with:
+          name: environment
+          path: /tmp
+
+      - name: Restore environment
+        run: tar xf /tmp/env.tar
+
+      - name: Activate virtualenv for later steps
+        run: |
+          echo "VIRTUAL_ENV=$(pwd)/.venv" >> $GITHUB_ENV
+          echo "$(pwd)/.venv/bin" >> $GITHUB_PATH
+
+      - name: Install plugin
+        run: |
+          cd "${GITHUB_WORKSPACE}/${{ matrix.plugin }}"
+          uv pip install -e .
+
+      - name: Install redis
+        run: sudo apt-get install redis-server
+
+      - name: Setup database
+        run: |
+          export PGHOST=localhost
+          export PGPORT=${{ job.services.postgres.ports[5432] }}
+          export PGUSER=postgres
+          createuser indicotest
+          createdb -O indicotest indicotest
+          psql indicotest -c 'CREATE EXTENSION unaccent;'
+          psql indicotest -c 'CREATE EXTENSION pg_trgm;'
+
+      - name: Run tests
+        run: |
+          export INDICO_TEST_DATABASE_URI="postgresql://indicotest@localhost:${{ job.services.postgres.ports[5432] }}/indicotest"
+          cd "${GITHUB_WORKSPACE}/${{ matrix.plugin }}"
+          pytest --color=yes

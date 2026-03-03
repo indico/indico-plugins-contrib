@@ -1,0 +1,69 @@
+name: Build
+
+env:
+  PYTHON_VERSION: '3.12'
+  TZ: Europe/Zurich
+
+on:
+  push:
+    branches:
+      - 'master'
+      - '*.x'
+  pull_request:
+    branches:
+      - 'master'
+      - '*.x'
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - labeled
+  workflow_dispatch:
+    inputs:
+      add-version-suffix:
+        type: boolean
+        default: true
+        description: Append version suffix
+      plugin-name:
+        description: Build specific plugin
+        type: choice
+        options:
+          - ''  # all plugins
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build plugins 🏗
+    uses: indico/indico-gh-actions/.github/workflows/build-plugins.yml@master
+    with:
+      directory: cern
+      extra-plugins-repo: indico/indico-plugins
+      extra-plugins-dir: public
+      add-version-suffix: ${{ github.event_name != 'workflow_dispatch' || inputs.add-version-suffix }}
+      plugin: ${{ github.event_name == 'workflow_dispatch' && inputs.plugin-name }}
+
+  bundle:
+    name: Bundle wheels 📦
+    needs: build
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v7
+        with:
+          merge-multiple: true
+          pattern: plugin-wheel-*
+          path: dist
+      - name: List artifacts 📃
+        run: ls -al dist/
+      - uses: actions/upload-artifact@v6
+        name: Upload build artifacts 📦
+        with:
+          name: plugin-wheels
+          retention-days: 7
+          path: dist
+      - name: Delete individual artifacts 🚮
+        uses: geekyeggo/delete-artifact@v5
+        with:
+          name: plugin-wheel-*

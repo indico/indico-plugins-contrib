@@ -1,0 +1,158 @@
+name: PyPI release 🐍 📦
+
+env:
+  PYTHON_VERSION: '3.12'
+  TZ: Europe/Zurich
+
+on:
+  push:
+    tags:
+      - 'v*'
+      - '!v0.*'
+      - '!v1.*'
+      - '!v2.*'
+      - '!v3.0'
+      - '!v3.0.*'
+      - '!v3.1'
+      - '!v3.1.*'
+      - '!v3.2'
+      - '!v3.2.*'
+      - '!*\+docs'
+  workflow_dispatch:
+    inputs:
+      plugin-name:
+        description: Plugin name
+        required: true
+        type: choice
+        options:
+          - ''  # this is invalid for a `required` dropdown so we force a choice instead of preselecting the first one
+
+permissions:
+  contents: read
+
+jobs:
+  check-version:
+    name: Check version
+    runs-on: ubuntu-22.04
+    if: github.event_name != 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        name: Set up Python 🐍
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Check version 🔍
+        run: python .github/utils/check_version.py "${GITHUB_REF#refs/tags/v}"
+
+  build:
+    name: Build plugins 🏗
+    needs: check-version
+    if: ${{ !cancelled() && !failure() }}
+    uses: indico/indico-gh-actions/.github/workflows/build-plugins.yml@master
+    with:
+      directory: public
+      add-version-suffix: false
+      plugin: ${{ github.event_name == 'workflow_dispatch' && inputs.plugin-name }}
+
+  test-install:
+    name: Test installing plugins
+    needs: build
+    if: ${{ !cancelled() && !failure() && needs.build.result == 'success' }}
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Download build artifacts 📦
+        uses: actions/download-artifact@v7
+        with:
+          merge-multiple: true
+          pattern: plugin-wheel-*
+          path: wheels
+
+      - name: Set up Python 🐍
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Install Indico 🔧
+        run: |
+          sudo apt-get install libpq-dev
+          uv pip install --system indico
+
+      - name: Install plugins 🧩
+        run: uv pip install --system wheels/*.whl
+
+      - name: List plugins 🧩
+        run: indico setup list-plugins
+
+  create-github-release:
+    name: Create GitHub release 🐙
+    # Upload wheel to a GitHub release. It remains available as a build artifact for a while as well.
+    needs:
+      - build
+      - test-install
+    if: ${{ !cancelled() && !failure() && github.event_name != 'workflow_dispatch' }}
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - name: Download build artifacts 📦
+        uses: actions/download-artifact@v7
+        with:
+          merge-multiple: true
+          pattern: plugin-wheel-*
+          path: dist
+      - name: Create draft release 🐙
+        run: >-
+          gh release create
+          --draft
+          --repo ${{ github.repository }}
+          --title ${{ github.ref_name }}
+          ${{ github.ref_name }}
+          dist/*
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+  publish-pypi:
+    name: Publish 🚀
+    needs:
+      - build
+      - test-install
+      - create-github-release
+    if: ${{ !cancelled() && !failure() && needs.build.result == 'success' }}
+    # Wait for approval before attempting to upload to PyPI. This allows reviewing the
+    # files in the draft release.
+    environment: publish
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          merge-multiple: true
+          pattern: plugin-wheel-*
+          path: dist
+      # Try uploading to Test PyPI first, in case something fails.
+      - name: Publish to Test PyPI 🧪
+        uses: pypa/gh-action-pypi-publish@v1.13.0
+        with:
+          repository-url: https://test.pypi.org/legacy/
+          packages-dir: dist/
+          skip-existing: true
+          attestations: false
+      - name: Publish to PyPI 🚀
+        uses: pypa/gh-action-pypi-publish@v1.13.0
+        with:
+          packages-dir: dist/
+          skip-existing: true
+      - name: Publish GitHub release 🐙
+        if: github.event_name != 'workflow_dispatch'
+        run: >-
+          gh release edit
+          --draft=false
+          --repo ${{ github.repository }}
+          ${{ github.ref_name }}
+        env:
+          GH_TOKEN: ${{ github.token }}
