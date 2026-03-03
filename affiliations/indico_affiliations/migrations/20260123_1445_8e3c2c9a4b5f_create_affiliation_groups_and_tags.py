@@ -80,7 +80,6 @@ def upgrade():
     )
     op.create_index(None, 'affiliation_tag_links', ['tag_id'], schema='plugin_affiliations')
 
-
     op.create_table(
         'group_tag_links',
         sa.Column('group_id', sa.Integer(), nullable=False),

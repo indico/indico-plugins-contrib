@@ -5,10 +5,10 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-from indico_patcher import patch
-
 from indico.core.db import db
 from indico.modules.users.models.affiliations import Affiliation
+
+from indico_patcher import patch
 
 
 @patch(Affiliation)
