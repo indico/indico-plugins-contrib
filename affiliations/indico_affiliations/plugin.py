@@ -15,8 +15,7 @@ from indico.modules.users.schemas import AffiliationArgs, AffiliationSchema
 from indico.modules.users.views import WPAffiliationsDashboard
 
 from indico_affiliations.blueprint import blueprint
-from indico_affiliations.schemas import (AffiliationContactListSchema, AffiliationExtraAttrsArgs,
-                                         AffiliationGroupSchema, AffiliationTagSchema)
+from indico_affiliations.schemas import AffiliationExtraAttrsArgs, AffiliationExtraAttrsSchema
 from indico_affiliations.util import populate_contacts, populate_memberships
 
 
@@ -54,16 +53,8 @@ class AffiliationsPlugin(IndicoPlugin):
         return blueprint
 
     def _extend_affiliation_schema(self, sender, data, orig, **kwargs):
-        group_schema = AffiliationGroupSchema(many=True, exclude=('meta',))
-        tag_schema = AffiliationTagSchema(many=True)
-        contact_list_schema = AffiliationContactListSchema(many=True)
         for dump_data, affiliation in zip(data, orig, strict=True):
-            groups = sorted(affiliation.groups, key=lambda item: item.code.lower())
-            tags = sorted(affiliation.tags, key=lambda item: item.code.lower())
-            contacts = sorted(affiliation.contacts, key=lambda item: item.name.lower())
-            dump_data['contacts'] = contact_list_schema.dump(contacts)
-            dump_data['groups'] = group_schema.dump(groups)
-            dump_data['tags'] = tag_schema.dump(tags)
+            dump_data.update(AffiliationExtraAttrsSchema().dump(affiliation))
 
     def _capture_affiliation_extra_attrs(self, sender, data, **kwargs):
         g.affiliations_extra_attrs = AffiliationExtraAttrsArgs().load(data)

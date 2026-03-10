@@ -213,8 +213,6 @@ class RHAffiliationGroup(RHAdminBase):
     @use_kwargs({'group': ModelField(AffiliationGroup, filter_deleted=True, required=True, data_key='group_id')},
                 location='view_args')
     def _process_args(self, group):
-        if group.system:
-            raise Forbidden
         RHAdminBase._process_args(self)
         self.group = group
 
@@ -225,7 +223,11 @@ class RHAffiliationGroup(RHAdminBase):
     def _process_PATCH(self, data):
         if not data:
             return '', 204
-        changes = self.group.populate_from_dict(data, skip={'tags'})
+        if self.group.system:
+            changes = {}
+        else:
+            changes = self.group.populate_from_dict(data, skip={'tags'})
+        # we allow assigning tags for system groups
         changes = populate_memberships(self.group, data, keys={'tags'}, changes=changes)
         log_fields = {
             'name': 'Name',

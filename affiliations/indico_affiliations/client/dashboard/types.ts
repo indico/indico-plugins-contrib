@@ -28,4 +28,5 @@ export interface ExtendedAffiliation extends Affiliation {
   contacts: ContactList[];
   groups: GroupInfo[];
   tags: TagInfo[];
+  group_tags: TagInfo[];
 }
