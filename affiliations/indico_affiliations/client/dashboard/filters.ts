@@ -10,8 +10,77 @@ import {Translate} from 'indico/react/i18n';
 import {ExtendedAffiliation, GroupInfo, TagInfo} from './types';
 
 const NO_ITEMS_VALUE = '__NO_ITEMS__';
+const UNNAMED_LIST_VALUE = '__UNNAMED_LIST__';
+const LIST_FILTER_PREFIX = 'contact_list:';
+const LIST_FILTER_ABSENT_PREFIX = 'contact_list_absent:';
 
 const getSafeId = (item: GroupInfo | TagInfo) => `I${item.id}`;
+const getContactListFilterValue = (name: string) =>
+  `${LIST_FILTER_PREFIX}${name || UNNAMED_LIST_VALUE}`;
+const getContactListAbsentFilterValue = (name: string) =>
+  `${LIST_FILTER_ABSENT_PREFIX}${name || UNNAMED_LIST_VALUE}`;
+
+const BASE_REPRESENTATION_OPTIONS = [
+  {
+    value: 'has_contact_emails',
+    text: Translate.string('Has contact emails'),
+    exclusive: true,
+  },
+  {
+    value: 'no_contact_emails',
+    text: Translate.string('No contact emails'),
+    exclusive: true,
+  },
+];
+
+const buildRepresentationOptions = (affiliations: ExtendedAffiliation[]) => {
+  const listNamesByKey = new Map<string, string>();
+  let hasNamedList = false;
+  let hasUnnamedList = false;
+  affiliations.forEach(affiliation => {
+    affiliation.contacts.forEach(contact => {
+      const normalizedName = contact.name.trim();
+      if (!normalizedName) {
+        hasUnnamedList = true;
+        return;
+      }
+      hasNamedList = true;
+      const key = normalizedName.toLocaleLowerCase();
+      if (!listNamesByKey.has(key)) {
+        listNamesByKey.set(key, normalizedName);
+      }
+    });
+  });
+
+  if (!hasNamedList) {
+    return BASE_REPRESENTATION_OPTIONS;
+  }
+
+  const listOptions = Array.from(listNamesByKey.values())
+    .sort((a, b) => a.localeCompare(b))
+    .flatMap(name => [
+      {
+        value: getContactListFilterValue(name),
+        text: Translate.string('Has contacts in "{name}"', {name}),
+      },
+      {
+        value: getContactListAbsentFilterValue(name),
+        text: Translate.string('No contacts in "{name}"', {name}),
+      },
+    ]);
+  if (hasUnnamedList) {
+    listOptions.push({
+      value: getContactListFilterValue(''),
+      text: Translate.string('Has contacts in unnamed list'),
+    });
+    listOptions.push({
+      value: getContactListAbsentFilterValue(''),
+      text: Translate.string('No contacts in unnamed list'),
+    });
+  }
+
+  return [...BASE_REPRESENTATION_OPTIONS, ...listOptions];
+};
 
 const buildGroupOptions = (affiliations: ExtendedAffiliation[]) => {
   const groupsById = new Map<number, GroupInfo>();
@@ -68,6 +137,7 @@ const buildTagOptions = (affiliations: ExtendedAffiliation[]) => {
 };
 
 const affiliationFilters = ({affiliations}: {affiliations: ExtendedAffiliation[]}) => {
+  const representationOptions = buildRepresentationOptions(affiliations);
   const groupOptions = buildGroupOptions(affiliations);
   const tagOptions = buildTagOptions(affiliations);
 
@@ -75,26 +145,29 @@ const affiliationFilters = ({affiliations}: {affiliations: ExtendedAffiliation[]
     {
       key: 'representation',
       text: Translate.string('Representation'),
-      options: [
-        {
-          value: 'has_contact_emails',
-          text: Translate.string('Has contact emails'),
-          exclusive: true,
-        },
-        {
-          value: 'no_contact_emails',
-          text: Translate.string('No contact emails'),
-          exclusive: true,
-        },
-      ],
+      options: representationOptions,
       isMatch: (entry: {affiliation: ExtendedAffiliation}, selectedValues: string[]) => {
         if (!selectedValues.length) {
           return true;
         }
         const hasContactEmails = entry.affiliation.contacts.length > 0;
+        const selectedListValues = selectedValues.filter(value =>
+          value.startsWith(LIST_FILTER_PREFIX)
+        );
+        const selectedAbsentListValues = selectedValues.filter(value =>
+          value.startsWith(LIST_FILTER_ABSENT_PREFIX)
+        );
+        const listNameValues = new Set(
+          entry.affiliation.contacts.map(contact => getContactListFilterValue(contact.name.trim()))
+        );
         return (
           (selectedValues.includes('has_contact_emails') && hasContactEmails) ||
-          (selectedValues.includes('no_contact_emails') && !hasContactEmails)
+          (selectedValues.includes('no_contact_emails') && !hasContactEmails) ||
+          selectedListValues.some(value => listNameValues.has(value)) ||
+          selectedAbsentListValues.some(
+            value =>
+              !listNameValues.has(value.replace(LIST_FILTER_ABSENT_PREFIX, LIST_FILTER_PREFIX))
+          )
         );
       },
     },
