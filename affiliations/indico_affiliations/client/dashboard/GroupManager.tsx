@@ -100,15 +100,26 @@ export default function GroupManager({addButtonContainer}: {addButtonContainer?:
           <Param name="group" value={item.name} wrapper={<strong />} />?
         </Translate>
       )}
-      renderItem={item => (
+      renderItem={group => (
         <strong>
-          {item.code}: {item.name}
+          {group.code}: {group.name}
         </strong>
       )}
-      formFields={
+      formFields={group => (
         <>
-          <FinalInput name="code" label={Translate.string('Code')} required autoFocus />
-          <FinalInput name="name" label={Translate.string('Name')} required />
+          <FinalInput
+            name="code"
+            label={Translate.string('Code')}
+            disabled={!!group?.system}
+            required
+            autoFocus
+          />
+          <FinalInput
+            name="name"
+            label={Translate.string('Name')}
+            disabled={!!group?.system}
+            required
+          />
           <FinalTagGroupInput name="tags" label={Translate.string('Tags')} options={tags || []} />
           <FinalTextArea
             name="meta"
@@ -120,9 +131,10 @@ export default function GroupManager({addButtonContainer}: {addButtonContainer?:
             parse={parseMetaValue}
             validate={validateMetaValue}
             rows={4}
+            disabled={!!group?.system}
           />
         </>
-      }
+      )}
       canEditItem={group => !group.system}
       initialValues={{code: '', name: '', meta: {}}}
       addButtonContainer={addButtonContainer}

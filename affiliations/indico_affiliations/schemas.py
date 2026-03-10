@@ -5,12 +5,15 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
+from operator import attrgetter
+
 from marshmallow import EXCLUDE, ValidationError, fields, validate, validates
 from sqlalchemy import func
 
 from indico.core.marshmallow import mm
+from indico.modules.users.models.affiliations import Affiliation
 from indico.util.i18n import _
-from indico.util.marshmallow import LowercaseString, ModelField, ModelList, not_empty
+from indico.util.marshmallow import LowercaseString, ModelField, ModelList, SortedList, not_empty
 from indico.util.string import validate_email
 from indico.web.forms.colors import get_sui_colors
 
@@ -24,7 +27,7 @@ class AffiliationGroupSchema(mm.SQLAlchemyAutoSchema):
         model = AffiliationGroup
         fields = ('id', 'name', 'code', 'tags', 'meta', 'system')
 
-    tags = ModelList(AffiliationTag)
+    tags = SortedList(ModelField(AffiliationTag), sort_key=attrgetter('code'))
     meta = fields.Dict()
 
 
@@ -34,8 +37,8 @@ class AffiliationGroupArgs(mm.Schema):
 
     code = fields.String(required=True, validate=not_empty)
     name = fields.String(required=True, validate=not_empty)
-    tags = ModelList(AffiliationTag, filter_deleted=True, collection_class=set)
-    meta = fields.Dict()
+    tags = ModelList(AffiliationTag, filter_deleted=True, collection_class=set, load_default=set)
+    meta = fields.Dict(load_default=dict)
 
     @validates('code')
     def _check_for_unique_group_code(self, code, **kwargs):
@@ -83,6 +86,27 @@ class AffiliationContactListArgs(mm.Schema):
     id = ModelField(AffiliationContactList, load_default=None, allow_none=True)
     name = fields.String(load_default='')
     emails = fields.List(LowercaseString(validate=validate.Email()), required=True, validate=not_empty)
+
+
+class AffiliationExtraAttrsSchema(mm.SQLAlchemyAutoSchema):
+    class Meta:
+        model = Affiliation
+        fields = ('contacts', 'groups', 'tags', 'group_tags')
+
+    contacts = fields.List(fields.Nested(AffiliationContactListSchema))
+    groups = SortedList(fields.Nested(AffiliationGroupSchema(exclude=('meta',))), sort_key=attrgetter('code'))
+    tags = SortedList(fields.Nested(AffiliationTagSchema), sort_key=attrgetter('code'))
+    group_tags = fields.Method('_get_group_tags')
+
+    def _get_group_tags(self, affiliation):
+        group_tags = {
+            tag
+            for group in affiliation.groups
+            for tag in group.tags
+            if tag not in affiliation.tags
+        }
+        group_tags = sorted(group_tags, key=attrgetter('code'))
+        return AffiliationTagSchema(many=True).dump(group_tags)
 
 
 class AffiliationExtraAttrsArgs(mm.Schema):

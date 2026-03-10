@@ -37,8 +37,8 @@ function AffiliationGroupsCell({groups}: {groups: GroupInfo[]}) {
   );
 }
 
-function AffiliationTagsCell({tags}: {tags: TagInfo[]}) {
-  if (!tags.length) {
+function AffiliationTagsCell({tags, groupTags}: {tags: TagInfo[]; groupTags: TagInfo[]}) {
+  if (!tags.length && !groupTags?.length) {
     return '-';
   }
 
@@ -49,6 +49,13 @@ function AffiliationTagsCell({tags}: {tags: TagInfo[]}) {
           key={tag.id}
           content={tag.name}
           trigger={<Label size="tiny" color={tag.color} content={tag.code} />}
+        />
+      ))}
+      {groupTags?.map(tag => (
+        <Popup
+          key={tag.id}
+          content={Translate.string('{tagName} (Inherited)', {tagName: tag.name})}
+          trigger={<Label size="tiny" color={tag.color} content={tag.code} basic />}
         />
       ))}
     </div>
@@ -64,7 +71,9 @@ const dashboardColumns = [
   {
     key: 'affiliation-tags',
     label: Translate.string('Tags'),
-    cellRenderer: ({rowData}) => <AffiliationTagsCell tags={rowData.tags} />,
+    cellRenderer: ({rowData}) => (
+      <AffiliationTagsCell tags={rowData.tags} groupTags={rowData.group_tags} />
+    ),
   },
 ];
 

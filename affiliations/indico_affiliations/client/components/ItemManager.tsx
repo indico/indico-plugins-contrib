@@ -54,7 +54,7 @@ interface ItemManagerProps<T extends ItemBase> {
   editDisabledReason?: string;
   confirmDeleteText: (item: T) => React.ReactNode;
   renderItem: (item: T) => React.ReactNode;
-  formFields: React.ReactNode;
+  formFields: React.ReactNode | ((item?: T) => React.ReactNode);
   initialValues: Partial<T>;
   addButtonContainer?: Element;
 }
@@ -134,7 +134,6 @@ export default function ItemManager<T extends ItemBase>({
                     size="small"
                     title={editItemLabel}
                     onClick={() => dispatch({type: 'EDIT_ITEM', item})}
-                    disabled={!canEditItem(item)}
                     circular
                     inverted
                   />{' '}
@@ -170,7 +169,7 @@ export default function ItemManager<T extends ItemBase>({
           initialValues={currentItem || initialValues}
           onClose={() => dispatch({type: 'CLEAR'})}
         >
-          {formFields}
+          {typeof formFields === 'function' ? formFields(currentItem) : formFields}
         </ItemModal>
       )}
       <RequestConfirmDelete
