@@ -15,12 +15,13 @@ from indico.modules.users.schemas import AffiliationArgs, AffiliationSchema
 from indico.modules.users.views import WPAffiliationsDashboard
 
 from indico_affiliations.blueprint import blueprint
-from indico_affiliations.schemas import AffiliationExtraAttrsArgs, AffiliationGroupSchema, AffiliationTagSchema
-from indico_affiliations.util import populate_memberships
+from indico_affiliations.schemas import (AffiliationContactListSchema, AffiliationExtraAttrsArgs,
+                                         AffiliationGroupSchema, AffiliationTagSchema)
+from indico_affiliations.util import populate_contacts, populate_memberships
 
 
 AFFILIATION_EXTRA_FIELDS = {
-    'contact_emails': {'title': 'Contact Emails', 'type': 'list'},
+    'contacts': {'title': 'Contact lists', 'type': 'list'},
     'groups': {'title': 'Groups', 'type': 'list'},
     'tags': {'title': 'Tags', 'type': 'list'}
 }
@@ -55,24 +56,24 @@ class AffiliationsPlugin(IndicoPlugin):
     def _extend_affiliation_schema(self, sender, data, orig, **kwargs):
         group_schema = AffiliationGroupSchema(many=True, exclude=('meta',))
         tag_schema = AffiliationTagSchema(many=True)
+        contact_list_schema = AffiliationContactListSchema(many=True)
         for dump_data, affiliation in zip(data, orig, strict=True):
             groups = sorted(affiliation.groups, key=lambda item: item.code.lower())
             tags = sorted(affiliation.tags, key=lambda item: item.code.lower())
-            dump_data['contact_emails'] = affiliation.contact_emails
+            contacts = sorted(affiliation.contacts, key=lambda item: item.name.lower())
+            dump_data['contacts'] = contact_list_schema.dump(contacts)
             dump_data['groups'] = group_schema.dump(groups)
             dump_data['tags'] = tag_schema.dump(tags)
 
     def _capture_affiliation_extra_attrs(self, sender, data, **kwargs):
-        extra_attrs = AFFILIATION_EXTRA_FIELDS.keys() & data.keys()
-        if not extra_attrs:
-            return
-        extra_data = {k: data.pop(k) for k in extra_attrs}
-        g.affiliations_extra_attrs = AffiliationExtraAttrsArgs().load(extra_data)
+        g.affiliations_extra_attrs = AffiliationExtraAttrsArgs().load(data)
 
     def _set_affiliation_extra_attrs(self, affiliation, **kwargs):
         pending = g.pop('affiliations_extra_attrs', {})
-        if 'contact_emails' in pending:
-            changes = affiliation.populate_from_dict({'contact_emails': pending.pop('contact_emails')})
+        log_fields = dict(AFFILIATION_EXTRA_FIELDS)
+        if 'contacts' in pending:
+            changes, extra_log_fields = populate_contacts(affiliation, pending.pop('contacts'))
+            log_fields.update(extra_log_fields)
         else:
             changes = {}
         if changes := populate_memberships(affiliation, pending, changes=changes):
@@ -82,5 +83,5 @@ class AffiliationsPlugin(IndicoPlugin):
                 'Affiliations',
                 f'Extended attributes of affiliation "{affiliation.name}" modified',
                 session.user,
-                data={'Changes': make_diff_log(changes, AFFILIATION_EXTRA_FIELDS)}
+                data={'Changes': make_diff_log(changes, log_fields)}
             )

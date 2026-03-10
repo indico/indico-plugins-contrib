@@ -5,15 +5,16 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-from marshmallow import ValidationError, fields, validate, validates
+from marshmallow import EXCLUDE, ValidationError, fields, validate, validates
 from sqlalchemy import func
 
 from indico.core.marshmallow import mm
 from indico.util.i18n import _
-from indico.util.marshmallow import LowercaseString, ModelList, not_empty
+from indico.util.marshmallow import LowercaseString, ModelField, ModelList, not_empty
 from indico.util.string import validate_email
 from indico.web.forms.colors import get_sui_colors
 
+from indico_affiliations.models.contacts import AffiliationContactList
 from indico_affiliations.models.groups import AffiliationGroup
 from indico_affiliations.models.tags import AffiliationTag
 
@@ -70,13 +71,37 @@ class AffiliationTagArgs(mm.Schema):
             raise ValidationError('Tag code must be unique')
 
 
+class AffiliationContactListSchema(mm.SQLAlchemyAutoSchema):
+    class Meta:
+        model = AffiliationContactList
+        fields = ('id', 'name', 'emails')
+
+    emails = fields.List(LowercaseString())
+
+
+class AffiliationContactListArgs(mm.Schema):
+    id = ModelField(AffiliationContactList, load_default=None, allow_none=True)
+    name = fields.String(load_default='')
+    emails = fields.List(LowercaseString(validate=validate.Email()), required=True, validate=not_empty)
+
+
 class AffiliationExtraAttrsArgs(mm.Schema):
-    contact_emails = fields.List(LowercaseString())
+    class Meta:
+        unknown = EXCLUDE
+
+    contacts = fields.List(fields.Nested(AffiliationContactListArgs))
     groups = ModelList(AffiliationGroup, filter_deleted=True, collection_class=set)
     tags = ModelList(AffiliationTag, filter_deleted=True, collection_class=set)
 
-    @validates('contact_emails')
-    def _validate_contact_emails(self, emails, **kwargs):
-        for email in emails:
-            if not validate_email(email):
-                raise ValidationError(_('Invalid email address: {email}').format(email=email))
+    @validates('contacts')
+    def _validate_contacts(self, contacts, **kwargs):
+        ids = [lst['id'].id for lst in contacts if lst.get('id') is not None]
+        if len(ids) != len(set(ids)):
+            raise ValidationError('Contact list IDs must be unique')
+        names = {lst['name'].lower() for lst in contacts}
+        if len(names) != len(contacts):
+            raise ValidationError('Contact list names must be unique')
+        for lst in contacts:
+            for email in lst['emails']:
+                if not validate_email(email):
+                    raise ValidationError(_('Invalid email address: {email}').format(email=email))

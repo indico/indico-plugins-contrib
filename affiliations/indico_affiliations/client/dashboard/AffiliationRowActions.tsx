@@ -26,11 +26,11 @@ export default function AffiliationRowActions({affiliation}: {affiliation: Exten
     <>
       <Icon
         name="mail"
-        link={affiliation.contact_emails.length > 0}
+        link={affiliation.contacts.length > 0}
         title={Translate.string('Email representatives')}
         color="grey"
         onClick={openModal('email')}
-        disabled={affiliation.contact_emails.length === 0}
+        disabled={affiliation.contacts.length === 0}
       />
       {modal}
     </>

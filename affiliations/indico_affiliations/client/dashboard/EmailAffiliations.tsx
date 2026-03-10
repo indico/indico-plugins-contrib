@@ -11,7 +11,7 @@ import emailPreviewURL from 'indico-url:plugin_affiliations.email_representative
 import emailImageUploadURL from 'indico-url:plugin_affiliations.email_representatives_image_upload';
 
 import {AxiosResponse} from 'axios';
-import React from 'react';
+import React, {useState} from 'react';
 import {Dimmer, Loader, Message, Form, Modal, List, Accordion} from 'semantic-ui-react';
 
 import {EmailDialog} from 'indico/modules/events/persons/EmailDialog';
@@ -49,17 +49,23 @@ function RecipientsList({
   const content = (
     <List celled>
       {affiliations.map((affiliation: ExtendedAffiliation) => {
-        const hasEmails = affiliation.contact_emails.length > 0;
+        const hasEmails = affiliation.contacts.length > 0;
         const invalidEmails = invalidAffiliations.get(affiliation.id) || [];
         const hasValidEmails =
-          hasEmails && affiliation.contact_emails.some(email => !invalidEmails.includes(email));
+          hasEmails &&
+          affiliation.contacts.some(list =>
+            list.emails.some(email => !invalidEmails.includes(email))
+          );
         return (
           <List.Item
             key={affiliation.id}
             icon={
               hasValidEmails && !invalidEmails.length
                 ? 'group'
-                : {name: 'warning sign', color: hasValidEmails ? 'orange' : 'red'}
+                : {
+                    name: 'warning sign',
+                    color: hasValidEmails ? 'orange' : 'red',
+                  }
             }
             content={
               <>
@@ -86,15 +92,17 @@ function RecipientsList({
                       </Translate>
                     )}
                     <List.List>
-                      {affiliation.contact_emails.map(email => (
-                        <List.Item
-                          key={email}
-                          className="mono"
-                          styleName={invalidEmails.includes(email) ? 'error' : undefined}
-                        >
-                          {email}
-                        </List.Item>
-                      ))}
+                      {affiliation.contacts.map(list =>
+                        list.emails.map(email => (
+                          <List.Item
+                            key={email}
+                            className="mono"
+                            styleName={invalidEmails.includes(email) ? 'error' : undefined}
+                          >
+                            {email}
+                          </List.Item>
+                        ))
+                      )}
                     </List.List>
                   </>
                 )}
@@ -127,8 +135,10 @@ export default function EmailAffiliations({
   affiliations: ExtendedAffiliation[];
   onClose: () => void;
 }) {
+  const [contactLists, setContactLists] = useState<string[]>([]);
   const recipientData = {
     affiliation_ids: affiliations.map(a => a.id),
+    contact_lists: contactLists,
   };
   const {data, loading} = useIndicoAxios(
     {
@@ -163,7 +173,7 @@ export default function EmailAffiliations({
   };
 
   const affiliationsWithoutEmails = affiliations.reduce(
-    (n, a) => n + (a.contact_emails.length === 0 ? 1 : 0),
+    (n, a) => n + (a.contacts.length === 0 ? 1 : 0),
     0
   );
 
@@ -218,7 +228,13 @@ export default function EmailAffiliations({
             )}
           </Modal.Content>
         }
-        actions={[{key: 'close', content: Translate.string('Close'), onClick: onClose}]}
+        actions={[
+          {
+            key: 'close',
+            content: Translate.string('Close'),
+            onClick: onClose,
+          },
+        ]}
       />
     );
   }

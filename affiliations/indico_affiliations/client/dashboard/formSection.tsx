@@ -10,11 +10,11 @@ import tagsURL from 'indico-url:plugin_affiliations.api_affiliation_tags';
 
 import React from 'react';
 
-import {FinalEmailList} from 'indico/react/components';
 import {Translate} from 'indico/react/i18n';
 import {useIndicoAxios} from 'indico/react/hooks';
 
 import FinalTagGroupInput from '../components/AffiliationTagGroupInput';
+import FinalContactList from '../components/ContactListField';
 
 function GroupsTagsSection() {
   const {data: groups} = useIndicoAxios(groupsURL({}));
@@ -40,13 +40,7 @@ const formSection = [
     key: 'affiliations-representation',
     title: Translate.string('Representation'),
     content: {
-      content: (
-        <FinalEmailList
-          name="contact_emails"
-          label={Translate.string('Contact Emails')}
-          format={(value: string[] | '') => (Array.isArray(value) ? value : [])}
-        />
-      ),
+      content: <FinalContactList name="contacts" />,
     },
   },
 ];

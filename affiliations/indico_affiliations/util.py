@@ -13,10 +13,13 @@ from urllib.parse import urlsplit
 
 from lxml import html
 
+from indico.core.db import db
+from indico.core.errors import UserValueError
 from indico.modules.files.models.files import File
 from indico.modules.users.models.affiliations import Affiliation
 from indico.util.signing import secure_serializer
 
+from indico_affiliations.models.contacts import AffiliationContactList
 from indico_affiliations.models.groups import AffiliationGroup
 from indico_affiliations.models.tags import AffiliationTag
 
@@ -26,7 +29,8 @@ class _Memberships(TypedDict):
     tags: NotRequired[set[AffiliationTag]]
 
 
-type _Changes = dict[str, tuple[list[str], list[str]]]
+type _Changes = dict[str, tuple[object, object]]
+type _LogFields = dict[str, str | dict[str, object]]
 
 
 IMAGE_TOKEN_SALT = 'affiliations-email-image'  # noqa: S105 - serializer salt identifier, not a credential
@@ -125,6 +129,70 @@ def populate_memberships(obj: Affiliation | AffiliationGroup, memberships: _Memb
         elif old_value != new_value:
             changes[key] = (old_value, new_value)
     return changes
+
+
+def serialize_contact_lists(contacts: list[AffiliationContactList]) -> dict[int, dict]:
+    return {
+        item.id: {
+            'name': item.name or '(unnamed list)',
+            'emails': sorted(item.emails),
+        }
+        for item in contacts
+    }
+
+
+def populate_contacts(affiliation: Affiliation, contacts: list[dict]) -> tuple[_Changes, _LogFields]:
+    existing_by_id = {item.id: item for item in affiliation.contacts}
+    used_ids = set()
+    touched_ids = set()
+
+    old_contacts = serialize_contact_lists(affiliation.contacts)
+    for contact_data in contacts:
+        contact = contact_data.get('id')
+        if contact is None:
+            contact = AffiliationContactList()
+            affiliation.contacts.append(contact)
+        else:
+            contact_id = contact.id
+            if contact_id in used_ids:
+                raise UserValueError('Contact list IDs must be unique')
+            if contact_id not in existing_by_id:
+                raise UserValueError('Contact list does not belong to this affiliation')
+            touched_ids.add(contact_id)
+            used_ids.add(contact_id)
+        contact.name = contact_data['name']
+        contact.emails = contact_data['emails']
+
+    for contact_id, contact in existing_by_id.items():
+        if contact_id not in touched_ids:
+            affiliation.contacts.remove(contact)
+
+    db.session.flush()
+    new_contacts = serialize_contact_lists(affiliation.contacts)
+    if old_contacts == new_contacts:
+        return {}, {}
+    changes = {}
+    log_fields: _LogFields = {}
+
+    # List names changes
+    old_summary = sorted((lst['name'] for lst in old_contacts.values()), key=str.lower)
+    new_summary = sorted((lst['name'] for lst in new_contacts.values()), key=str.lower)
+    if old_summary != new_summary:
+        changes['contacts'] = (old_summary, new_summary)
+
+    # Individual list changes
+    for id_ in old_contacts.keys() | new_contacts.keys():
+        old_data = old_contacts.get(id_, {})
+        new_data = new_contacts.get(id_, {})
+        old_emails = old_data.get('emails', [])
+        new_emails = new_data.get('emails', [])
+        if old_emails == new_emails:
+            continue
+        name = new_data.get('name') or old_data.get('name')
+        key = f'contacts_item_{id_}'
+        changes[key] = (old_emails, new_emails)
+        log_fields[key] = {'title': f'Contact list: {name}', 'type': 'list'}
+    return changes, log_fields
 
 
 def resolve_object_path(obj: dict | list, path: str) -> str:

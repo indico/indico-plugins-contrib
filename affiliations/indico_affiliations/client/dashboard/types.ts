@@ -9,6 +9,8 @@ import {SemanticCOLORS} from 'semantic-ui-react';
 
 import {Affiliation} from 'indico/modules/users/affiliations/types';
 
+import {ContactList} from '../components/ContactListField';
+
 export interface GroupInfo {
   id: number;
   name: string;
@@ -23,7 +25,7 @@ export interface TagInfo {
 }
 
 export interface ExtendedAffiliation extends Affiliation {
-  contact_emails: string[];
+  contacts: ContactList[];
   groups: GroupInfo[];
   tags: TagInfo[];
 }
