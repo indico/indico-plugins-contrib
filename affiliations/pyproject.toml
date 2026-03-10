@@ -12,10 +12,7 @@ classifiers = [
     'Programming Language :: Python :: 3.12',
 ]
 requires-python = '>=3.12.2, <3.13'
-dependencies = [
-    'indico>=3.3.10',
-    'indico-patcher>=0.3.2'
-]
+dependencies = ['indico>=3.3.10']
 
 [project.urls]
 GitHub = 'https://github.com/indico/indico-plugins-contrib'

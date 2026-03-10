@@ -18,13 +18,18 @@ depends_on = None
 
 
 def upgrade():
-    op.add_column(
-        'affiliations',
-        sa.Column('contact_emails', postgresql.ARRAY(sa.String()), nullable=False, server_default='{}'),
-        schema='indico',
+    op.create_table('affiliation_contact_lists',
+        sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
+        sa.Column('affiliation_id', sa.Integer(), nullable=False),
+        sa.Column('name', sa.String(), nullable=False),
+        sa.Column('emails', postgresql.ARRAY(sa.String()), nullable=False),
+        sa.ForeignKeyConstraint(['affiliation_id'], ['indico.affiliations.id'], ondelete='CASCADE'),
+        sa.PrimaryKeyConstraint('id'),
+        schema='plugin_affiliations'
     )
-    op.alter_column('affiliations', 'contact_emails', server_default=None, schema='indico')
+    op.create_index(None, 'affiliation_contact_lists', ['affiliation_id', sa.text('lower(name)')], unique=True,
+                    schema='plugin_affiliations')
 
 
 def downgrade():
-    op.drop_column('affiliations', 'contact_emails', schema='indico')
+    op.drop_table('affiliation_contact_lists', schema='plugin_affiliations')

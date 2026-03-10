@@ -22,7 +22,11 @@ const buildGroupOptions = (affiliations: ExtendedAffiliation[]) => {
       }
     });
     if (affiliation.groups.length === 0 && !groupsById.has(-1)) {
-      groupsById.set(-1, {id: -1, code: Translate.string('No groups'), name: ''});
+      groupsById.set(-1, {
+        id: -1,
+        code: Translate.string('No groups'),
+        name: '',
+      });
     }
   });
 
@@ -44,7 +48,12 @@ const buildTagOptions = (affiliations: ExtendedAffiliation[]) => {
       }
     });
     if (affiliation.tags.length === 0 && !tagsById.has(-1)) {
-      tagsById.set(-1, {id: -1, code: '', name: Translate.string('No tags'), color: undefined});
+      tagsById.set(-1, {
+        id: -1,
+        code: '',
+        name: Translate.string('No tags'),
+        color: undefined,
+      });
     }
   });
 
@@ -72,13 +81,17 @@ const affiliationFilters = ({affiliations}: {affiliations: ExtendedAffiliation[]
           text: Translate.string('Has contact emails'),
           exclusive: true,
         },
-        {value: 'no_contact_emails', text: Translate.string('No contact emails'), exclusive: true},
+        {
+          value: 'no_contact_emails',
+          text: Translate.string('No contact emails'),
+          exclusive: true,
+        },
       ],
       isMatch: (entry: {affiliation: ExtendedAffiliation}, selectedValues: string[]) => {
         if (!selectedValues.length) {
           return true;
         }
-        const hasContactEmails = entry.affiliation.contact_emails.length > 0;
+        const hasContactEmails = entry.affiliation.contacts.length > 0;
         return (
           (selectedValues.includes('has_contact_emails') && hasContactEmails) ||
           (selectedValues.includes('no_contact_emails') && !hasContactEmails)
