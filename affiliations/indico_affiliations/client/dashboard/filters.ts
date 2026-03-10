@@ -111,12 +111,13 @@ const buildGroupOptions = (affiliations: ExtendedAffiliation[]) => {
 const buildTagOptions = (affiliations: ExtendedAffiliation[]) => {
   const tagsById = new Map<number, TagInfo>();
   affiliations.forEach(affiliation => {
-    affiliation.tags.forEach(tag => {
+    const tags = [...affiliation.tags, ...affiliation.group_tags];
+    tags.forEach(tag => {
       if (!tagsById.has(tag.id)) {
         tagsById.set(tag.id, tag);
       }
     });
-    if (affiliation.tags.length === 0 && !tagsById.has(-1)) {
+    if (tags.length === 0 && !tagsById.has(-1)) {
       tagsById.set(-1, {
         id: -1,
         code: '',
@@ -191,13 +192,14 @@ const affiliationFilters = ({affiliations}: {affiliations: ExtendedAffiliation[]
       text: Translate.string('Tags'),
       options: tagOptions,
       isMatch: (entry: {affiliation: ExtendedAffiliation}, selectedValues: string[]) => {
+        const tags = [...entry.affiliation.tags, ...entry.affiliation.group_tags];
         if (
           !selectedValues.length ||
-          (selectedValues.includes(NO_ITEMS_VALUE) && entry.affiliation.tags.length === 0)
+          (selectedValues.includes(NO_ITEMS_VALUE) && tags.length === 0)
         ) {
           return true;
         }
-        const tagIds = new Set(entry.affiliation.tags.map(t => getSafeId(t)));
+        const tagIds = new Set(tags.map(t => getSafeId(t)));
         return selectedValues.some(value => tagIds.has(value));
       },
     },
