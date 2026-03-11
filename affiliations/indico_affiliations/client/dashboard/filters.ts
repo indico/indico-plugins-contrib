@@ -33,7 +33,7 @@ const BASE_REPRESENTATION_OPTIONS = [
   },
 ];
 
-const buildRepresentationOptions = (affiliations: ExtendedAffiliation[]) => {
+const buildContactsOptions = (affiliations: ExtendedAffiliation[]) => {
   const listNamesByKey = new Map<string, string>();
   let hasNamedList = false;
   let hasUnnamedList = false;
@@ -138,15 +138,15 @@ const buildTagOptions = (affiliations: ExtendedAffiliation[]) => {
 };
 
 const affiliationFilters = ({affiliations}: {affiliations: ExtendedAffiliation[]}) => {
-  const representationOptions = buildRepresentationOptions(affiliations);
+  const contactsOptions = buildContactsOptions(affiliations);
   const groupOptions = buildGroupOptions(affiliations);
   const tagOptions = buildTagOptions(affiliations);
 
   return [
     {
-      key: 'representation',
-      text: Translate.string('Representation'),
-      options: representationOptions,
+      key: 'contacts',
+      text: Translate.string('Contacts'),
+      options: contactsOptions,
       isMatch: (entry: {affiliation: ExtendedAffiliation}, selectedValues: string[]) => {
         if (!selectedValues.length) {
           return true;
