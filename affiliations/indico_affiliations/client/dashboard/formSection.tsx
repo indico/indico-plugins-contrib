@@ -37,8 +37,8 @@ const formSection = [
     },
   },
   {
-    key: 'affiliations-representation',
-    title: Translate.string('Representation'),
+    key: 'affiliations-contacts',
+    title: Translate.string('Contacts'),
     content: {
       content: <FinalContactList name="contacts" />,
     },
