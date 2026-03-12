@@ -11,56 +11,171 @@ import emailPreviewURL from 'indico-url:plugin_affiliations.email_representative
 import emailImageUploadURL from 'indico-url:plugin_affiliations.email_representatives_image_upload';
 
 import {AxiosResponse} from 'axios';
-import React, {useState} from 'react';
-import {Dimmer, Loader, Message, Form, Modal, List, Accordion} from 'semantic-ui-react';
+import React, {useState, useMemo} from 'react';
+import {Message, Dimmer, Loader, Modal, List, Accordion} from 'semantic-ui-react';
+import {FormSpy, Field, useForm} from 'react-final-form';
 
 import {EmailDialog} from 'indico/modules/events/persons/EmailDialog';
 import indicoAxios from 'indico/utils/axios';
-import {handleSubmitError} from 'indico/react/forms';
-import {Param, Plural, PluralTranslate, Singular, Translate} from 'indico/react/i18n';
+import {FinalCheckbox, FinalDropdown, handleSubmitError} from 'indico/react/forms';
+import {Plural, PluralTranslate, Singular, Translate} from 'indico/react/i18n';
 import {useIndicoAxios} from 'indico/react/hooks';
 
 import {ExtendedAffiliation} from './types';
 
 import './EmailAffiliations.module.scss';
+import {ContactList} from '../components/ContactListField';
 
 const SUCCESS_TIMEOUT = 5000;
 
-function RecipientsList({
-  affiliations,
-  invalidAffiliations,
-  recipientsCount,
-}: {
-  affiliations: ExtendedAffiliation[];
-  invalidAffiliations: Map<number, string[]>;
-  recipientsCount: number;
-}) {
-  const title = (
-    <PluralTranslate count={recipientsCount}>
-      <Singular>
-        <Param name="count" value={recipientsCount} /> recipient will receive this email.
-      </Singular>
-      <Plural>
-        <Param name="count" value={recipientsCount} /> recipients will receive this email.
-      </Plural>
-    </PluralTranslate>
+const filterContactLists = (
+  affiliation: ExtendedAffiliation,
+  contactLists: string[],
+  includeUnnamedLists: boolean
+) =>
+  affiliation.contacts.filter(
+    ({name}: ContactList) =>
+      contactLists.length === 0 ||
+      contactLists.includes(name) ||
+      (includeUnnamedLists && name === '')
   );
 
+const getAffiliationEmails = (
+  affiliation: ExtendedAffiliation,
+  contactLists: string[] = [],
+  includeUnnamedLists: boolean = true
+) =>
+  Array.from(
+    new Set(
+      filterContactLists(affiliation, contactLists, includeUnnamedLists).flatMap(
+        contactList => contactList.emails
+      )
+    )
+  );
+
+function RecipientsField({contactListOptions}: {contactListOptions: string[]}) {
+  const form = useForm();
+  return (
+    <>
+      <FinalDropdown
+        name="contact_lists"
+        label={Translate.string('Recipients')}
+        placeholder={Translate.string('Send to all contact lists')}
+        options={contactListOptions?.map((name: string) => ({value: name, text: name})) ?? []}
+        disabled={!contactListOptions?.length}
+        onChange={value => {
+          if (value.length === 0) {
+            form.change('include_unnamed_lists', true);
+          }
+        }}
+        selection
+        multiple
+        fluid
+      />
+      <Field name="contact_lists" subscription={{value: true}}>
+        {({input: {value: contactLists}}) => (
+          <FinalCheckbox
+            name="include_unnamed_lists"
+            label={Translate.string('Send to contacts in unnamed lists')}
+            disabled={!contactListOptions?.length || !contactLists.length}
+            showAsToggle
+          />
+        )}
+      </Field>
+    </>
+  );
+}
+
+interface RecipientsComponentProps {
+  affiliations: ExtendedAffiliation[];
+  invalidEmails: Set<string>;
+  contactLists: string[];
+  includeUnnamedLists: boolean;
+}
+
+function RecipientsWarning({
+  affiliations,
+  invalidEmails,
+  contactLists,
+  includeUnnamedLists,
+}: RecipientsComponentProps) {
+  const affiliationsWithoutEmails = affiliations.reduce(
+    (n, a) => n + (filterContactLists(a, contactLists, includeUnnamedLists).length === 0 ? 1 : 0),
+    0
+  );
+  return (
+    <>
+      {affiliationsWithoutEmails > 0 && (
+        <Message
+          visible
+          warning
+          icon="warning sign"
+          header={
+            contactLists.length > 0
+              ? PluralTranslate.string(
+                  '{count} affiliation does not have contact emails for the selected lists.',
+                  '{count} affiliations do not have contact emails for the selected lists.',
+                  affiliationsWithoutEmails,
+                  {
+                    count: affiliationsWithoutEmails,
+                  }
+                )
+              : PluralTranslate.string(
+                  '{count} affiliation does not have contact emails.',
+                  '{count} affiliations do not have contact emails.',
+                  affiliationsWithoutEmails,
+                  {
+                    count: affiliationsWithoutEmails,
+                  }
+                )
+          }
+          content={PluralTranslate.string(
+            'This affiliation will be skipped when sending the emails.',
+            'These affiliations will be skipped when sending the emails.',
+            affiliationsWithoutEmails
+          )}
+        />
+      )}
+      {affiliations.some(a =>
+        getAffiliationEmails(a, contactLists, includeUnnamedLists).filter(e => invalidEmails.has(e))
+      ) && (
+        <Message
+          visible
+          warning
+          icon="warning sign"
+          header={Translate.string('Some affiliations have invalid contact emails')}
+          content={Translate.string(
+            'These email addresses will be skipped when sending the emails.'
+          )}
+        />
+      )}
+    </>
+  );
+}
+
+function RecipientsList({
+  affiliations,
+  invalidEmails,
+  contactLists,
+  includeUnnamedLists,
+}: RecipientsComponentProps) {
+  const affiliationsEmails = new Map<number, string[]>(
+    affiliations.map(affiliation => [
+      affiliation.id,
+      getAffiliationEmails(affiliation, contactLists, includeUnnamedLists),
+    ])
+  );
   const content = (
     <List celled>
-      {affiliations.map((affiliation: ExtendedAffiliation) => {
-        const hasEmails = affiliation.contacts.length > 0;
-        const invalidEmails = invalidAffiliations.get(affiliation.id) || [];
-        const hasValidEmails =
-          hasEmails &&
-          affiliation.contacts.some(list =>
-            list.emails.some(email => !invalidEmails.includes(email))
-          );
+      {affiliations.map(affiliation => {
+        const emails = affiliationsEmails.get(affiliation.id);
+        const hasInvalidEmails = emails.some(e => invalidEmails.has(e));
+        const hasValidEmails = emails.some(e => !invalidEmails.has(e));
         return (
           <List.Item
             key={affiliation.id}
             icon={
-              hasValidEmails && !invalidEmails.length
+              hasValidEmails && !hasInvalidEmails
                 ? 'group'
                 : {
                     name: 'warning sign',
@@ -71,7 +186,7 @@ function RecipientsList({
               <>
                 <List.Header
                   styleName={
-                    hasValidEmails && !invalidEmails.length
+                    hasValidEmails && !hasInvalidEmails
                       ? undefined
                       : hasValidEmails
                         ? 'warning'
@@ -80,29 +195,31 @@ function RecipientsList({
                 >
                   {affiliation.name}
                 </List.Header>
-                {!hasEmails ? (
-                  <Translate as={List.Description}>
-                    This affiliation has no contact emails.
-                  </Translate>
+                {emails.length === 0 ? (
+                  <List.Description>
+                    {contactLists.length > 0
+                      ? Translate.string(
+                          'This affiliation has no contact emails for the selected lists.'
+                        )
+                      : Translate.string('This affiliation has no contact emails.')}
+                  </List.Description>
                 ) : (
                   <>
-                    {invalidAffiliations.has(affiliation.id) && (
+                    {hasInvalidEmails && (
                       <Translate as={List.Description}>
                         This affiliation has one or more invalid contact emails.
                       </Translate>
                     )}
                     <List.List>
-                      {affiliation.contacts.map(list =>
-                        list.emails.map(email => (
-                          <List.Item
-                            key={email}
-                            className="mono"
-                            styleName={invalidEmails.includes(email) ? 'error' : undefined}
-                          >
-                            {email}
-                          </List.Item>
-                        ))
-                      )}
+                      {emails.map(email => (
+                        <List.Item
+                          key={email}
+                          className="mono"
+                          styleName={invalidEmails.has(email) ? 'error' : undefined}
+                        >
+                          {email}
+                        </List.Item>
+                      ))}
                     </List.List>
                   </>
                 )}
@@ -114,12 +231,23 @@ function RecipientsList({
     </List>
   );
 
+  const count = [...affiliationsEmails.values()].reduce(
+    (acc, emails) => acc + emails.reduce((n, e) => n + (invalidEmails.has(e) ? 0 : 1), 0),
+    0
+  );
   return (
     <Accordion
       panels={[
         {
           key: 'recipients',
-          title: {content: title},
+          title: {
+            content: PluralTranslate.string(
+              'This email will be sent to {count} recipient.',
+              'This email will be sent to {count} recipients.',
+              count,
+              {count}
+            ),
+          },
           content: {content},
         },
       ]}
@@ -135,11 +263,9 @@ export default function EmailAffiliations({
   affiliations: ExtendedAffiliation[];
   onClose: () => void;
 }) {
-  const [contactLists, setContactLists] = useState<string[]>([]);
-  const recipientData = {
-    affiliation_ids: affiliations.map(a => a.id),
-    contact_lists: contactLists,
-  };
+  const [sentCount, setSentCount] = useState(0);
+  const [skippedCount, setSkippedCount] = useState(0);
+  const recipientData = {affiliation_ids: affiliations.map(a => a.id)};
   const {data, loading} = useIndicoAxios(
     {
       url: emailMetadataURL({}),
@@ -150,15 +276,19 @@ export default function EmailAffiliations({
   );
   const {
     senders = [],
-    recipientsCount = 0,
-    invalidAffiliations: _invalidAffiliations = [],
+    invalidEmails: _invalidEmails = [],
+    contactListOptions = [],
     placeholders = [],
   } = data || {};
-  const invalidAffiliations = new Map<number, string[]>(
-    _invalidAffiliations.map(({id, invalidEmails}: {id: number; invalidEmails: string[]}) => [
-      id,
-      invalidEmails,
-    ])
+  const invalidEmails = useMemo(() => new Set<string>(_invalidEmails), [_invalidEmails]);
+  const validEmailsCount = useMemo(
+    () =>
+      affiliations.reduce(
+        (acc, affiliation) =>
+          acc + getAffiliationEmails(affiliation).filter(e => !invalidEmails.has(e)).length,
+        0
+      ),
+    [affiliations, invalidEmails]
   );
 
   const handleSubmit = async data => {
@@ -169,13 +299,10 @@ export default function EmailAffiliations({
     } catch (err) {
       return handleSubmitError(err);
     }
+    setSentCount(resp.data.count);
+    setSkippedCount(resp.data.skipped);
     setTimeout(() => onClose(), SUCCESS_TIMEOUT);
   };
-
-  const affiliationsWithoutEmails = affiliations.reduce(
-    (n, a) => n + (a.contacts.length === 0 ? 1 : 0),
-    0
-  );
 
   if (loading) {
     return (
@@ -185,7 +312,14 @@ export default function EmailAffiliations({
     );
   }
 
-  if (recipientsCount === 0) {
+  if (validEmailsCount === 0) {
+    const invalidAffiliations = affiliations
+      .map(affiliation => ({
+        id: affiliation.id,
+        name: affiliation.name,
+        emails: getAffiliationEmails(affiliation).filter(e => invalidEmails.has(e)),
+      }))
+      .filter(({emails}) => emails.length > 0);
     return (
       <Modal
         open
@@ -204,16 +338,16 @@ export default function EmailAffiliations({
                 affiliations.length
               )}
             />
-            {invalidAffiliations.size > 0 && affiliations.length > 1 && (
+            {invalidAffiliations.length > 0 && affiliations.length > 1 && (
               <>
-                <PluralTranslate as="p" count={invalidAffiliations.size}>
+                <PluralTranslate as="p" count={invalidAffiliations.length}>
                   <Singular>The following affiliation has invalid contact emails:</Singular>
                   <Plural>The following affiliations have invalid contact emails:</Plural>
                 </PluralTranslate>
                 <List bulleted>
-                  {[...invalidAffiliations.entries()].map(([aid, emails]) => (
-                    <List.Item key={aid}>
-                      {affiliations.find(a => a.id === aid)?.name}
+                  {invalidAffiliations.map(({id, name, emails}) => (
+                    <List.Item key={id}>
+                      {name}
                       <List.List>
                         {emails.map((email: string) => (
                           <List.Item key={email} className="mono">
@@ -249,41 +383,41 @@ export default function EmailAffiliations({
       previewContext={recipientData}
       placeholders={placeholders}
       imageUploadURL={emailImageUploadURL({})}
-      sentEmailsCount={recipientsCount}
+      sentEmailsCount={sentCount}
+      sentEmailsWarning={
+        skippedCount
+          ? PluralTranslate.string(
+              '{count} affiliation was skipped because it has no valid contact emails.',
+              '{count} affiliations were skipped because they have no valid contact emails.',
+              skippedCount,
+              {count: skippedCount}
+            )
+          : null
+      }
+      initialFormValues={{contact_lists: [], include_unnamed_lists: true}}
       recipientsField={
         <>
-          {invalidAffiliations.size > 0 ? (
-            <Message
-              warning
-              icon="warning sign"
-              header={Translate.string('Some affiliations have invalid contact emails')}
-              list={[...invalidAffiliations.keys()].map(
-                aid => affiliations.find(a => a.id === aid)?.name
-              )}
-            />
-          ) : (
-            affiliationsWithoutEmails > 0 && (
-              <Message
-                visible
-                warning
-                icon="warning sign"
-                header={Translate.string('{count} affiliations do not have contact emails.', {
-                  count: affiliationsWithoutEmails,
-                })}
-                content={Translate.string(
-                  'These affiliations will be skipped when sending emails. You can use the "Representation" filter to list these affiliations.'
-                )}
+          <FormSpy subscription={{values: true}}>
+            {({values}) => (
+              <RecipientsWarning
+                affiliations={affiliations}
+                invalidEmails={invalidEmails}
+                contactLists={values.contact_lists}
+                includeUnnamedLists={values.include_unnamed_lists}
               />
-            )
-          )}
-          <Form.Field>
-            <Translate as="label">Recipients</Translate>
-            <RecipientsList
-              affiliations={affiliations}
-              invalidAffiliations={invalidAffiliations}
-              recipientsCount={recipientsCount}
-            />
-          </Form.Field>
+            )}
+          </FormSpy>
+          <RecipientsField contactListOptions={contactListOptions} />
+          <FormSpy subscription={{values: true}}>
+            {({values}) => (
+              <RecipientsList
+                affiliations={affiliations}
+                invalidEmails={invalidEmails}
+                contactLists={values.contact_lists}
+                includeUnnamedLists={values.include_unnamed_lists}
+              />
+            )}
+          </FormSpy>
         </>
       }
       recipientsFirst

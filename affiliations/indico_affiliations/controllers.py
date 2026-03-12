@@ -28,15 +28,13 @@ from indico.util.marshmallow import LowercaseString, ModelField, ModelList, no_r
 from indico.util.placeholders import get_sorted_placeholders, replace_placeholders
 from indico.util.string import validate_email
 from indico.web.args import use_kwargs, use_rh_args, use_rh_kwargs
-from indico.web.util import ExpectedError
 
-from indico_affiliations.models.contacts import AffiliationContactList
 from indico_affiliations.models.groups import AffiliationGroup
 from indico_affiliations.models.tags import AffiliationTag
 from indico_affiliations.schemas import (AffiliationGroupArgs, AffiliationGroupSchema, AffiliationTagArgs,
                                          AffiliationTagSchema)
-from indico_affiliations.util import (IMAGE_TOKEN_MAX_AGE, load_image_token, make_image_token, populate_memberships,
-                                      prepare_inline_images)
+from indico_affiliations.util import (IMAGE_TOKEN_MAX_AGE, get_contact_list_names, load_image_token, make_image_token,
+                                      populate_memberships, prepare_inline_images)
 
 
 class RHEmailRepresentativesBase(RHAdminBase):
@@ -48,23 +46,12 @@ class RHEmailRepresentativesBase(RHAdminBase):
             filter_deleted=True,
             data_key='affiliation_ids',
             required=True,
+            validate=not_empty
         ),
-        'contact_lists': fields.List(fields.String(), required=True)
     })
-    def _process_args(self, affiliations, contact_lists):
+    def _process_args(self, affiliations):
         RHAdminBase._process_args(self)
-        self.contact_lists = set(contact_lists)
-        self.recipients = {
-            aff: {e for e in self._get_affiliation_emails(aff) if validate_email(e)}
-            for aff in affiliations
-        }
-
-    def _get_affiliation_emails(self, affiliation):
-        return {
-            email.strip().lower()
-            for lst in affiliation.contacts if not self.contact_lists or lst.name in self.contact_lists
-            for email in lst.emails
-        }
+        self.affiliations = affiliations
 
     def _get_allowed_sender_emails(self, *, for_sending=False):
         emails = {}
@@ -90,15 +77,12 @@ class RHEmailRepresentativesMetadata(RHEmailRepresentativesBase):
     """Return metadata for the email representatives form."""
 
     def _process(self):
-        invalid_affiliations = [{
-            'id': affiliation.id,
-            'invalid_emails': [e for e in self._get_affiliation_emails(affiliation) if e not in to_list],
-        } for affiliation, to_list in self.recipients.items()]
+        all_emails = {email for a in self.affiliations for lst in a.contacts for email in lst.emails}
         placeholders = get_sorted_placeholders('affiliation-representation-email')
         return jsonify({
             'senders': list(self._get_allowed_sender_emails().items()),
-            'recipients_count': sum(len(emails) for emails in self.recipients.values()),
-            'invalid_affiliations': [a for a in invalid_affiliations if a['invalid_emails']],
+            'invalid_emails': [e for e in all_emails if not validate_email(e)],
+            'contact_list_options': get_contact_list_names(),
             'placeholders': [p.serialize() for p in placeholders],
         })
 
@@ -107,13 +91,12 @@ class RHEmailRepresentativesPreview(RHEmailRepresentativesBase):
     """Preview an email sent to affiliation representatives."""
 
     @use_kwargs({
-        'body': fields.String(required=True),
-        'subject': fields.String(required=True, validate=validate.Length(max=200)),
+        'body': fields.String(load_default=''),
+        'subject': fields.String(load_default=''),
     })
     def _process(self, body, subject):
-        affiliation = next(aff for aff in self.recipients)
-        email_body = replace_placeholders('affiliation-representation-email', body, affiliation=affiliation)
-        email_subject = replace_placeholders('affiliation-representation-email', subject, affiliation=affiliation)
+        email_body = replace_placeholders('affiliation-representation-email', body, affiliation=self.affiliations[0])
+        email_subject = replace_placeholders('affiliation-representation-email', subject, affiliation=self.affiliations[0])
         tpl = get_plugin_template_module('emails/custom_email.html', subject=email_subject, body=email_body)
         return jsonify(subject=tpl.get_subject(), body=tpl.get_body())
 
@@ -127,32 +110,44 @@ class RHEmailRepresentativesSend(RHEmailRepresentativesBase):
         'subject': fields.String(required=True, validate=[not_empty, validate.Length(max=200)]),
         'bcc_addresses': fields.List(LowercaseString(validate=validate.Email()), load_default=lambda: []),
         'copy_for_sender': fields.Bool(load_default=False),
+        'contact_lists': fields.List(fields.String(), required=True),
+        'include_unnamed_lists': fields.Boolean(load_default=True)
     })
-    def _process(self, sender_address, body, subject, bcc_addresses, copy_for_sender):
+    def _process(self, sender_address, body, subject, bcc_addresses, copy_for_sender, contact_lists, include_unnamed_lists):
         sender_address = self._get_allowed_sender_emails(for_sending=True).get(sender_address)
         if not sender_address:
             abort(422, messages={'sender_address': ['Invalid sender address']})
-        valid_recipients = {affiliation: to_list for affiliation, to_list in self.recipients.items() if to_list}
-        if not valid_recipients:
-            raise ExpectedError('There are no recipients with contact emails.')
 
         bcc = {session.user.email} if copy_for_sender and session.user else set()
         bcc.update(bcc_addresses)
-
         body, inline_attachments = prepare_inline_images(body, user_id=session.user.id)
+        if contact_lists and include_unnamed_lists:
+            contact_lists.append('')
 
-        for affiliation, to_list in valid_recipients.items():
+        sent_count = 0
+        skipped_count = 0
+        for affiliation in self.affiliations:
+            recipients = {
+                email.strip().lower()
+                for lst in affiliation.contacts if not contact_lists or lst.name in contact_lists
+                for email in lst.emails if validate_email(email)
+            }
+            if not recipients:
+                skipped_count += 1
+                continue
             email_body = replace_placeholders('affiliation-representation-email', body, affiliation=affiliation)
             email_subject = replace_placeholders('affiliation-representation-email', subject, affiliation=affiliation)
             tpl = get_plugin_template_module('emails/custom_email.html', subject=email_subject, body=email_body)
-            email = make_email(to_list=to_list, bcc_list=sorted(bcc), sender_address=sender_address,
-                               template=tpl, html=True, attachments=inline_attachments)
-            send_email(email, module='Affiliations', user=session.user)
+            for recipient in recipients:
+                email = make_email(to_list=recipient, bcc_list=bcc, sender_address=sender_address,
+                                   template=tpl, html=True, attachments=inline_attachments)
+                send_email(email, module='Affiliations', user=session.user)
+                sent_count += 1
 
         AppLogEntry.log(AppLogRealm.admin, LogKind.other, 'Affiliations',
                         'Sent email to affiliation representatives', session.user,
                         data={'Sender': sender_address, 'Subject': subject, 'Body': body, '_html_fields': ['Body']})
-        return jsonify(count=len(self.recipients))
+        return jsonify(count=sent_count, skipped=skipped_count)
 
 
 class RHEmailRepresentativesImageUpload(RHAdminBase):
@@ -305,9 +300,4 @@ class RHContactListNames(RHAdminBase):
     """Return all contact-list names."""
 
     def _process_GET(self):
-        names = (db.session.query(AffiliationContactList.name)
-                 .filter(AffiliationContactList.name != '')  # noqa: PLC1901
-                 .group_by(AffiliationContactList.name)
-                 .order_by(db.func.indico.indico_unaccent(db.func.lower(AffiliationContactList.name)))
-                 .all())
-        return jsonify([name for name, in names])
+        return jsonify(get_contact_list_names())
