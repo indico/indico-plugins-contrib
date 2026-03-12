@@ -214,3 +214,11 @@ def resolve_object_path(obj: dict | list, path: str) -> str:
     if isinstance(obj, scalar_types):
         return str(obj)
     return ''
+
+
+def get_contact_list_names() -> list[str]:
+    names = (db.session.query(AffiliationContactList.name)
+                .filter(AffiliationContactList.name != '')  # noqa: PLC1901
+                .group_by(AffiliationContactList.name)
+                .order_by(db.func.indico.indico_unaccent(db.func.lower(AffiliationContactList.name))))
+    return [name for name, in names]
