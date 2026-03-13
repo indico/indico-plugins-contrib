@@ -158,7 +158,7 @@ jobs:
     strategy:
       matrix:
         include:
-          - plugin: some_plugin
+          - plugin: affiliations
 
     steps:
       - uses: actions/checkout@v6

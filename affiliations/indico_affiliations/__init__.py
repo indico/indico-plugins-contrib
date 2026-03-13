@@ -1,4 +1,3 @@
-#!/bin/bash
 # This file is part of the third-party Indico plugins.
 # Copyright (C) 2026 CERN
 #
@@ -6,8 +5,7 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-for dir in $(find -name pytest.ini -exec dirname {} \;); do
-    pushd "$dir" >/dev/null
-    pytest "$@"
-    popd >/dev/null
-done
+from indico.util.i18n import make_bound_gettext
+
+
+_ = make_bound_gettext('affiliations')

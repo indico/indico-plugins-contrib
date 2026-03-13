@@ -25,6 +25,7 @@ on:
         required: true
         type: choice
         options:
+          - affiliations
           - ''  # this is invalid for a `required` dropdown so we force a choice instead of preselecting the first one
 
 permissions:
