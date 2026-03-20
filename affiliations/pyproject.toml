@@ -4,7 +4,7 @@ description = 'Affiliation groups, tags, and custom fields for Indico'
 readme = 'README.md'
 version = '3.3.11.dev0'
 license = 'MIT'
-authors = [{ name = 'Indico Team', email = 'indico-team@cern.ch' }]
+authors = [{ name = 'Duarte Galvão', email = 'duarte.galvao@unconventional.dev' }]
 classifiers = [
     'Environment :: Plugins',
     'Environment :: Web Environment',
@@ -12,7 +12,7 @@ classifiers = [
     'Programming Language :: Python :: 3.12',
 ]
 requires-python = '>=3.12.2, <3.13'
-dependencies = ['indico>=3.3.10']
+dependencies = ['indico>=3.3.11']
 
 [project.urls]
 GitHub = 'https://github.com/indico/indico-plugins-contrib'
@@ -21,7 +21,7 @@ GitHub = 'https://github.com/indico/indico-plugins-contrib'
 affiliations = 'indico_affiliations.plugin:AffiliationsPlugin'
 
 [build-system]
-requires = ['hatchling==1.27.0']
+requires = ['hatchling==1.29.0']
 build-backend = 'hatchling.build'
 
 [tool.hatch.build]
@@ -44,4 +44,4 @@ artifacts = [
 
 [tool.hatch.build.targets.sdist.hooks.custom]
 path = '../hatch_build.py'
-dependencies = ['babel==2.16.0']
+dependencies = ['babel==2.18.0']

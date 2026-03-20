@@ -8,8 +8,8 @@
 from operator import attrgetter
 
 from marshmallow import EXCLUDE, ValidationError, fields, validate, validates
-from sqlalchemy import func
 
+from indico.core.db import db
 from indico.core.marshmallow import mm
 from indico.modules.users.models.affiliations import Affiliation
 from indico.util.i18n import _
@@ -37,13 +37,13 @@ class AffiliationGroupArgs(mm.Schema):
 
     code = fields.String(required=True, validate=not_empty)
     name = fields.String(required=True, validate=not_empty)
-    tags = ModelList(AffiliationTag, filter_deleted=True, collection_class=set, load_default=set)
+    tags = ModelList(AffiliationTag, collection_class=set, load_default=set)
     meta = fields.Dict(load_default=dict)
 
     @validates('code')
     def _check_for_unique_group_code(self, code, **kwargs):
         query = AffiliationGroup.query.filter(~AffiliationGroup.is_deleted,
-                                              func.lower(AffiliationGroup.code) == code.lower())
+                                              db.func.lower(AffiliationGroup.code) == code.lower())
         if group := self.context['group']:
             query = query.filter(AffiliationGroup.id != group.id)
         if query.has_rows():
@@ -67,7 +67,7 @@ class AffiliationTagArgs(mm.Schema):
     @validates('code')
     def _check_for_unique_tag_code(self, code, **kwargs):
         tag = self.context['tag']
-        query = AffiliationTag.query.filter(~AffiliationTag.is_deleted, func.lower(AffiliationTag.code) == code.lower())
+        query = AffiliationTag.query.filter(db.func.lower(AffiliationTag.code) == code.lower())
         if tag:
             query = query.filter(AffiliationTag.id != tag.id)
         if query.has_rows():
@@ -115,7 +115,7 @@ class AffiliationExtraAttrsArgs(mm.Schema):
 
     contacts = fields.List(fields.Nested(AffiliationContactListArgs))
     groups = ModelList(AffiliationGroup, filter_deleted=True, collection_class=set)
-    tags = ModelList(AffiliationTag, filter_deleted=True, collection_class=set)
+    tags = ModelList(AffiliationTag, collection_class=set)
 
     @validates('contacts')
     def _validate_contacts(self, contacts, **kwargs):
