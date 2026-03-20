@@ -32,10 +32,7 @@ db.Index(None, affiliation_tag_link_table.c.tag_id)
 
 class AffiliationTag(db.Model):
     __tablename__ = 'affiliation_tags'
-    __table_args__ = (
-        db.Index(None, 'code', unique=True, postgresql_where=db.text('NOT is_deleted')),
-        {'schema': 'plugin_affiliations'},
-    )
+    __table_args__ = {'schema': 'plugin_affiliations'}
 
     id = db.Column(
         db.Integer,
@@ -47,25 +44,17 @@ class AffiliationTag(db.Model):
     )
     code = db.Column(
         db.String,
-        nullable=False
+        nullable=False,
+        unique=True
     )
     color = db.Column(
         db.String,
         nullable=False
     )
-    is_deleted = db.Column(
-        db.Boolean,
-        nullable=False,
-        default=False
-    )
 
     affiliations = db.relationship(
         'Affiliation',
         secondary=affiliation_tag_link_table,
-        primaryjoin=lambda: db.and_(
-            AffiliationTag.id == affiliation_tag_link_table.c.tag_id,
-            ~AffiliationTag.is_deleted,
-        ),
         secondaryjoin=lambda: db.and_(
             Affiliation.id == affiliation_tag_link_table.c.affiliation_id,
             ~Affiliation.is_deleted,
@@ -78,6 +67,9 @@ class AffiliationTag(db.Model):
             lazy=True
         )
     )
+
+    # relationship backrefs:
+    # - groups (AffiliationGroup.tags)
 
     def __repr__(self):
         return format_repr(self, 'id', 'code', _text=self.name)

@@ -57,17 +57,9 @@ def upgrade():
         sa.Column('name', sa.String(), nullable=False),
         sa.Column('code', sa.String(), nullable=False),
         sa.Column('color', sa.String(), nullable=False),
-        sa.Column('is_deleted', sa.Boolean(), nullable=False),
         sa.PrimaryKeyConstraint('id'),
+        sa.UniqueConstraint('code'),
         schema='plugin_affiliations'
-    )
-    op.create_index(
-        None,
-        'affiliation_tags',
-        ['code'],
-        unique=True,
-        schema='plugin_affiliations',
-        postgresql_where=sa.text('NOT is_deleted')
     )
     op.create_table(
         'affiliation_tag_links',

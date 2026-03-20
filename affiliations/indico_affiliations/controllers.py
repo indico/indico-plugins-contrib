@@ -190,8 +190,7 @@ class RHAffiliationGroups(RHAdminBase):
     def _process_GET(self):
         groups = (AffiliationGroup.query
                   .filter(~AffiliationGroup.is_deleted)
-                  .order_by(db.func.indico.indico_unaccent(db.func.lower(AffiliationGroup.name)))
-                  .all())
+                  .order_by(db.func.indico.indico_unaccent(db.func.lower(AffiliationGroup.name))))
         return AffiliationGroupSchema(many=True).jsonify(groups)
 
     @use_rh_kwargs(AffiliationGroupArgs)
@@ -251,9 +250,7 @@ class RHAffiliationTags(RHAdminBase):
 
     def _process_GET(self):
         tags = (AffiliationTag.query
-                .filter(~AffiliationTag.is_deleted)
-                .order_by(db.func.indico.indico_unaccent(db.func.lower(AffiliationTag.name)))
-                .all())
+                .order_by(db.func.indico.indico_unaccent(db.func.lower(AffiliationTag.name))))
         return AffiliationTagSchema(many=True).jsonify(tags)
 
     @use_rh_kwargs(AffiliationTagArgs)
@@ -269,7 +266,7 @@ class RHAffiliationTags(RHAdminBase):
 class RHAffiliationTag(RHAdminBase):
     """CRUD operations on a single affiliation tag."""
 
-    @use_kwargs({'tag': ModelField(AffiliationTag, filter_deleted=True, required=True, data_key='tag_id')},
+    @use_kwargs({'tag': ModelField(AffiliationTag, required=True, data_key='tag_id')},
                 location='view_args')
     def _process_args(self, tag):
         RHAdminBase._process_args(self)
@@ -287,14 +284,12 @@ class RHAffiliationTag(RHAdminBase):
         self.tag.log(AppLogRealm.admin, LogKind.change, 'Affiliation Tags',
                      f'Affiliation tag "{self.tag.name}" modified', session.user,
                      data={'Changes': make_diff_log(changes, log_fields)})
-        db.session.flush()
         return '', 204
 
     def _process_DELETE(self):
         self.tag.log(AppLogRealm.admin, LogKind.negative, 'Affiliation Tags',
                      f'Affiliation tag "{self.tag.name}" deleted', session.user)
-        self.tag.is_deleted = True
-        db.session.flush()
+        db.session.delete(self.tag)
         return '', 204
 
 

@@ -12,8 +12,6 @@ from indico.modules.logs.models.entries import AppLogEntry
 from indico.modules.users.models.affiliations import Affiliation
 from indico.util.string import format_repr
 
-from indico_affiliations.models.tags import AffiliationTag
-
 
 affiliation_group_link_table = db.Table(
     'affiliation_group_links',
@@ -95,10 +93,6 @@ class AffiliationGroup(db.Model):
             AffiliationGroup.id == group_tag_link_table.c.group_id,
             ~AffiliationGroup.is_deleted,
         ),
-        secondaryjoin=lambda: db.and_(
-            AffiliationTag.id == group_tag_link_table.c.tag_id,
-            ~AffiliationTag.is_deleted,
-        ),
         collection_class=set,
         lazy=True,
         backref=db.backref(
@@ -128,7 +122,7 @@ class AffiliationGroup(db.Model):
     )
 
     def __repr__(self):
-        return format_repr(self, 'id', 'code', _text=self.name)
+        return format_repr(self, 'id', 'code', is_deleted=False, _text=self.name)
 
     def log(self, *args, **kwargs):
         """Log with prefilled metadata for the affiliation group."""
