@@ -1,0 +1,35 @@
+// This file is part of the third-party Indico plugins.
+// Copyright (C) 2026 CERN
+//
+// The third-party Indico plugins are free software; you can
+// redistribute them and/or modify them under the terms of the;
+// MIT License see the LICENSE file for more details.
+
+@use 'base/palette' as *;
+
+.row-disabled {
+  opacity: 0.6;
+  background-image: repeating-linear-gradient(
+    -40deg,
+    $pastel-gray,
+    $pastel-gray 10px,
+    $light-gray 10px,
+    $light-gray 20px
+  );
+}
+
+.col-drag {
+  width: 1.5em;
+}
+
+.col-name {
+  width: 50%;
+}
+
+.col-members {
+  width: 50%;
+}
+
+.col-actions {
+  width: 1%;
+}

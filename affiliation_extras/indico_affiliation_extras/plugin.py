@@ -8,15 +8,18 @@
 from flask import g, has_request_context, request, session
 
 from indico.core import signals
-from indico.core.plugins import IndicoPlugin
+from indico.core.plugins import IndicoPlugin, url_for_plugin
 from indico.modules.logs import AppLogRealm, LogKind
 from indico.modules.logs.util import make_diff_log
 from indico.modules.users.schemas import AffiliationArgs, AffiliationSchema
 from indico.modules.users.views import WPAffiliationsDashboard
+from indico.util.i18n import _
+from indico.web.menu import SideMenuItem
 
 from indico_affiliation_extras.blueprint import blueprint
 from indico_affiliation_extras.schemas import AffiliationExtraAttrsArgs, AffiliationExtraAttrsSchema
 from indico_affiliation_extras.util import populate_contacts, populate_memberships
+from indico_affiliation_extras.views import WPCategoryAffiliations
 
 
 AFFILIATION_EXTRA_FIELDS = {
@@ -33,12 +36,15 @@ class AffiliationExtrasPlugin(IndicoPlugin):
         super().init()
         self.inject_bundle('main.js', WPAffiliationsDashboard)
         self.inject_bundle('main.css', WPAffiliationsDashboard)
+        self.inject_bundle('main.js', WPCategoryAffiliations)
+        self.inject_bundle('main.css', WPCategoryAffiliations)
         self.connect(signals.plugin.schema_post_dump, self._extend_affiliation_schema, sender=AffiliationSchema)
         self.connect(signals.plugin.schema_pre_load, self._capture_affiliation_extra_attrs, sender=AffiliationArgs)
         self.connect(signals.affiliations.affiliation_created, self._set_affiliation_extra_attrs)
         self.connect(signals.affiliations.affiliation_updated, self._set_affiliation_extra_attrs)
+        self.connect(signals.menu.items, self._category_sidemenu_items, sender='category-management-sidemenu')
         self.connect(
-            signals.core.get_placeholders, self._get_email_placeholders, sender='affiliation-representation-email'
+            signals.core.get_placeholders, self._get_email_placeholders, sender='affiliation-representation-email',
         )
 
     def get_blueprints(self):
@@ -80,3 +86,13 @@ class AffiliationExtrasPlugin(IndicoPlugin):
         yield p.AffiliationPostcodePlaceholder
         yield p.AffiliationCountryPlaceholder
         yield p.AffiliationMetadataPlaceholder
+
+    def _category_sidemenu_items(self, sender, category, **kwargs):
+        if category.can_manage(session.user):
+            return SideMenuItem(
+                'affiliations',
+                _('Affiliations'),
+                url_for_plugin('affiliation_extras.manage_category_affiliations', category),
+                sui_icon='university',
+                weight=15,
+            )

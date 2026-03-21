@@ -1,0 +1,17 @@
+{% extends 'categories/management/base.html' %}
+
+{% block title %}
+    {% trans %}Affiliations{% endtrans %}
+{% endblock %}
+
+{% block content %}
+    <div id="affiliation-presets"></div>
+    <script>
+        setupAffiliationPresets(
+            document.querySelector('#affiliation-presets'),
+            {{ own_presets | tojson }},
+            {{ inherited_presets | tojson }},
+            {{ target_locator | tojson }}
+        );
+    </script>
+{% endblock %}
