@@ -17,9 +17,12 @@ from indico_affiliations import util
 from indico_affiliations.models.contacts import AffiliationContactList
 
 
+EMAIL_IMAGE_URL_PREFIX = '/api/admin/plugins/affiliations/representatives/email/image/'
+
+
 def test_get_token_from_src():
     token = 'abc123'
-    src = f'https://example.test{util.IMAGE_URL_PREFIX}{token}'
+    src = f'https://example.test{EMAIL_IMAGE_URL_PREFIX}{token}'
     assert util.get_token_from_src(src) == token
     assert util.get_token_from_src(src + '?x=1') == token
     assert util.get_token_from_src('https://example.test/other') is None
@@ -37,8 +40,8 @@ def test_prepare_inline_images_replaces_src_and_collects_attachments(monkeypatch
 
     body = (
         '<p>Hello</p>'
-        f'<img src="https://example.test{util.IMAGE_URL_PREFIX}t1" />'
-        f'<img src="https://example.test{util.IMAGE_URL_PREFIX}t2" />'
+        f'<img src="https://example.test{EMAIL_IMAGE_URL_PREFIX}t1" />'
+        f'<img src="https://example.test{EMAIL_IMAGE_URL_PREFIX}t2" />'
     )
     new_body, attachments = util.prepare_inline_images(body, user_id=42)
 
@@ -55,8 +58,8 @@ def test_prepare_inline_images_dedupes_tokens(monkeypatch):
     monkeypatch.setattr(util, 'build_inline_attachment', fake_build_inline_attachment)
 
     body = (
-        f'<img src="https://example.test{util.IMAGE_URL_PREFIX}dup" />'
-        f'<img src="https://example.test{util.IMAGE_URL_PREFIX}dup" />'
+        f'<img src="https://example.test{EMAIL_IMAGE_URL_PREFIX}dup" />'
+        f'<img src="https://example.test{EMAIL_IMAGE_URL_PREFIX}dup" />'
     )
     new_body, attachments = util.prepare_inline_images(body, user_id=1)
 

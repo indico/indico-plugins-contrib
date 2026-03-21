@@ -26,6 +26,50 @@ AFFILIATION_EXTRA_FIELDS = {
 }
 
 
+class AffiliationsPlugin(IndicoPlugin):
+    """Extended Affiliations"""
+
+    def init(self):
+        super().init()
+        self.inject_bundle('main.js', WPAffiliationsDashboard)
+        self.inject_bundle('main.css', WPAffiliationsDashboard)
+
+    def get_blueprints(self):
+        return blueprint
+
+
+@signals.plugin.schema_post_dump.connect_via(AffiliationSchema)
+def _extend_affiliation_schema(sender, data, orig, **kwargs):
+    for dump_data, affiliation in zip(data, orig, strict=True):
+        dump_data.update(AffiliationExtraAttrsSchema().dump(affiliation))
+
+
+@signals.plugin.schema_pre_load.connect_via(AffiliationArgs)
+def _capture_affiliation_extra_attrs(sender, data, **kwargs):
+    g.affiliations_extra_attrs = AffiliationExtraAttrsArgs().load(data)
+
+
+@signals.affiliations.affiliation_created.connect
+@signals.affiliations.affiliation_updated.connect
+def _set_affiliation_extra_attrs(affiliation, **kwargs):
+    pending = g.pop('affiliations_extra_attrs', {})
+    log_fields = dict(AFFILIATION_EXTRA_FIELDS)
+    if 'contacts' in pending:
+        changes, extra_log_fields = populate_contacts(affiliation, pending.pop('contacts'))
+        log_fields.update(extra_log_fields)
+    else:
+        changes = {}
+    if changes := populate_memberships(affiliation, pending, changes=changes):
+        affiliation.log(
+            AppLogRealm.admin,
+            LogKind.change,
+            'Affiliations',
+            f'Extended attributes of affiliation "{affiliation.name}" modified',
+            session.user,
+            data={'Changes': make_diff_log(changes, log_fields)}
+        )
+
+
 @signals.core.get_placeholders.connect_via('affiliation-representation-email')
 def _get_email_placeholders(sender, affiliation=None, **kwargs):
     from indico_affiliations import placeholders as p
@@ -35,44 +79,3 @@ def _get_email_placeholders(sender, affiliation=None, **kwargs):
     yield p.AffiliationPostcodePlaceholder
     yield p.AffiliationCountryPlaceholder
     yield p.AffiliationMetadataPlaceholder
-
-
-class AffiliationsPlugin(IndicoPlugin):
-    """Extended Affiliations"""
-
-    def init(self):
-        super().init()
-        self.connect(signals.affiliations.affiliation_created, self._set_affiliation_extra_attrs)
-        self.connect(signals.affiliations.affiliation_updated, self._set_affiliation_extra_attrs)
-        self.connect(signals.plugin.schema_post_dump, self._extend_affiliation_schema, sender=AffiliationSchema)
-        self.connect(signals.plugin.schema_pre_load, self._capture_affiliation_extra_attrs, sender=AffiliationArgs)
-        self.inject_bundle('main.js', WPAffiliationsDashboard)
-        self.inject_bundle('main.css', WPAffiliationsDashboard)
-
-    def get_blueprints(self):
-        return blueprint
-
-    def _extend_affiliation_schema(self, sender, data, orig, **kwargs):
-        for dump_data, affiliation in zip(data, orig, strict=True):
-            dump_data.update(AffiliationExtraAttrsSchema().dump(affiliation))
-
-    def _capture_affiliation_extra_attrs(self, sender, data, **kwargs):
-        g.affiliations_extra_attrs = AffiliationExtraAttrsArgs().load(data)
-
-    def _set_affiliation_extra_attrs(self, affiliation, **kwargs):
-        pending = g.pop('affiliations_extra_attrs', {})
-        log_fields = dict(AFFILIATION_EXTRA_FIELDS)
-        if 'contacts' in pending:
-            changes, extra_log_fields = populate_contacts(affiliation, pending.pop('contacts'))
-            log_fields.update(extra_log_fields)
-        else:
-            changes = {}
-        if changes := populate_memberships(affiliation, pending, changes=changes):
-            affiliation.log(
-                AppLogRealm.admin,
-                LogKind.change,
-                'Affiliations',
-                f'Extended attributes of affiliation "{affiliation.name}" modified',
-                session.user,
-                data={'Changes': make_diff_log(changes, log_fields)}
-            )
