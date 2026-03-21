@@ -38,7 +38,7 @@ const buildContactsOptions = (affiliations: ExtendedAffiliation[]) => {
   let hasNamedList = false;
   let hasUnnamedList = false;
   affiliations.forEach(affiliation => {
-    affiliation.contacts.forEach(contact => {
+    affiliation.contact_lists.forEach(contact => {
       const normalizedName = contact.name.trim();
       if (!normalizedName) {
         hasUnnamedList = true;
@@ -151,7 +151,7 @@ const affiliationFilters = ({affiliations}: {affiliations: ExtendedAffiliation[]
         if (!selectedValues.length) {
           return true;
         }
-        const hasContactEmails = entry.affiliation.contacts.length > 0;
+        const hasContactEmails = entry.affiliation.contact_lists.length > 0;
         const selectedListValues = selectedValues.filter(value =>
           value.startsWith(LIST_FILTER_PREFIX)
         );
@@ -159,7 +159,9 @@ const affiliationFilters = ({affiliations}: {affiliations: ExtendedAffiliation[]
           value.startsWith(LIST_FILTER_ABSENT_PREFIX)
         );
         const listNameValues = new Set(
-          entry.affiliation.contacts.map(contact => getContactListFilterValue(contact.name.trim()))
+          entry.affiliation.contact_lists.map(contact =>
+            getContactListFilterValue(contact.name.trim())
+          )
         );
         return (
           (selectedValues.includes('has_contact_emails') && hasContactEmails) ||

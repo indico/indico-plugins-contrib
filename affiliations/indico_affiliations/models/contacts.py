@@ -13,7 +13,7 @@ class AffiliationContactList(db.Model):
     __tablename__ = 'affiliation_contact_lists'
     __table_args__ = (
         db.Index(
-            'ix_uq_affiliation_contacts_affiliation_id_name_lower',
+            'ix_uq_affiliation_contact_lists_affiliation_id_name_lower',
             'affiliation_id',
             db.text('lower(name)'),
             unique=True,
@@ -45,7 +45,7 @@ class AffiliationContactList(db.Model):
         'Affiliation',
         lazy=True,
         backref=db.backref(
-            'contacts',
+            'contact_lists',
             order_by=lambda: db.func.indico.indico_unaccent(db.func.lower(AffiliationContactList.name)),
             lazy=True,
             cascade='all, delete-orphan'

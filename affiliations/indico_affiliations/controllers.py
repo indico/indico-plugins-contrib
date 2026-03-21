@@ -77,7 +77,7 @@ class RHEmailRepresentativesMetadata(RHEmailRepresentativesBase):
     """Return metadata for the email representatives form."""
 
     def _process(self):
-        all_emails = {email for a in self.affiliations for lst in a.contacts for email in lst.emails}
+        all_emails = {email for a in self.affiliations for lst in a.contact_lists for email in lst.emails}
         placeholders = get_sorted_placeholders('affiliation-representation-email')
         return jsonify({
             'senders': list(self._get_allowed_sender_emails().items()),
@@ -131,7 +131,7 @@ class RHEmailRepresentativesSend(RHEmailRepresentativesBase):
         for affiliation in self.affiliations:
             recipients = {
                 email.strip().lower()
-                for lst in affiliation.contacts if not contact_lists or lst.name in contact_lists
+                for lst in affiliation.contact_lists if not contact_lists or lst.name in contact_lists
                 for email in lst.emails if validate_email(email)
             }
             if not recipients:
