@@ -37,10 +37,10 @@ const formSection = [
     },
   },
   {
-    key: 'affiliations-contacts',
+    key: 'affiliations-contact-lists',
     title: Translate.string('Contacts'),
     content: {
-      content: <FinalContactList name="contacts" />,
+      content: <FinalContactList name="contact_lists" />,
     },
   },
 ];

@@ -135,15 +135,15 @@ def test_populate_contacts_adds_new_contact_and_logs_summary(db):
         {'id': None, 'name': 'Ops', 'emails': ['ops@example.test']},
     ])
 
-    assert [c.name for c in affiliation.contacts] == ['Ops']
-    assert len(affiliation.contacts) == 1
-    contact_id = affiliation.contacts[0].id
+    assert [c.name for c in affiliation.contact_lists] == ['Ops']
+    assert len(affiliation.contact_lists) == 1
+    contact_id = affiliation.contact_lists[0].id
     assert changes == {
-        'contacts': ([], ['Ops']),
-        f'contacts_item_{contact_id}': ([], ['ops@example.test']),
+        'contact_lists': ([], ['Ops']),
+        f'contact_lists_item_{contact_id}': ([], ['ops@example.test']),
     }
     assert log_fields == {
-        f'contacts_item_{contact_id}': {'title': 'Contact list: Ops', 'type': 'list'},
+        f'contact_lists_item_{contact_id}': {'title': 'Contact list: Ops', 'type': 'list'},
     }
 
 
@@ -155,7 +155,7 @@ def test_populate_contacts_rename_only(db):
         {'id': contact, 'name': 'New name', 'emails': ['old@example.test']},
     ])
 
-    assert changes == {'contacts': (['Old name'], ['New name'])}
+    assert changes == {'contact_lists': (['Old name'], ['New name'])}
     assert log_fields == {}
 
 
@@ -168,10 +168,10 @@ def test_populate_contacts_emails_only(db):
     ])
 
     assert changes == {
-        f'contacts_item_{contact.id}': (['old@example.test'], ['new@example.test']),
+        f'contact_lists_item_{contact.id}': (['old@example.test'], ['new@example.test']),
     }
     assert log_fields == {
-        f'contacts_item_{contact.id}': {'title': 'Contact list: Old name', 'type': 'list'},
+        f'contact_lists_item_{contact.id}': {'title': 'Contact list: Old name', 'type': 'list'},
     }
 
 
@@ -184,11 +184,11 @@ def test_populate_contacts_rename_and_emails(db):
     ])
 
     assert changes == {
-        'contacts': (['Old name'], ['New name']),
-        f'contacts_item_{contact.id}': (['old@example.test'], ['new@example.test']),
+        'contact_lists': (['Old name'], ['New name']),
+        f'contact_lists_item_{contact.id}': (['old@example.test'], ['new@example.test']),
     }
     assert log_fields == {
-        f'contacts_item_{contact.id}': {'title': 'Contact list: New name', 'type': 'list'},
+        f'contact_lists_item_{contact.id}': {'title': 'Contact list: New name', 'type': 'list'},
     }
 
 
@@ -223,16 +223,16 @@ def test_populate_contacts_deletes_omitted_contact(db):
 
     changes, log_fields = util.populate_contacts(affiliation, payload)
 
-    assert sorted(c.name for c in affiliation.contacts) == ['New list']
-    new_contact = next(c for c in affiliation.contacts if c.name == 'New list')
+    assert sorted(c.name for c in affiliation.contact_lists) == ['New list']
+    new_contact = next(c for c in affiliation.contact_lists if c.name == 'New list')
     assert changes == {
-        'contacts': (['Ops'], ['New list']),
-        f'contacts_item_{contact.id}': (['ops@example.test'], []),
-        f'contacts_item_{new_contact.id}': ([], ['new@example.test']),
+        'contact_lists': (['Ops'], ['New list']),
+        f'contact_lists_item_{contact.id}': (['ops@example.test'], []),
+        f'contact_lists_item_{new_contact.id}': ([], ['new@example.test']),
     }
     assert log_fields == {
-        f'contacts_item_{contact.id}': {'title': 'Contact list: Ops', 'type': 'list'},
-        f'contacts_item_{new_contact.id}': {'title': 'Contact list: New list', 'type': 'list'},
+        f'contact_lists_item_{contact.id}': {'title': 'Contact list: Ops', 'type': 'list'},
+        f'contact_lists_item_{new_contact.id}': {'title': 'Contact list: New list', 'type': 'list'},
     }
 
 
@@ -242,13 +242,13 @@ def test_populate_contacts_deletes_all_on_empty_payload(db):
 
     changes, log_fields = util.populate_contacts(affiliation, [])
 
-    assert affiliation.contacts == []
+    assert affiliation.contact_lists == []
     assert changes == {
-        'contacts': (['Ops'], []),
-        f'contacts_item_{contact.id}': (['ops@example.test'], []),
+        'contact_lists': (['Ops'], []),
+        f'contact_lists_item_{contact.id}': (['ops@example.test'], []),
     }
     assert log_fields == {
-        f'contacts_item_{contact.id}': {'title': 'Contact list: Ops', 'type': 'list'},
+        f'contact_lists_item_{contact.id}': {'title': 'Contact list: Ops', 'type': 'list'},
     }
 
 
@@ -260,7 +260,7 @@ def test_populate_contacts_uses_unnamed_list_label_in_summary(db):
         {'id': contact, 'name': '', 'emails': ['ops@example.test']},
     ])
 
-    assert changes == {'contacts': (['Named'], ['(unnamed list)'])}
+    assert changes == {'contact_lists': (['Named'], ['(unnamed list)'])}
     assert log_fields == {}
 
 
@@ -276,17 +276,17 @@ def test_populate_contacts_mixed_add_remove_and_modify(db):
         {'id': None, 'name': 'Add', 'emails': ['add@example.test']},
     ])
 
-    new_contact = next(c for c in affiliation.contacts if c.name == 'Add')
+    new_contact = next(c for c in affiliation.contact_lists if c.name == 'Add')
     assert changes == {
-        'contacts': (['Change', 'Keep', 'Remove'], ['Add', 'Change renamed', 'Keep']),
-        f'contacts_item_{contact_change.id}': (['old@example.test'], ['new@example.test']),
-        f'contacts_item_{contact_remove.id}': (['remove@example.test'], []),
-        f'contacts_item_{new_contact.id}': ([], ['add@example.test']),
+        'contact_lists': (['Change', 'Keep', 'Remove'], ['Add', 'Change renamed', 'Keep']),
+        f'contact_lists_item_{contact_change.id}': (['old@example.test'], ['new@example.test']),
+        f'contact_lists_item_{contact_remove.id}': (['remove@example.test'], []),
+        f'contact_lists_item_{new_contact.id}': ([], ['add@example.test']),
     }
     assert log_fields == {
-        f'contacts_item_{contact_change.id}': {'title': 'Contact list: Change renamed', 'type': 'list'},
-        f'contacts_item_{contact_remove.id}': {'title': 'Contact list: Remove', 'type': 'list'},
-        f'contacts_item_{new_contact.id}': {'title': 'Contact list: Add', 'type': 'list'},
+        f'contact_lists_item_{contact_change.id}': {'title': 'Contact list: Change renamed', 'type': 'list'},
+        f'contact_lists_item_{contact_remove.id}': {'title': 'Contact list: Remove', 'type': 'list'},
+        f'contact_lists_item_{new_contact.id}': {'title': 'Contact list: Add', 'type': 'list'},
     }
 
 

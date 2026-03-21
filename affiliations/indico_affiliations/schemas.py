@@ -91,9 +91,9 @@ class AffiliationContactListArgs(mm.Schema):
 class AffiliationExtraAttrsSchema(mm.SQLAlchemyAutoSchema):
     class Meta:
         model = Affiliation
-        fields = ('contacts', 'groups', 'tags', 'group_tags')
+        fields = ('contact_lists', 'groups', 'tags', 'group_tags')
 
-    contacts = fields.List(fields.Nested(AffiliationContactListSchema))
+    contact_lists = fields.List(fields.Nested(AffiliationContactListSchema))
     groups = SortedList(fields.Nested(AffiliationGroupSchema(exclude=('meta',))), sort_key=attrgetter('code'))
     tags = SortedList(fields.Nested(AffiliationTagSchema), sort_key=attrgetter('code'))
     group_tags = fields.Method('_get_group_tags')
@@ -113,19 +113,19 @@ class AffiliationExtraAttrsArgs(mm.Schema):
     class Meta:
         unknown = EXCLUDE
 
-    contacts = fields.List(fields.Nested(AffiliationContactListArgs))
+    contact_lists = fields.List(fields.Nested(AffiliationContactListArgs))
     groups = ModelList(AffiliationGroup, filter_deleted=True, collection_class=set)
     tags = ModelList(AffiliationTag, collection_class=set)
 
-    @validates('contacts')
-    def _validate_contacts(self, contacts, **kwargs):
-        ids = [lst['id'].id for lst in contacts if lst.get('id') is not None]
+    @validates('contact_lists')
+    def _validate_contact_lists(self, contact_lists, **kwargs):
+        ids = [lst['id'].id for lst in contact_lists if lst.get('id') is not None]
         if len(ids) != len(set(ids)):
             raise ValidationError('Contact list IDs must be unique')
-        names = {lst['name'].lower() for lst in contacts}
-        if len(names) != len(contacts):
+        names = {lst['name'].lower() for lst in contact_lists}
+        if len(names) != len(contact_lists):
             raise ValidationError('Contact list names must be unique')
-        for lst in contacts:
+        for lst in contact_lists:
             for email in lst['emails']:
                 if not validate_email(email):
                     raise ValidationError(_('Invalid email address: {email}').format(email=email))

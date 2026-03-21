@@ -20,7 +20,7 @@ from indico_affiliations.util import populate_contacts, populate_memberships
 
 
 AFFILIATION_EXTRA_FIELDS = {
-    'contacts': {'title': 'Contact lists', 'type': 'list'},
+    'contact_lists': {'title': 'Contact lists', 'type': 'list'},
     'groups': {'title': 'Groups', 'type': 'list'},
     'tags': {'title': 'Tags', 'type': 'list'}
 }
@@ -54,8 +54,8 @@ def _capture_affiliation_extra_attrs(sender, data, **kwargs):
 def _set_affiliation_extra_attrs(affiliation, **kwargs):
     pending = g.pop('affiliations_extra_attrs', {})
     log_fields = dict(AFFILIATION_EXTRA_FIELDS)
-    if 'contacts' in pending:
-        changes, extra_log_fields = populate_contacts(affiliation, pending.pop('contacts'))
+    if 'contact_lists' in pending:
+        changes, extra_log_fields = populate_contacts(affiliation, pending.pop('contact_lists'))
         log_fields.update(extra_log_fields)
     else:
         changes = {}

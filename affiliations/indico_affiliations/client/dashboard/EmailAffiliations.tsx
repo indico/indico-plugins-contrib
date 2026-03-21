@@ -33,7 +33,7 @@ const filterContactLists = (
   contactLists: string[],
   includeUnnamedLists: boolean
 ) =>
-  affiliation.contacts.filter(
+  affiliation.contact_lists.filter(
     ({name}: ContactList) =>
       contactLists.length === 0 ||
       contactLists.includes(name) ||

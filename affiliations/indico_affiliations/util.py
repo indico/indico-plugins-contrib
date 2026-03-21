@@ -131,27 +131,27 @@ def populate_memberships(obj: Affiliation | AffiliationGroup, memberships: _Memb
     return changes
 
 
-def serialize_contact_lists(contacts: list[AffiliationContactList]) -> dict[int, dict]:
+def serialize_contact_lists(contact_lists: list[AffiliationContactList]) -> dict[int, dict]:
     return {
         item.id: {
             'name': item.name or '(unnamed list)',
             'emails': sorted(item.emails),
         }
-        for item in contacts
+        for item in contact_lists
     }
 
 
-def populate_contacts(affiliation: Affiliation, contacts: list[dict]) -> tuple[_Changes, _LogFields]:
-    existing_by_id = {item.id: item for item in affiliation.contacts}
+def populate_contacts(affiliation: Affiliation, contact_lists: list[dict]) -> tuple[_Changes, _LogFields]:
+    existing_by_id = {item.id: item for item in affiliation.contact_lists}
     used_ids = set()
     touched_ids = set()
 
-    old_contacts = serialize_contact_lists(affiliation.contacts)
-    for contact_data in contacts:
+    old_contact_lists = serialize_contact_lists(affiliation.contact_lists)
+    for contact_data in contact_lists:
         contact = contact_data.get('id')
         if contact is None:
             contact = AffiliationContactList()
-            affiliation.contacts.append(contact)
+            affiliation.contact_lists.append(contact)
         else:
             contact_id = contact.id
             if contact_id in used_ids:
@@ -165,31 +165,31 @@ def populate_contacts(affiliation: Affiliation, contacts: list[dict]) -> tuple[_
 
     for contact_id, contact in existing_by_id.items():
         if contact_id not in touched_ids:
-            affiliation.contacts.remove(contact)
+            affiliation.contact_lists.remove(contact)
 
     db.session.flush()
-    new_contacts = serialize_contact_lists(affiliation.contacts)
-    if old_contacts == new_contacts:
+    new_contact_lists = serialize_contact_lists(affiliation.contact_lists)
+    if old_contact_lists == new_contact_lists:
         return {}, {}
     changes = {}
     log_fields: _LogFields = {}
 
     # List names changes
-    old_summary = sorted((lst['name'] for lst in old_contacts.values()), key=str.lower)
-    new_summary = sorted((lst['name'] for lst in new_contacts.values()), key=str.lower)
+    old_summary = sorted((lst['name'] for lst in old_contact_lists.values()), key=str.lower)
+    new_summary = sorted((lst['name'] for lst in new_contact_lists.values()), key=str.lower)
     if old_summary != new_summary:
-        changes['contacts'] = (old_summary, new_summary)
+        changes['contact_lists'] = (old_summary, new_summary)
 
     # Individual list changes
-    for id_ in old_contacts.keys() | new_contacts.keys():
-        old_data = old_contacts.get(id_, {})
-        new_data = new_contacts.get(id_, {})
+    for id_ in old_contact_lists.keys() | new_contact_lists.keys():
+        old_data = old_contact_lists.get(id_, {})
+        new_data = new_contact_lists.get(id_, {})
         old_emails = old_data.get('emails', [])
         new_emails = new_data.get('emails', [])
         if old_emails == new_emails:
             continue
         name = new_data.get('name') or old_data.get('name')
-        key = f'contacts_item_{id_}'
+        key = f'contact_lists_item_{id_}'
         changes[key] = (old_emails, new_emails)
         log_fields[key] = {'title': f'Contact list: {name}', 'type': 'list'}
     return changes, log_fields
