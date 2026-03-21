@@ -25,3 +25,8 @@ registerPluginComponent(
   AffiliationDashboardActions
 );
 registerPluginComponent(PLUGIN_NAME, 'affiliation-dashboard-row-actions', AffiliationRowActions);
+
+// Category management
+import setupAffiliationPresets from './presets';
+
+window.setupAffiliationPresets = setupAffiliationPresets;

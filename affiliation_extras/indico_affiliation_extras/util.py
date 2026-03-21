@@ -26,6 +26,8 @@ from indico.util.signing import secure_serializer
 
 from indico_affiliation_extras.models.contacts import AffiliationContactList
 from indico_affiliation_extras.models.groups import AffiliationGroup
+from indico_affiliation_extras.models.lists import AffiliationList
+from indico_affiliation_extras.models.presets import AffiliationPresets
 from indico_affiliation_extras.models.tags import AffiliationTag
 
 
@@ -221,6 +223,101 @@ def populate_contacts(affiliation: Affiliation, contact_lists: list[dict]) -> tu
     return changes, log_fields
 
 
+def serialize_preset_lists(preset_lists: list[AffiliationList]) -> dict[int, dict]:
+    return {
+        item.id: {
+            'name': item.name or '(unnamed list)',
+            'is_enabled': item.is_enabled,
+            'position': item.position,
+            'groups': sorted(g.code for g in item.groups),
+            'tags': sorted(t.code for t in item.tags),
+            'affiliations': sorted(a.name for a in item.affiliations),
+        }
+        for item in preset_lists
+    }
+
+
+def _format_preset_list_log_lines(data: dict) -> list[str]:
+    if not data:
+        return []
+    enabled = data.get('is_enabled')
+    enabled_label = 'Yes' if enabled else 'No'
+    groups = ', '.join(data.get('groups', []))
+    tags = ', '.join(data.get('tags', []))
+    affiliations = ', '.join(data.get('affiliations', []))
+    return [
+        f'Name: {data.get("name", "")}',
+        f'Enabled: {enabled_label if enabled is not None else ""}',
+        f'Position: {data.get("position", "")}',
+        f'Groups: {groups}',
+        f'Tags: {tags}',
+        f'Affiliations: {affiliations}',
+    ]
+
+
+def populate_preset_lists(preset: AffiliationPresets, preset_lists: list[dict]) -> tuple[_Changes, _LogFields]:
+    existing_by_id = {item.id: item for item in preset.lists}
+    touched_ids = set()
+
+    old_lists = serialize_preset_lists(preset.lists)
+    for list_data in preset_lists:
+        list_obj = list_data.get('id')
+        if list_obj is None:
+            list_obj = AffiliationList(preset=preset)
+            db.session.add(list_obj)
+        list_obj.name = list_data['name'].strip()
+        list_obj.is_enabled = list_data['is_enabled']
+        list_obj.position = list_data['position']
+        list_obj.groups = list_data['groups']
+        list_obj.tags = list_data['tags']
+        list_obj.affiliations = list_data['affiliations']
+        if list_obj.id is not None:
+            touched_ids.add(list_obj.id)
+
+    for list_id, list_obj in existing_by_id.items():
+        if list_id not in touched_ids:
+            db.session.delete(list_obj)
+
+    db.session.flush()
+    new_lists = serialize_preset_lists(preset.lists)
+    if old_lists == new_lists:
+        return {}, {}
+
+    changes = {}
+    log_fields: _LogFields = {}
+
+    old_summary = sorted((lst['name'] for lst in old_lists.values()), key=str.lower)
+    new_summary = sorted((lst['name'] for lst in new_lists.values()), key=str.lower)
+    if old_summary != new_summary:
+        changes['lists'] = (old_summary, new_summary)
+
+    for id_ in old_lists.keys() | new_lists.keys():
+        old_data = old_lists.get(id_, {})
+        new_data = new_lists.get(id_, {})
+        old_lines = _format_preset_list_log_lines(old_data)
+        new_lines = _format_preset_list_log_lines(new_data)
+        if old_lines == new_lines:
+            continue
+        name = new_data.get('name') or old_data.get('name') or '(unnamed list)'
+        key = f'lists_item_{id_}'
+        changes[key] = (old_lines, new_lines)
+        log_fields[key] = {'title': f'List: {name}', 'type': 'list'}
+    return changes, log_fields
+
+
+def resolve_affiliations(
+    groups: set[AffiliationGroup], tags: set[AffiliationTag], affiliations: set[Affiliation]
+) -> list[Affiliation]:
+    all_affiliations = set(affiliations)
+    all_groups = set(groups)
+    for tag in tags:
+        all_affiliations.update(tag.affiliations)
+        all_groups.update(tag.groups)
+    for group in all_groups:
+        all_affiliations.update(group.affiliations)
+    return sorted(all_affiliations, key=lambda affiliation: affiliation.name.lower())
+
+
 def resolve_object_path(obj: dict | list, path: str) -> str:
     if not path:
         return ''
@@ -240,6 +337,20 @@ def resolve_object_path(obj: dict | list, path: str) -> str:
     if isinstance(obj, scalar_types):
         return str(obj)
     return ''
+
+
+def get_all_presets(category):
+    """Get all affiliation presets usable by a category (from its chain)."""
+    return set(
+        AffiliationPresets.query.filter(
+            ~AffiliationPresets.is_deleted, AffiliationPresets.category_id.in_(categ['id'] for categ in category.chain)
+        )
+    )
+
+
+def get_inherited_presets(category):
+    """Get presets inherited from parent categories (excluding own)."""
+    return get_all_presets(category) - set(category.affiliation_presets)
 
 
 def get_contact_list_names() -> list[str]:

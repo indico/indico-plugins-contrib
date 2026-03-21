@@ -7,11 +7,12 @@
 
 from operator import attrgetter
 
-from marshmallow import EXCLUDE, ValidationError, fields, validate, validates
+from marshmallow import EXCLUDE, ValidationError, fields, validate, validates, validates_schema
 
 from indico.core.db import db
 from indico.core.marshmallow import mm
 from indico.modules.users.models.affiliations import Affiliation
+from indico.modules.users.schemas import AffiliationSchema as UserAffiliationSchema
 from indico.util.i18n import _
 from indico.util.marshmallow import LowercaseString, ModelField, ModelList, SortedList, not_empty
 from indico.util.string import validate_email
@@ -19,6 +20,8 @@ from indico.web.forms.colors import get_sui_colors
 
 from indico_affiliation_extras.models.contacts import AffiliationContactList
 from indico_affiliation_extras.models.groups import AffiliationGroup
+from indico_affiliation_extras.models.lists import AffiliationList
+from indico_affiliation_extras.models.presets import AffiliationPresets
 from indico_affiliation_extras.models.tags import AffiliationTag
 
 
@@ -128,3 +131,63 @@ class AffiliationExtraAttrsArgs(mm.Schema):
             for email in emails:
                 if not validate_email(email):
                     raise ValidationError(_('Invalid email address: {email}').format(email=email))
+
+
+class AffiliationListSchema(mm.SQLAlchemyAutoSchema):
+    class Meta:
+        model = AffiliationList
+        fields = ('id', 'name', 'position', 'is_enabled', 'groups', 'tags', 'affiliations')
+
+    groups = SortedList(fields.Nested(AffiliationGroupSchema(only=('id', 'name', 'code'))), sort_key=attrgetter('code'))
+    tags = SortedList(fields.Nested(AffiliationTagSchema), sort_key=attrgetter('code'))
+    affiliations = SortedList(
+        fields.Nested(UserAffiliationSchema(only=('id', 'name', 'city', 'country_code'))), sort_key=attrgetter('name')
+    )
+
+
+class AffiliationPresetListArgs(mm.Schema):
+    id = ModelField(AffiliationList, load_default=None, allow_none=True)
+    name = fields.String(required=True, validate=not_empty)
+    position = fields.Integer(required=True)
+    is_enabled = fields.Boolean(load_default=True)
+    groups = ModelList(AffiliationGroup, collection_class=set, filter_deleted=True, load_default=set)
+    tags = ModelList(AffiliationTag, collection_class=set, load_default=set)
+    affiliations = ModelList(Affiliation, collection_class=set, filter_deleted=True, load_default=set)
+
+    @validates_schema
+    def _validate_members(self, data, **kwargs):
+        if not data.get('groups') and not data.get('tags') and not data.get('affiliations'):
+            raise ValidationError(_('Each list must contain at least one group, tag, or affiliation.'))
+
+
+class AffiliationPresetArgs(mm.Schema):
+    class Meta:
+        unknown = EXCLUDE
+
+    name = fields.String(required=True, validate=not_empty)
+    lists = fields.List(fields.Nested(AffiliationPresetListArgs), required=True, validate=not_empty)
+
+
+class OwnerDataSchema(mm.Schema):
+    id = fields.Int()
+    title = fields.String()
+    locator = fields.Dict()
+
+
+class AffiliationPresetSchema(mm.SQLAlchemyAutoSchema):
+    class Meta:
+        model = AffiliationPresets
+        fields = ('id', 'name', 'owner', 'lists')
+
+    owner = fields.Method('_get_owner')
+    lists = fields.List(fields.Nested(AffiliationListSchema))
+
+    def _get_owner(self, preset):
+        owner = preset.category or preset.event
+        if owner is None:
+            return None
+        return OwnerDataSchema().dump({
+            'id': owner.id,
+            'title': owner.title,
+            'locator': owner.locator,
+        })

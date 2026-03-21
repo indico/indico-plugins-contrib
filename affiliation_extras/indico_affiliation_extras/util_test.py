@@ -15,6 +15,8 @@ from indico.modules.users.models.affiliations import Affiliation
 
 from indico_affiliation_extras import util
 from indico_affiliation_extras.models.contacts import AffiliationContactList
+from indico_affiliation_extras.models.groups import AffiliationGroup
+from indico_affiliation_extras.models.tags import AffiliationTag
 
 
 EMAIL_IMAGE_URL_PREFIX = '/files/123e4567-e89b-12d3-a456-426614174000/download?token='
@@ -125,6 +127,72 @@ def _create_contact(db, affiliation, name, emails):
     db.session.add(contact)
     db.session.flush()
     return contact
+
+
+def _create_group(db, name, code=None):
+    group = AffiliationGroup(name=name, code=code or name.lower())
+    db.session.add(group)
+    db.session.flush()
+    return group
+
+
+def _create_tag(db, name, code=None, color='red'):
+    tag = AffiliationTag(name=name, code=code or name.lower(), color=color)
+    db.session.add(tag)
+    db.session.flush()
+    return tag
+
+
+def test_resolve_affiliations_includes_groups_and_tags(db):
+    alpha = _create_affiliation(db, 'Alpha')
+    beta = _create_affiliation(db, 'beta')
+    delta = _create_affiliation(db, 'delta')
+
+    group = _create_group(db, 'Group A', 'group-a')
+    group.affiliations.add(beta)
+
+    group_tag = _create_tag(db, 'Group tag', 'group-tag')
+    group_tag.affiliations.add(_create_affiliation(db, 'Gamma'))
+    group.tags.add(group_tag)
+
+    direct_tag = _create_tag(db, 'Direct tag', 'direct-tag')
+    direct_tag.affiliations.add(delta)
+
+    resolved = util.resolve_affiliations({group}, {direct_tag}, {alpha})
+
+    assert [affiliation.name for affiliation in resolved] == ['Alpha', 'beta', 'delta']
+
+
+def test_resolve_affiliations_dedupes_sources(db):
+    shared = _create_affiliation(db, 'Shared')
+    other = _create_affiliation(db, 'Other')
+
+    group = _create_group(db, 'Group B', 'group-b')
+    tag = _create_tag(db, 'Tag B', 'tag-b')
+
+    group.affiliations.add(shared)
+    tag.affiliations.update({shared, other})
+    group.tags.add(tag)
+
+    resolved = util.resolve_affiliations({group}, {tag}, {shared})
+
+    assert [affiliation.name for affiliation in resolved] == ['Other', 'Shared']
+
+
+def test_resolve_affiliations_includes_tag_groups(db):
+    tag_aff = _create_affiliation(db, 'Tag Only')
+    group_aff = _create_affiliation(db, 'Group Only')
+
+    group = _create_group(db, 'Group C', 'group-c')
+    group.affiliations.add(group_aff)
+
+    tag = _create_tag(db, 'Tag C', 'tag-c')
+    tag.affiliations.add(tag_aff)
+    tag.groups.add(group)
+
+    resolved = util.resolve_affiliations(set(), {tag}, set())
+
+    assert [affiliation.name for affiliation in resolved] == ['Group Only', 'Tag Only']
 
 
 def test_populate_contacts_adds_new_contact_and_logs_summary(db):
