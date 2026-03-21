@@ -18,6 +18,19 @@ representative contact emails, and built-in emailing tools for affiliation repre
 - Upload inline images in representative emails (embedded as CID attachments)
 - Log changes and sent emails in the admin log
 
+### Tags And Groups
+
+Tags are lightweight labels you can attach to affiliations and groups. They are ideal for
+orthogonal or cross-cutting concepts such as "alumni", "strategic partner", or "vendor".
+Affiliations and groups can have many tags, and tags do not imply hierarchy.
+
+Groups are a way to organize affiliations into structured sets. They can carry metadata
+and are commonly used for organizational or regional structure, such as departments,
+faculties, or campuses. A group can have many affiliations.
+
+In short, use tags for flexible labeling across affiliations and groups, and use groups
+for structured organization and metadata of affiliations.
+
 ## Changelog
 
 ### 3.3.10
