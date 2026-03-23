@@ -18,14 +18,14 @@ dependencies = ['indico>=3.3.11']
 GitHub = 'https://github.com/indico/indico-plugins-contrib'
 
 [project.entry-points.'indico.plugins']
-affiliation_extras = 'indico_affiliations.plugin:AffiliationExtrasPlugin'
+affiliation_extras = 'indico_affiliation_extras.plugin:AffiliationExtrasPlugin'
 
 [build-system]
 requires = ['hatchling==1.29.0']
 build-backend = 'hatchling.build'
 
 [tool.hatch.build]
-packages = ['indico_affiliations']
+packages = ['indico_affiliation_extras']
 exclude = [
     '*.no-header',
     '.keep',

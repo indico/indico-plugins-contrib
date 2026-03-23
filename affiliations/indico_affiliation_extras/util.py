@@ -20,9 +20,9 @@ from indico.modules.files.models.files import File
 from indico.modules.users.models.affiliations import Affiliation
 from indico.util.signing import secure_serializer
 
-from indico_affiliations.models.contacts import AffiliationContactList
-from indico_affiliations.models.groups import AffiliationGroup
-from indico_affiliations.models.tags import AffiliationTag
+from indico_affiliation_extras.models.contacts import AffiliationContactList
+from indico_affiliation_extras.models.groups import AffiliationGroup
+from indico_affiliation_extras.models.tags import AffiliationTag
 
 
 class _Memberships(TypedDict):

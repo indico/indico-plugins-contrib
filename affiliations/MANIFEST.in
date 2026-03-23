@@ -1,6 +1,6 @@
-graft indico_affiliations/client
-graft indico_affiliations/static
-graft indico_affiliations/templates
-graft indico_affiliations/translations
+graft indico_affiliation_extras/client
+graft indico_affiliation_extras/static
+graft indico_affiliation_extras/templates
+graft indico_affiliation_extras/translations
 
 global-exclude *.pyc __pycache__ .keep

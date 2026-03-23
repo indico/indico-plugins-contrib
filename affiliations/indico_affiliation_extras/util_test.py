@@ -13,8 +13,8 @@ from sqlalchemy.exc import IntegrityError
 from indico.core.errors import UserValueError
 from indico.modules.users.models.affiliations import Affiliation
 
-from indico_affiliations import util
-from indico_affiliations.models.contacts import AffiliationContactList
+from indico_affiliation_extras import util
+from indico_affiliation_extras.models.contacts import AffiliationContactList
 
 
 EMAIL_IMAGE_URL_PREFIX = '/api/admin/plugins/affiliation_extras/representatives/email/image/'

@@ -17,9 +17,9 @@ from indico.util.marshmallow import LowercaseString, ModelField, ModelList, Sort
 from indico.util.string import validate_email
 from indico.web.forms.colors import get_sui_colors
 
-from indico_affiliations.models.contacts import AffiliationContactList
-from indico_affiliations.models.groups import AffiliationGroup
-from indico_affiliations.models.tags import AffiliationTag
+from indico_affiliation_extras.models.contacts import AffiliationContactList
+from indico_affiliation_extras.models.groups import AffiliationGroup
+from indico_affiliation_extras.models.tags import AffiliationTag
 
 
 class AffiliationGroupSchema(mm.SQLAlchemyAutoSchema):

@@ -7,10 +7,10 @@
 
 from indico.core.plugins import IndicoPluginBlueprint
 
-from indico_affiliations.controllers import (RHAffiliationGroup, RHAffiliationGroups, RHAffiliationTag,
-                                             RHAffiliationTags, RHContactListNames, RHEmailRepresentativesImage,
-                                             RHEmailRepresentativesImageUpload, RHEmailRepresentativesMetadata,
-                                             RHEmailRepresentativesPreview, RHEmailRepresentativesSend)
+from indico_affiliation_extras.controllers import (RHAffiliationGroup, RHAffiliationGroups, RHAffiliationTag,
+                                                   RHAffiliationTags, RHContactListNames, RHEmailRepresentativesImage,
+                                                   RHEmailRepresentativesImageUpload, RHEmailRepresentativesMetadata,
+                                                   RHEmailRepresentativesPreview, RHEmailRepresentativesSend)
 
 
 blueprint = IndicoPluginBlueprint('affiliation_extras', __name__, url_prefix='/api/admin/plugins/affiliation_extras')

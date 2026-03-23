@@ -14,9 +14,9 @@ from indico.modules.logs.util import make_diff_log
 from indico.modules.users.schemas import AffiliationArgs, AffiliationSchema
 from indico.modules.users.views import WPAffiliationsDashboard
 
-from indico_affiliations.blueprint import blueprint
-from indico_affiliations.schemas import AffiliationExtraAttrsArgs, AffiliationExtraAttrsSchema
-from indico_affiliations.util import populate_contacts, populate_memberships
+from indico_affiliation_extras.blueprint import blueprint
+from indico_affiliation_extras.schemas import AffiliationExtraAttrsArgs, AffiliationExtraAttrsSchema
+from indico_affiliation_extras.util import populate_contacts, populate_memberships
 
 
 AFFILIATION_EXTRA_FIELDS = {
@@ -74,7 +74,7 @@ def _set_affiliation_extra_attrs(affiliation, **kwargs):
 
 @signals.core.get_placeholders.connect_via('affiliation-representation-email')
 def _get_email_placeholders(sender, affiliation=None, **kwargs):
-    from indico_affiliations import placeholders as p
+    from indico_affiliation_extras import placeholders as p
     yield p.AffiliationNamePlaceholder
     yield p.AffiliationStreetPlaceholder
     yield p.AffiliationCityPlaceholder
