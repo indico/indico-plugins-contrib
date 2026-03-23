@@ -17,35 +17,35 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Generated-By: Babel 2.18.0\n"
 
-#: indico_affiliations/controllers.py
+#: indico_affiliation_extras/controllers.py
 msgid "There are no recipients with contact emails."
 msgstr ""
 
-#: indico_affiliations/placeholders.py
+#: indico_affiliation_extras/placeholders.py
 msgid "Name of the affiliation"
 msgstr ""
 
-#: indico_affiliations/placeholders.py
+#: indico_affiliation_extras/placeholders.py
 msgid "Street of the affiliation"
 msgstr ""
 
-#: indico_affiliations/placeholders.py
+#: indico_affiliation_extras/placeholders.py
 msgid "City of the affiliation"
 msgstr ""
 
-#: indico_affiliations/placeholders.py
+#: indico_affiliation_extras/placeholders.py
 msgid "Postcode of the affiliation"
 msgstr ""
 
-#: indico_affiliations/placeholders.py
+#: indico_affiliation_extras/placeholders.py
 msgid "Country of the affiliation"
 msgstr ""
 
-#: indico_affiliations/placeholders.py
+#: indico_affiliation_extras/placeholders.py
 msgid "Value in the affiliation's metadata. Supports nested keys like \"foo.bar\" and list indices like \"items.0\"."
 msgstr ""
 
-#: indico_affiliations/schemas.py
+#: indico_affiliation_extras/schemas.py
 #, python-brace-format
 msgid "Invalid email address: {email}"
 msgstr ""

@@ -29,12 +29,12 @@ from indico.util.placeholders import get_sorted_placeholders, replace_placeholde
 from indico.util.string import validate_email
 from indico.web.args import use_kwargs, use_rh_args, use_rh_kwargs
 
-from indico_affiliations.models.groups import AffiliationGroup
-from indico_affiliations.models.tags import AffiliationTag
-from indico_affiliations.schemas import (AffiliationGroupArgs, AffiliationGroupSchema, AffiliationTagArgs,
-                                         AffiliationTagSchema)
-from indico_affiliations.util import (IMAGE_TOKEN_MAX_AGE, get_contact_list_names, load_image_token, make_image_token,
-                                      populate_memberships, prepare_inline_images)
+from indico_affiliation_extras.models.groups import AffiliationGroup
+from indico_affiliation_extras.models.tags import AffiliationTag
+from indico_affiliation_extras.schemas import (AffiliationGroupArgs, AffiliationGroupSchema, AffiliationTagArgs,
+                                               AffiliationTagSchema)
+from indico_affiliation_extras.util import (IMAGE_TOKEN_MAX_AGE, get_contact_list_names, load_image_token,
+                                            make_image_token, populate_memberships, prepare_inline_images)
 
 
 class RHEmailRepresentativesBase(RHAdminBase):

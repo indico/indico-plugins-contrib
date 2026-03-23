@@ -9,7 +9,7 @@ from indico.util.countries import get_country
 from indico.util.i18n import _
 from indico.util.placeholders import ParametrizedPlaceholder, Placeholder
 
-from indico_affiliations.util import resolve_object_path
+from indico_affiliation_extras.util import resolve_object_path
 
 
 class AffiliationNamePlaceholder(Placeholder):
