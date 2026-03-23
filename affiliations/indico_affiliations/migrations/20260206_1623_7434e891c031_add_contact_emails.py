@@ -25,11 +25,11 @@ def upgrade():
         sa.Column('emails', postgresql.ARRAY(sa.String()), nullable=False),
         sa.ForeignKeyConstraint(['affiliation_id'], ['indico.affiliations.id'], ondelete='CASCADE'),
         sa.PrimaryKeyConstraint('id'),
-        schema='plugin_affiliations'
+        schema='plugin_affiliation_extras'
     )
     op.create_index(None, 'affiliation_contact_lists', ['affiliation_id', sa.text('lower(name)')], unique=True,
-                    schema='plugin_affiliations')
+                    schema='plugin_affiliation_extras')
 
 
 def downgrade():
-    op.drop_table('affiliation_contact_lists', schema='plugin_affiliations')
+    op.drop_table('affiliation_contact_lists', schema='plugin_affiliation_extras')

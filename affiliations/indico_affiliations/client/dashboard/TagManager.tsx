@@ -5,8 +5,8 @@
 // redistribute them and/or modify them under the terms of the;
 // MIT License see the LICENSE file for more details.
 
-import editTagURL from 'indico-url:plugin_affiliations.api_affiliation_tag';
-import tagsURL from 'indico-url:plugin_affiliations.api_affiliation_tags';
+import editTagURL from 'indico-url:plugin_affiliation_extras.api_affiliation_tag';
+import tagsURL from 'indico-url:plugin_affiliation_extras.api_affiliation_tags';
 
 import React from 'react';
 import {Label, SemanticCOLORS} from 'semantic-ui-react';

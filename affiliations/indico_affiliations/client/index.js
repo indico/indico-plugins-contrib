@@ -13,7 +13,7 @@ import formSection from './dashboard/formSection';
 import affiliationFilters from './dashboard/filters';
 import AffiliationRowActions from './dashboard/AffiliationRowActions';
 
-const PLUGIN_NAME = 'affiliations';
+const PLUGIN_NAME = 'affiliation_extras';
 
 registerPluginObject(PLUGIN_NAME, 'affiliations-dashboard-columns', dashboardColumns);
 registerPluginObject(PLUGIN_NAME, 'affiliation-form-sections', formSection);

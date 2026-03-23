@@ -22,17 +22,17 @@ affiliation_tag_link_table = db.Table(
     db.Column(
         'tag_id',
         db.Integer,
-        db.ForeignKey('plugin_affiliations.affiliation_tags.id', ondelete='CASCADE'),
+        db.ForeignKey('plugin_affiliation_extras.affiliation_tags.id', ondelete='CASCADE'),
         primary_key=True
     ),
-    schema='plugin_affiliations'
+    schema='plugin_affiliation_extras'
 )
 db.Index(None, affiliation_tag_link_table.c.tag_id)
 
 
 class AffiliationTag(db.Model):
     __tablename__ = 'affiliation_tags'
-    __table_args__ = {'schema': 'plugin_affiliations'}
+    __table_args__ = {'schema': 'plugin_affiliation_extras'}
 
     id = db.Column(
         db.Integer,

@@ -13,7 +13,7 @@ from indico_affiliations.controllers import (RHAffiliationGroup, RHAffiliationGr
                                              RHEmailRepresentativesPreview, RHEmailRepresentativesSend)
 
 
-blueprint = IndicoPluginBlueprint('affiliations', __name__, url_prefix='/api/admin/plugins/affiliations')
+blueprint = IndicoPluginBlueprint('affiliation_extras', __name__, url_prefix='/api/admin/plugins/affiliation_extras')
 
 blueprint.add_url_rule('/representatives/email/metadata', 'email_representatives_metadata',
                        RHEmailRepresentativesMetadata, methods=('POST',))

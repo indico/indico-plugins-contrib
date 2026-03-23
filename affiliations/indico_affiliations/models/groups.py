@@ -24,10 +24,10 @@ affiliation_group_link_table = db.Table(
     db.Column(
         'group_id',
         db.Integer,
-        db.ForeignKey('plugin_affiliations.affiliation_groups.id', ondelete='CASCADE'),
+        db.ForeignKey('plugin_affiliation_extras.affiliation_groups.id', ondelete='CASCADE'),
         primary_key=True
     ),
-    schema='plugin_affiliations'
+    schema='plugin_affiliation_extras'
 )
 db.Index(None, affiliation_group_link_table.c.group_id)
 
@@ -36,16 +36,16 @@ group_tag_link_table = db.Table(
     db.Column(
         'group_id',
         db.Integer,
-        db.ForeignKey('plugin_affiliations.affiliation_groups.id', ondelete='CASCADE'),
+        db.ForeignKey('plugin_affiliation_extras.affiliation_groups.id', ondelete='CASCADE'),
         primary_key=True
     ),
     db.Column(
         'tag_id',
         db.Integer,
-        db.ForeignKey('plugin_affiliations.affiliation_tags.id', ondelete='CASCADE'),
+        db.ForeignKey('plugin_affiliation_extras.affiliation_tags.id', ondelete='CASCADE'),
         primary_key=True
     ),
-    schema='plugin_affiliations'
+    schema='plugin_affiliation_extras'
 )
 db.Index(None, group_tag_link_table.c.tag_id)
 
@@ -54,7 +54,7 @@ class AffiliationGroup(db.Model):
     __tablename__ = 'affiliation_groups'
     __table_args__ = (
         db.Index(None, 'code', unique=True, postgresql_where=db.text('NOT is_deleted')),
-        {'schema': 'plugin_affiliations'},
+        {'schema': 'plugin_affiliation_extras'},
     )
 
     id = db.Column(
