@@ -166,7 +166,7 @@ class RHEmailRepresentativesImageUpload(RHAdminBase):
         file = File.create_from_stream(upload.stream, filename, content_type, context=('affiliations', 'email'))
         file_uuid = file.uuid.hex if hasattr(file.uuid, 'hex') else str(file.uuid)
         token = make_image_token(file_uuid, session.user.id)
-        url = url_for_plugin('affiliations.email_representatives_image', token=token, _external=True)
+        url = url_for_plugin('affiliation_extras.email_representatives_image', token=token, _external=True)
         return jsonify(url=url)
 
 

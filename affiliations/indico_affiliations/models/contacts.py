@@ -18,7 +18,7 @@ class AffiliationContactList(db.Model):
             db.text('lower(name)'),
             unique=True,
         ),
-        {'schema': 'plugin_affiliations'},
+        {'schema': 'plugin_affiliation_extras'},
     )
 
     id = db.Column(

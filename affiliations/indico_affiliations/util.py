@@ -53,7 +53,7 @@ def get_token_from_src(src: str) -> str | None:
     if not src:
         return None
     path = urlsplit(src).path
-    if not path.startswith(url_for_plugin('affiliations.email_representatives_image_upload')):
+    if not path.startswith(url_for_plugin('affiliation_extras.email_representatives_image_upload')):
         return None
     return path.rsplit('/', 1)[-1] or None
 

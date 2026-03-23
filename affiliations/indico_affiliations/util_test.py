@@ -17,7 +17,7 @@ from indico_affiliations import util
 from indico_affiliations.models.contacts import AffiliationContactList
 
 
-EMAIL_IMAGE_URL_PREFIX = '/api/admin/plugins/affiliations/representatives/email/image/'
+EMAIL_IMAGE_URL_PREFIX = '/api/admin/plugins/affiliation_extras/representatives/email/image/'
 
 
 def test_get_token_from_src():

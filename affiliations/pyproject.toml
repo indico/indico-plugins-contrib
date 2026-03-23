@@ -1,5 +1,5 @@
 [project]
-name = 'indico-plugin-affiliations'
+name = 'indico-plugin-affiliation-extras'
 description = 'Affiliation groups, tags, and custom fields for Indico'
 readme = 'README.md'
 version = '3.3.11.dev0'
@@ -18,7 +18,7 @@ dependencies = ['indico>=3.3.11']
 GitHub = 'https://github.com/indico/indico-plugins-contrib'
 
 [project.entry-points.'indico.plugins']
-affiliations = 'indico_affiliations.plugin:AffiliationsPlugin'
+affiliation_extras = 'indico_affiliations.plugin:AffiliationExtrasPlugin'
 
 [build-system]
 requires = ['hatchling==1.29.0']

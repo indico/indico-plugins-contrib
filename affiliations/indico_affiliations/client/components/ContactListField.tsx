@@ -5,7 +5,7 @@
 // redistribute them and/or modify them under the terms of the;
 // MIT License see the LICENSE file for more details.
 
-import contactListNamesURL from 'indico-url:plugin_affiliations.api_contact_list_names';
+import contactListNamesURL from 'indico-url:plugin_affiliation_extras.api_contact_list_names';
 import React, {useState} from 'react';
 import {Dropdown, Table, Icon, Button, Popup, Confirm} from 'semantic-ui-react';
 

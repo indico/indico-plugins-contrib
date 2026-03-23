@@ -19,7 +19,7 @@ depends_on = None
 
 
 def upgrade():
-    op.execute(CreateSchema('plugin_affiliations'))
+    op.execute(CreateSchema('plugin_affiliation_extras'))
 
     op.create_table(
         'affiliation_groups',
@@ -30,14 +30,14 @@ def upgrade():
         sa.Column('is_deleted', sa.Boolean(), nullable=False),
         sa.Column('system', sa.Boolean(), nullable=False),
         sa.PrimaryKeyConstraint('id'),
-        schema='plugin_affiliations'
+        schema='plugin_affiliation_extras'
     )
     op.create_index(
         None,
         'affiliation_groups',
         ['code'],
         unique=True,
-        schema='plugin_affiliations',
+        schema='plugin_affiliation_extras',
         postgresql_where=sa.text('NOT is_deleted')
     )
     op.create_table(
@@ -45,11 +45,11 @@ def upgrade():
         sa.Column('affiliation_id', sa.Integer(), nullable=False),
         sa.Column('group_id', sa.Integer(), nullable=False),
         sa.ForeignKeyConstraint(['affiliation_id'], ['indico.affiliations.id'], ondelete='CASCADE'),
-        sa.ForeignKeyConstraint(['group_id'], ['plugin_affiliations.affiliation_groups.id'], ondelete='CASCADE'),
+        sa.ForeignKeyConstraint(['group_id'], ['plugin_affiliation_extras.affiliation_groups.id'], ondelete='CASCADE'),
         sa.PrimaryKeyConstraint('affiliation_id', 'group_id'),
-        schema='plugin_affiliations'
+        schema='plugin_affiliation_extras'
     )
-    op.create_index(None, 'affiliation_group_links', ['group_id'], schema='plugin_affiliations')
+    op.create_index(None, 'affiliation_group_links', ['group_id'], schema='plugin_affiliation_extras')
 
     op.create_table(
         'affiliation_tags',
@@ -59,38 +59,38 @@ def upgrade():
         sa.Column('color', sa.String(), nullable=False),
         sa.PrimaryKeyConstraint('id'),
         sa.UniqueConstraint('code'),
-        schema='plugin_affiliations'
+        schema='plugin_affiliation_extras'
     )
     op.create_table(
         'affiliation_tag_links',
         sa.Column('affiliation_id', sa.Integer(), nullable=False),
         sa.Column('tag_id', sa.Integer(), nullable=False),
         sa.ForeignKeyConstraint(['affiliation_id'], ['indico.affiliations.id'], ondelete='CASCADE'),
-        sa.ForeignKeyConstraint(['tag_id'], ['plugin_affiliations.affiliation_tags.id'], ondelete='CASCADE'),
+        sa.ForeignKeyConstraint(['tag_id'], ['plugin_affiliation_extras.affiliation_tags.id'], ondelete='CASCADE'),
         sa.PrimaryKeyConstraint('affiliation_id', 'tag_id'),
-        schema='plugin_affiliations'
+        schema='plugin_affiliation_extras'
     )
-    op.create_index(None, 'affiliation_tag_links', ['tag_id'], schema='plugin_affiliations')
+    op.create_index(None, 'affiliation_tag_links', ['tag_id'], schema='plugin_affiliation_extras')
 
     op.create_table(
         'group_tag_links',
         sa.Column('group_id', sa.Integer(), nullable=False),
         sa.Column('tag_id', sa.Integer(), nullable=False),
-        sa.ForeignKeyConstraint(['group_id'], ['plugin_affiliations.affiliation_groups.id'], ondelete='CASCADE'),
-        sa.ForeignKeyConstraint(['tag_id'], ['plugin_affiliations.affiliation_tags.id'], ondelete='CASCADE'),
+        sa.ForeignKeyConstraint(['group_id'], ['plugin_affiliation_extras.affiliation_groups.id'], ondelete='CASCADE'),
+        sa.ForeignKeyConstraint(['tag_id'], ['plugin_affiliation_extras.affiliation_tags.id'], ondelete='CASCADE'),
         sa.PrimaryKeyConstraint('group_id', 'tag_id'),
-        schema='plugin_affiliations'
+        schema='plugin_affiliation_extras'
     )
-    op.create_index(None, 'group_tag_links', ['tag_id'], unique=False, schema='plugin_affiliations')
+    op.create_index(None, 'group_tag_links', ['tag_id'], unique=False, schema='plugin_affiliation_extras')
 
 
 def downgrade():
-    op.drop_table('group_tag_links', schema='plugin_affiliations')
+    op.drop_table('group_tag_links', schema='plugin_affiliation_extras')
 
-    op.drop_table('affiliation_tag_links', schema='plugin_affiliations')
-    op.drop_table('affiliation_tags', schema='plugin_affiliations')
+    op.drop_table('affiliation_tag_links', schema='plugin_affiliation_extras')
+    op.drop_table('affiliation_tags', schema='plugin_affiliation_extras')
 
-    op.drop_table('affiliation_group_links', schema='plugin_affiliations')
-    op.drop_table('affiliation_groups', schema='plugin_affiliations')
+    op.drop_table('affiliation_group_links', schema='plugin_affiliation_extras')
+    op.drop_table('affiliation_groups', schema='plugin_affiliation_extras')
 
-    op.execute(DropSchema('plugin_affiliations'))
+    op.execute(DropSchema('plugin_affiliation_extras'))

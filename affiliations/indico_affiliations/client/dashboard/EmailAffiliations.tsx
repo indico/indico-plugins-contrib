@@ -5,10 +5,10 @@
 // redistribute them and/or modify them under the terms of the;
 // MIT License see the LICENSE file for more details.
 
-import emailMetadataURL from 'indico-url:plugin_affiliations.email_representatives_metadata';
-import emailSendURL from 'indico-url:plugin_affiliations.email_representatives_send';
-import emailPreviewURL from 'indico-url:plugin_affiliations.email_representatives_preview';
-import emailImageUploadURL from 'indico-url:plugin_affiliations.email_representatives_image_upload';
+import emailMetadataURL from 'indico-url:plugin_affiliation_extras.email_representatives_metadata';
+import emailSendURL from 'indico-url:plugin_affiliation_extras.email_representatives_send';
+import emailPreviewURL from 'indico-url:plugin_affiliation_extras.email_representatives_preview';
+import emailImageUploadURL from 'indico-url:plugin_affiliation_extras.email_representatives_image_upload';
 
 import {AxiosResponse} from 'axios';
 import React, {useState, useMemo} from 'react';
