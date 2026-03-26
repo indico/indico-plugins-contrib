@@ -5,7 +5,7 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-from flask import g, session
+from flask import g, has_request_context, request, session
 
 from indico.core import signals
 from indico.core.plugins import IndicoPlugin
@@ -40,6 +40,8 @@ class AffiliationsPlugin(IndicoPlugin):
 
 @signals.plugin.schema_post_dump.connect_via(AffiliationSchema)
 def _extend_affiliation_schema(sender, data, orig, **kwargs):
+    if not has_request_context() or request.endpoint != 'users.api_admin_affiliations':
+        return
     for dump_data, affiliation in zip(data, orig, strict=True):
         dump_data.update(AffiliationExtraAttrsSchema().dump(affiliation))
 
