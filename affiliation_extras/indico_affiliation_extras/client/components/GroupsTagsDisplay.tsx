@@ -10,7 +10,7 @@ import {Icon, Label, Popup} from 'semantic-ui-react';
 
 import {Translate} from 'indico/react/i18n';
 
-import {GroupInfo, TagInfo} from '../dashboard/types';
+import {GroupInfo, TagInfo} from '../types';
 
 import './GroupsTagsDisplay.module.scss';
 
@@ -54,15 +54,9 @@ function TagsItems({tags, groupTags}: {tags: TagInfo[]; groupTags?: TagInfo[]}) 
   );
 }
 
-export function GroupsDisplay({
-  groups,
-  emptyLabel = '-',
-}: {
-  groups: GroupInfo[];
-  emptyLabel?: string;
-}) {
+export function GroupsDisplay({groups}: {groups: GroupInfo[]}) {
   if (!groups.length) {
-    return emptyLabel;
+    return '-';
   }
 
   return (
@@ -72,17 +66,9 @@ export function GroupsDisplay({
   );
 }
 
-export function TagsDisplay({
-  tags,
-  groupTags,
-  emptyLabel = '-',
-}: {
-  tags: TagInfo[];
-  groupTags?: TagInfo[];
-  emptyLabel?: string;
-}) {
+export function TagsDisplay({tags, groupTags}: {tags: TagInfo[]; groupTags?: TagInfo[]}) {
   if (!tags.length && !groupTags?.length) {
-    return emptyLabel;
+    return '-';
   }
 
   return (
@@ -93,20 +79,18 @@ export function TagsDisplay({
 }
 
 export function MembersDisplay({
-  groups,
-  tags,
-  groupTags,
+  groups = [],
+  tags = [],
+  groupTags = [],
   affiliationCount = 0,
-  emptyLabel = '-',
 }: {
-  groups: GroupInfo[];
-  tags: TagInfo[];
+  groups?: GroupInfo[];
+  tags?: TagInfo[];
   groupTags?: TagInfo[];
   affiliationCount?: number;
-  emptyLabel?: string;
 }) {
-  if (!groups.length && !tags.length && !groupTags?.length && affiliationCount === 0) {
-    return emptyLabel;
+  if (!groups.length && !tags.length && !groupTags.length && affiliationCount === 0) {
+    return '-';
   }
 
   return (

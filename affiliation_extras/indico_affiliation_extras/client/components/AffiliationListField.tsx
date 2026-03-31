@@ -11,18 +11,16 @@ import searchAffiliationsURL from 'indico-url:users.api_affiliations';
 
 import _ from 'lodash';
 import React, {useMemo, useState} from 'react';
-import {Button, Dropdown, Header, Icon, Label, List} from 'semantic-ui-react';
+import {Button, Dropdown, Header, Icon, Label, List, Message, Segment} from 'semantic-ui-react';
 
 import {FinalField, validators} from 'indico/react/forms';
 import {useIndicoAxios} from 'indico/react/hooks';
 import {Translate} from 'indico/react/i18n';
 import {makeAsyncDebounce} from 'indico/utils/debounce';
-
 import {Affiliation} from 'indico/modules/users/affiliations/types';
 
-import {GroupInfo, TagInfo} from '../dashboard/types';
-
-import './AffiliationListField.module.scss';
+import {GroupInfo, TagInfo} from '../types';
+import {getAffiliationSubheader} from '../util';
 
 const debounce = makeAsyncDebounce(250);
 
@@ -32,80 +30,18 @@ export interface AffiliationListValue {
   affiliations: Affiliation[];
 }
 
-function getAffiliationSubheader(affiliation: Affiliation) {
-  const city = affiliation.city;
-  const country = affiliation.country_name;
-  if (city && country) {
-    return `${city}, ${country}`;
-  }
-  return city || country || undefined;
-}
-
-export function AffiliationsList({affiliations}: {affiliations: Affiliation[]}) {
-  return (
-    <List divided relaxed styleName="list">
-      <AffiliationItems affiliations={affiliations} readOnly />
-      {!affiliations.length && (
-        <List.Item styleName="empty">
-          <Translate>This list is currently empty</Translate>
-        </List.Item>
-      )}
-    </List>
-  );
-}
-
-function AffiliationItems({
-  affiliations,
-  readOnly,
-  disabled,
-  onDelete,
-}: {
-  affiliations: Affiliation[];
-  readOnly: boolean;
-  disabled?: boolean;
-  onDelete?: (id: number) => void;
-}) {
-  return (
-    <>
-      {affiliations.map(affiliation => (
-        <List.Item key={`affiliation-${affiliation.id}`}>
-          {!readOnly && (
-            <List.Content floated="right">
-              <Icon
-                name="close"
-                link
-                color="grey"
-                disabled={disabled}
-                onClick={() => !disabled && onDelete?.(affiliation.id)}
-              />
-            </List.Content>
-          )}
-          <List.Content>
-            <List.Header>{affiliation.name}</List.Header>
-            {getAffiliationSubheader(affiliation) && (
-              <List.Description>{getAffiliationSubheader(affiliation)}</List.Description>
-            )}
-          </List.Content>
-        </List.Item>
-      ))}
-    </>
-  );
-}
-
 function AffiliationListField({
   value,
   onChange,
   onFocus,
   onBlur,
   disabled = false,
-  readOnly = false,
 }: {
   value: AffiliationListValue;
   onChange: (value: AffiliationListValue) => void;
   onFocus?: () => void;
   onBlur?: () => void;
   disabled?: boolean;
-  readOnly?: boolean;
 }) {
   const {data: groups} = useIndicoAxios(groupsURL({}));
   const {data: tags} = useIndicoAxios(tagsURL({}));
@@ -196,109 +132,87 @@ function AffiliationListField({
     debounce(() => setSearchQuery(query));
   };
 
-  const groupEntries = value.groups.map(group => ({
-    key: `group-${group.id}`,
-    title: group.code,
-    description: group.name,
-    onDelete: () => handleDeleteGroup(group.id),
-  }));
-  const tagEntries = value.tags.map(tag => ({
-    key: `tag-${tag.id}`,
-    title: <Label size="tiny" color={tag.color} content={tag.code} />,
-    description: tag.name,
-    onDelete: () => handleDeleteTag(tag.id),
-  }));
-  const hasEntries =
-    groupEntries.length > 0 || tagEntries.length > 0 || value.affiliations.length > 0;
+  const entries = [
+    ...value.groups.map(group => ({
+      key: `group-${group.id}`,
+      title: group.code,
+      description: group.name,
+      onDelete: () => handleDeleteGroup(group.id),
+    })),
+    ...value.tags.map(tag => ({
+      key: `tag-${tag.id}`,
+      title: <Label size="tiny" color={tag.color} content={tag.code} />,
+      description: tag.name,
+      onDelete: () => handleDeleteTag(tag.id),
+    })),
+    ...value.affiliations.map(affiliation => ({
+      key: `affiliation-${affiliation.id}`,
+      title: affiliation.name,
+      description: getAffiliationSubheader(affiliation),
+      onDelete: () => handleDeleteAffiliation(affiliation.id),
+    })),
+  ];
 
   return (
     <>
-      <List divided relaxed styleName="list">
-        {groupEntries.map(entry => (
-          <List.Item key={entry.key}>
-            {!readOnly && (
-              <List.Content floated="right">
-                <Icon
-                  name="close"
-                  link
-                  color="grey"
-                  disabled={disabled}
-                  onClick={() => !disabled && entry.onDelete()}
-                />
-              </List.Content>
-            )}
-            <List.Content>
-              <List.Header>{entry.title}</List.Header>
-              {entry.description && <List.Description>{entry.description}</List.Description>}
-            </List.Content>
-          </List.Item>
-        ))}
-        {tagEntries.map(entry => (
-          <List.Item key={entry.key}>
-            {!readOnly && (
-              <List.Content floated="right">
-                <Icon
-                  name="close"
-                  link
-                  color="grey"
-                  disabled={disabled}
-                  onClick={() => !disabled && entry.onDelete()}
-                />
-              </List.Content>
-            )}
-            <List.Content>
-              <List.Header>{entry.title}</List.Header>
-              {entry.description && <List.Description>{entry.description}</List.Description>}
-            </List.Content>
-          </List.Item>
-        ))}
-        <AffiliationItems
-          affiliations={value.affiliations}
-          readOnly={readOnly}
-          disabled={disabled}
-          onDelete={handleDeleteAffiliation}
-        />
-        {!hasEntries && (
-          <List.Item styleName="empty">
-            <Translate>This list is currently empty</Translate>
-          </List.Item>
+      <Segment attached="top">
+        {entries.length > 0 ? (
+          <List divided relaxed>
+            {entries.map(entry => (
+              <List.Item key={entry.key}>
+                <List.Content floated="right">
+                  <Icon
+                    name="close"
+                    link
+                    color="grey"
+                    disabled={disabled}
+                    onClick={() => !disabled && entry.onDelete()}
+                  />
+                </List.Content>
+                <List.Content>
+                  <List.Header>{entry.title}</List.Header>
+                  {entry.description && <List.Description>{entry.description}</List.Description>}
+                </List.Content>
+              </List.Item>
+            ))}
+          </List>
+        ) : (
+          <Translate>This list is currently empty</Translate>
         )}
-      </List>
-      {!readOnly && (
-        <Button.Group>
-          <Button icon="add" as="div" disabled />
-          <AddDropdown
-            text={Translate.string('Group')}
-            options={groupOptions}
-            disabled={disabled || groupOptions.length === 0}
-            onChange={handleAddGroup}
-          />
-          <AddDropdown
-            text={Translate.string('Tag')}
-            options={tagOptions}
-            disabled={disabled || tagOptions.length === 0}
-            onChange={handleAddTag}
-          />
-          <Dropdown
-            text={Translate.string('Affiliation')}
-            button
-            upward
-            floating
-            scrolling
-            search
-            loading={loadingAffiliations}
-            disabled={disabled}
-            options={affiliationOptions}
-            openOnFocus={false}
-            selectOnBlur={false}
-            selectOnNavigation={false}
-            value={null}
-            onSearchChange={handleAffiliationSearchChange}
-            onChange={(e, data) => handleAddAffiliation(data.value as number)}
-            noResultsMessage={Translate.string('Search an affiliation')}
-          />
-        </Button.Group>
-      )}
+      </Segment>
+      <Button.Group attached="bottom">
+        <Button icon="add" as="div" disabled />
+        <AddDropdown
+          text={Translate.string('Group')}
+          options={groupOptions}
+          disabled={disabled || groupOptions.length === 0}
+          onChange={handleAddGroup}
+        />
+        <AddDropdown
+          text={Translate.string('Tag')}
+          options={tagOptions}
+          disabled={disabled || tagOptions.length === 0}
+          onChange={handleAddTag}
+        />
+        <Dropdown
+          text={Translate.string('Affiliation')}
+          button
+          upward
+          floating
+          scrolling
+          search
+          loading={loadingAffiliations}
+          disabled={disabled}
+          options={affiliationOptions}
+          openOnFocus={false}
+          selectOnBlur={false}
+          selectOnNavigation={false}
+          value={null}
+          onSearchChange={handleAffiliationSearchChange}
+          onChange={(e, data) => handleAddAffiliation(data.value as number)}
+          noResultsMessage={Translate.string('Search an affiliation')}
+        />
+      </Button.Group>
     </>
   );
 }

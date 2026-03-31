@@ -21,10 +21,10 @@ import {FinalCheckbox, FinalDropdown, handleSubmitError} from 'indico/react/form
 import {Plural, PluralTranslate, Singular, Translate} from 'indico/react/i18n';
 import {useIndicoAxios} from 'indico/react/hooks';
 
-import {ExtendedAffiliation} from './types';
+import {ExtendedAffiliation} from '../types';
+import {ContactList} from '../components/ContactListField';
 
 import './EmailAffiliations.module.scss';
-import {ContactList} from '../components/ContactListField';
 
 const SUCCESS_TIMEOUT = 5000;
 

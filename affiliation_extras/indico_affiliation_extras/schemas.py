@@ -92,11 +92,7 @@ class AffiliationContactListArgs(mm.Schema):
     emails = fields.List(LowercaseString(validate=validate.Email()), required=True, validate=not_empty)
 
 
-class AffiliationExtraAttrsSchema(mm.SQLAlchemyAutoSchema):
-    class Meta:
-        model = Affiliation
-        fields = ('contact_lists', 'groups', 'tags', 'group_tags')
-
+class AffiliationExtraAttrs:
     contact_lists = fields.List(fields.Nested(AffiliationContactListSchema))
     groups = SortedList(fields.Nested(AffiliationGroupSchema(exclude=('meta',))), sort_key=attrgetter('code'))
     tags = SortedList(fields.Nested(AffiliationTagSchema), sort_key=attrgetter('code'))
@@ -106,6 +102,17 @@ class AffiliationExtraAttrsSchema(mm.SQLAlchemyAutoSchema):
         group_tags = {tag for group in affiliation.groups for tag in group.tags if tag not in affiliation.tags}
         group_tags = sorted(group_tags, key=attrgetter('code'))
         return AffiliationTagSchema(many=True).dump(group_tags)
+
+
+class ExtendedAffiliationSchema(AffiliationExtraAttrs, UserAffiliationSchema):
+    class Meta(UserAffiliationSchema.Meta):
+        fields = (*UserAffiliationSchema.Meta.fields, 'contact_lists', 'groups', 'tags', 'group_tags')
+
+
+class AffiliationExtraAttrsSchema(AffiliationExtraAttrs, mm.SQLAlchemyAutoSchema):
+    class Meta:
+        model = Affiliation
+        fields = ('contact_lists', 'groups', 'tags', 'group_tags')
 
 
 class AffiliationExtraAttrsArgs(mm.Schema):

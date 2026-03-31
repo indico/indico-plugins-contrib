@@ -15,9 +15,9 @@ import {Param, Translate} from 'indico/react/i18n';
 import {FinalDropdown, FinalInput} from 'indico/react/forms';
 import indicoAxios, {handleAxiosError} from 'indico/utils/axios';
 import {SUIPalette} from 'indico/utils/palette';
+import {useIndicoAxios} from 'indico/react/hooks';
 
 import ItemManager, {ItemBase} from '../components/ItemManager';
-import {useIndicoAxios} from 'indico/react/hooks';
 
 interface TagFormData {
   code: string;

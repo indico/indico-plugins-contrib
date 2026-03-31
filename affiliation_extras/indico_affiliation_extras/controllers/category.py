@@ -15,14 +15,13 @@ from indico.modules.categories.controllers.base import RHManageCategoryBase
 from indico.modules.logs.models.entries import AppLogRealm, LogKind
 from indico.modules.logs.util import make_diff_log
 from indico.modules.users.models.affiliations import Affiliation
-from indico.modules.users.schemas import AffiliationSchema
 from indico.util.marshmallow import ModelField, ModelList
 from indico.web.args import use_args, use_kwargs
 
 from indico_affiliation_extras.models.groups import AffiliationGroup
 from indico_affiliation_extras.models.presets import AffiliationPresets
 from indico_affiliation_extras.models.tags import AffiliationTag
-from indico_affiliation_extras.schemas import AffiliationPresetArgs, AffiliationPresetSchema
+from indico_affiliation_extras.schemas import AffiliationPresetArgs, AffiliationPresetSchema, ExtendedAffiliationSchema
 from indico_affiliation_extras.util import get_inherited_presets, populate_preset_lists, resolve_affiliations
 from indico_affiliation_extras.views import WPCategoryAffiliations
 
@@ -128,4 +127,6 @@ class RHResolveAffiliations(RHManageCategoryBase):
     )
     def _process(self, groups, tags, affiliations):
         resolved = resolve_affiliations(groups, tags, affiliations)
-        return AffiliationSchema(many=True, only=('id', 'name', 'city', 'country_code')).jsonify(resolved)
+        return ExtendedAffiliationSchema(
+            many=True, only=('id', 'name', 'city', 'country_code', 'groups', 'tags', 'group_tags')
+        ).jsonify(resolved)

@@ -16,11 +16,13 @@ import {FinalModalForm} from 'indico/react/forms/final-form';
 import {useIndicoAxios} from 'indico/react/hooks';
 import {Translate} from 'indico/react/i18n';
 import {SortableWrapper, useSortableItem} from 'indico/react/sortable';
+import {Affiliation} from 'indico/modules/users/affiliations/types';
+
+import {GroupInfo, TagInfo} from '../types';
 
 import {MembersDisplay} from './GroupsTagsDisplay';
-import FinalAffiliationList, {AffiliationsList} from './AffiliationListField';
-import {Affiliation} from 'indico/modules/users/affiliations/types';
-import {GroupInfo, TagInfo} from '../dashboard/types';
+import FinalAffiliationList from './AffiliationListField';
+import {AffiliationList} from './AffiliationList';
 
 import './PresetListField.module.scss';
 
@@ -35,7 +37,7 @@ const DEFAULT_LIST_VALUE = {
 };
 const DRAG_TYPE = 'affiliations-preset-list';
 
-export interface PresetList {
+export interface PresetItem {
   id?: number | null;
   name: string;
   position?: number | null;
@@ -46,10 +48,10 @@ export interface PresetList {
 }
 
 interface PresetListRowProps {
-  value: PresetList;
+  value: PresetItem;
   index: number;
   targetLocator: Record<string, number>;
-  onChange: (value: PresetList) => void;
+  onChange: (value: PresetItem) => void;
   onDelete: () => void;
   onMove: (sourceIndex: number, targetIndex: number) => void;
   canDelete: boolean;
@@ -77,42 +79,14 @@ function PresetListRow({
     itemData: {},
     onDrop: () => null,
   });
-
-  const triggerDelete = () => {
-    if (value.name.trim() || value.id != null) {
-      setModalOpen('delete');
-    } else {
-      onDelete();
-    }
-  };
-
+  const triggerDelete = () =>
+    value.name.trim() || value.id != null ? setModalOpen('delete') : onDelete();
   const hasMembers =
     value.groups.length > 0 || value.tags.length > 0 || value.affiliations.length > 0;
   const isEnabled = value.is_enabled;
 
-  const {
-    data: resolvedAffiliations,
-    loading: loadingAffiliations,
-    reFetch,
-  } = useIndicoAxios({url: resolveAffiliationsURL(targetLocator), method: 'POST'}, {manual: true});
-
-  const openAffiliations = () => {
-    setModalOpen('affiliations');
-    reFetch({
-      data: {
-        groups: value.groups.map(group => group.id),
-        tags: value.tags.map(tag => tag.id),
-        affiliations: value.affiliations.map(affiliation => affiliation.id),
-      },
-    });
-  };
-
-  const rowStyle: React.CSSProperties = {
-    ...style,
-  };
-
   return (
-    <tr ref={itemRef} style={rowStyle} styleName={isEnabled ? null : 'row-disabled'}>
+    <tr ref={itemRef} style={{...style}} styleName={isEnabled ? null : 'row-disabled'}>
       <td ref={handleRef} style={{width: '1.5em', cursor: 'grab'}}>
         <Icon name="bars" color="grey" title={Translate.string('Drag to reorder')} />
       </td>
@@ -145,7 +119,7 @@ function PresetListRow({
         <Popup
           content={Translate.string('See affiliations')}
           on="hover"
-          trigger={<Icon name="list" color="grey" onClick={openAffiliations} link />}
+          trigger={<Icon name="list" color="grey" onClick={openModal('affiliations')} link />}
         />
         <Popup
           content={Translate.string('Remove list')}
@@ -213,25 +187,28 @@ function PresetListRow({
             <FinalAffiliationList name="members" required />
           </FinalModalForm>
         )}
-        <Modal open={modalOpen === 'affiliations'} onClose={closeModal} size="small">
-          <Modal.Header>
-            {value.name
-              ? Translate.string('Affiliations in "{name}"', {name: value.name})
-              : Translate.string('Affiliations')}
-          </Modal.Header>
-          <Modal.Content>
-            {loadingAffiliations ? (
-              <Loader active inline="centered" />
-            ) : (
-              <AffiliationsList affiliations={resolvedAffiliations || []} />
-            )}
-          </Modal.Content>
-          <Modal.Actions>
-            <Button onClick={closeModal}>
-              <Translate>Close</Translate>
-            </Button>
-          </Modal.Actions>
-        </Modal>
+        {modalOpen === 'affiliations' && (
+          <Modal onClose={closeModal} size="small" open>
+            <Modal.Header>
+              {value.name
+                ? Translate.string('Affiliations in "{name}"', {name: value.name})
+                : Translate.string('Affiliations')}
+            </Modal.Header>
+            <Modal.Content>
+              <AffiliationList
+                resolveAffiliationsURL={resolveAffiliationsURL(targetLocator)}
+                groupIds={value.groups.map(group => group.id)}
+                tagIds={value.tags.map(tag => tag.id)}
+                affiliationIds={value.affiliations.map(affiliation => affiliation.id)}
+              />
+            </Modal.Content>
+            <Modal.Actions>
+              <Button onClick={closeModal}>
+                <Translate>Close</Translate>
+              </Button>
+            </Modal.Actions>
+          </Modal>
+        )}
       </td>
     </tr>
   );
@@ -244,21 +221,21 @@ function PresetListField({
   onBlur,
   targetLocator,
 }: {
-  value?: PresetList[];
-  onChange: (value: PresetList[]) => void;
+  value?: PresetItem[];
+  onChange: (value: PresetItem[]) => void;
   onFocus: () => void;
   onBlur: () => void;
   targetLocator: Record<string, number>;
 }) {
   const values = _value?.length ? _value : [DEFAULT_LIST_VALUE];
-  const normalizePositions = (items: PresetList[]) =>
+  const normalizePositions = (items: PresetItem[]) =>
     items.map((item, idx) => ({
       ...item,
       position: idx + 1,
     }));
   const normalizedValues = normalizePositions(values);
 
-  const handleChange = (newValue: PresetList[], touch: boolean = true) => {
+  const handleChange = (newValue: PresetItem[], touch: boolean = true) => {
     onChange(normalizePositions(newValue));
     if (touch) {
       onFocus();
@@ -333,7 +310,7 @@ function PresetListField({
   );
 }
 
-const validatePresetLists = (value: PresetList[]) => {
+const validatePresetLists = (value: PresetItem[]) => {
   if (value.some(({name}) => !name.trim())) {
     return Translate.string('List names must not be empty.');
   }
@@ -352,8 +329,8 @@ export default function FinalPresetList({name, targetLocator, ...rest}) {
       name={name}
       component={PresetListField}
       targetLocator={targetLocator}
-      format={(v: PresetList[]) => v}
-      parse={(v: PresetList[]) => v}
+      format={(v: PresetItem[]) => v}
+      parse={(v: PresetItem[]) => v}
       undefinedValue={[]}
       isEqual={_.isEqual}
       validate={validatePresetLists}
