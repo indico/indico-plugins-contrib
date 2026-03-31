@@ -207,9 +207,20 @@ const validateContactLists = (value?: ContactList[]) => {
   if (new Set(normalized).size < value.length) {
     return Translate.string('Contact list names must be unique.');
   }
-  if (value.length > 1 && value.find(({emails}) => emails.length === 0)) {
+  if (value.some(list => list.name !== '' && list.emails.length === 0)) {
     return Translate.string('Contact lists must not be empty.');
   }
+};
+
+const normalizeContactLists = (value: ContactList[] = []) => {
+  if (value.length !== 1) {
+    return value;
+  }
+  const [{name, emails}] = value;
+  if (name.trim() === '' && emails.length === 0) {
+    return [];
+  }
+  return value;
 };
 
 export default function FinalContactList({name, ...rest}) {
@@ -218,7 +229,7 @@ export default function FinalContactList({name, ...rest}) {
       name={name}
       component={ContactListField}
       format={(v: ContactList[]) => v}
-      parse={(v: ContactList[]) => v}
+      parse={normalizeContactLists}
       undefinedValue={[]}
       isEqual={unsortedArraysEqual}
       validate={validateContactLists}
