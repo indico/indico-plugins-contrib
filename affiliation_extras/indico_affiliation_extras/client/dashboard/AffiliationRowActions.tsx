@@ -10,7 +10,8 @@ import {Icon} from 'semantic-ui-react';
 
 import {Translate} from 'indico/react/i18n';
 
-import {ExtendedAffiliation} from './types';
+import {ExtendedAffiliation} from '../types';
+
 import EmailAffiliations from './EmailAffiliations';
 
 export default function AffiliationRowActions({affiliation}: {affiliation: ExtendedAffiliation}) {

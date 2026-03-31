@@ -10,14 +10,13 @@ import groupsURL from 'indico-url:plugin_affiliation_extras.api_affiliation_grou
 import tagsURL from 'indico-url:plugin_affiliation_extras.api_affiliation_tags';
 
 import React from 'react';
+
 import {FinalInput, FinalTextArea} from 'indico/react/forms';
-
 import {Param, Translate} from 'indico/react/i18n';
-
-import ItemManager, {ItemBase} from '../components/ItemManager';
 import indicoAxios, {handleAxiosError} from 'indico/utils/axios';
 import {useIndicoAxios} from 'indico/react/hooks';
 
+import ItemManager, {ItemBase} from '../components/ItemManager';
 import FinalTagGroupInput from '../components/AffiliationTagGroupInput';
 
 interface GroupFormData {
