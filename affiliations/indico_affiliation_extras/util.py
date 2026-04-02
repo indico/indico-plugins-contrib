@@ -7,15 +7,19 @@
 
 from copy import copy
 from email.mime.image import MIMEImage
-from email.utils import make_msgid
+from email.utils import formataddr, make_msgid
 from typing import NotRequired, TypedDict
-from urllib.parse import urlsplit
+from urllib.parse import parse_qs, urlsplit
+from uuid import UUID
 
+from flask import current_app, session
+from itsdangerous import BadSignature
 from lxml import html
+from werkzeug.exceptions import HTTPException
 
+from indico.core.config import config
 from indico.core.db import db
 from indico.core.errors import UserValueError
-from indico.core.plugins import url_for_plugin
 from indico.modules.files.models.files import File
 from indico.modules.users.models.affiliations import Affiliation
 from indico.util.signing import secure_serializer
@@ -34,35 +38,32 @@ type _Changes = dict[str, tuple[object, object]]
 type _LogFields = dict[str, str | dict[str, object]]
 
 
-IMAGE_TOKEN_SALT = 'affiliations-email-image'  # noqa: S105 - serializer salt identifier, not a credential
 IMAGE_TOKEN_MAX_AGE = 60 * 60 * 24
-
-
-def make_image_token(file_uuid: str, user_id: int) -> str:
-    return secure_serializer.dumps({'uuid': str(file_uuid), 'user_id': user_id}, salt=IMAGE_TOKEN_SALT)
-
-
-def load_image_token(token: str, *, max_age: int = IMAGE_TOKEN_MAX_AGE) -> dict | None:
-    try:
-        return secure_serializer.loads(token, salt=IMAGE_TOKEN_SALT, max_age=max_age)
-    except Exception:
-        return None
 
 
 def get_token_from_src(src: str) -> str | None:
     if not src:
         return None
-    path = urlsplit(src).path
-    if not path.startswith(url_for_plugin('affiliation_extras.email_representatives_image_upload')):
+    parts = urlsplit(src)
+    token = parse_qs(parts.query).get('token', [None])[0]
+    if not token:
         return None
-    return path.rsplit('/', 1)[-1] or None
+    try:
+        adapter = current_app.url_map.bind('', url_scheme=parts.scheme or 'http')
+        endpoint, __ = adapter.match(parts.path, method='GET')
+    except HTTPException:
+        return None
+    if endpoint != 'files.download_file':
+        return None
+    return token
 
 
-def build_inline_attachment(token: str, user_id: int):
-    data = load_image_token(token)
-    if not data or data.get('user_id') != user_id:
+def build_inline_attachment(token: str, _user_id: int):
+    try:
+        file_uuid = secure_serializer.loads(token, salt='file-download', max_age=IMAGE_TOKEN_MAX_AGE)
+    except BadSignature:
         return None, None
-    file = File.query.filter_by(uuid=data['uuid']).first()
+    file = File.query.filter_by(uuid=UUID(file_uuid)).first()
     if file is None:
         return None, None
     maintype, __, subtype = (file.content_type or 'application/octet-stream').partition('/')
@@ -110,6 +111,26 @@ def prepare_inline_images(body: str, *, user_id: int):
         if child.tail:
             chunks.append(child.tail)
     return ''.join(chunks), attachments
+
+
+def get_allowed_sender_emails(*, for_sending: bool = False) -> dict[str, str]:
+    emails: dict[str, str | None] = {}
+    if session.user:
+        emails[session.user.email] = session.user.full_name
+    for email in (config.SUPPORT_EMAIL, config.PUBLIC_SUPPORT_EMAIL, config.NO_REPLY_EMAIL):
+        if email:
+            emails.setdefault(email, None)
+    formatted = {
+        email.strip().lower(): (
+            formataddr((name, email.strip().lower()))
+            if for_sending and name
+            else (f'{name} <{email}>' if name else email)
+        )
+        for email, name in emails.items()
+        if email and email.strip()
+    }
+    own_email = session.user.email if session.user else None
+    return dict(sorted(formatted.items(), key=lambda x: (x[0] != own_email, x[1].lower())))
 
 
 def populate_memberships(obj: Affiliation | AffiliationGroup, memberships: _Memberships, *,

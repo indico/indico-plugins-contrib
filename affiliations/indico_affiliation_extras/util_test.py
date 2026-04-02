@@ -17,14 +17,20 @@ from indico_affiliation_extras import util
 from indico_affiliation_extras.models.contacts import AffiliationContactList
 
 
-EMAIL_IMAGE_URL_PREFIX = '/api/admin/plugins/affiliation_extras/representatives/email/image/'
+EMAIL_IMAGE_URL_PREFIX = '/files/123e4567-e89b-12d3-a456-426614174000/download?token='
+
+
+@pytest.fixture(autouse=True)
+def _app_context(app):
+    with app.app_context():
+        yield
 
 
 def test_get_token_from_src():
     token = 'abc123'
     src = f'https://example.test{EMAIL_IMAGE_URL_PREFIX}{token}'
     assert util.get_token_from_src(src) == token
-    assert util.get_token_from_src(src + '?x=1') == token
+    assert util.get_token_from_src(src + '&x=1') == token
     assert util.get_token_from_src('https://example.test/other') is None
     assert util.get_token_from_src('') is None
 
@@ -83,13 +89,6 @@ def test_prepare_inline_images_invalid_html_returns_original():
 
     assert 'broken' in new_body
     assert attachments == []
-
-
-def test_token_roundtrip():
-    token = util.make_image_token('uuid-123', 7)
-    data = util.load_image_token(token, max_age=util.IMAGE_TOKEN_MAX_AGE)
-    assert data['uuid'] == 'uuid-123'
-    assert data['user_id'] == 7
 
 
 @pytest.mark.parametrize(
