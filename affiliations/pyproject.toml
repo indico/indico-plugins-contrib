@@ -2,7 +2,7 @@
 name = 'indico-plugin-affiliation-extras'
 description = 'Affiliation groups, tags, and custom fields for Indico'
 readme = 'README.md'
-version = '3.3.11.dev0'
+version = '3.3-dev'
 license = 'MIT'
 authors = [{ name = 'Duarte Galvão', email = 'duarte.galvao@unconventional.dev' }]
 classifiers = [
