@@ -6,6 +6,7 @@
 # MIT License see the LICENSE file for more details.
 
 import mimetypes
+from uuid import UUID
 
 from flask import jsonify, session
 from marshmallow import fields, validate
@@ -15,12 +16,11 @@ from indico.core.db import db
 from indico.core.notifications import make_email, send_email
 from indico.core.plugins import get_plugin_template_module
 from indico.modules.admin import RHAdminBase
+from indico.modules.files.controllers import UploadFileMixin
 from indico.modules.files.models.files import File
-from indico.modules.files.util import validate_upload_file_size
 from indico.modules.logs.models.entries import AppLogEntry, AppLogRealm, LogKind
 from indico.modules.logs.util import make_diff_log
 from indico.modules.users.models.affiliations import Affiliation
-from indico.util.fs import secure_client_filename
 from indico.util.marshmallow import LowercaseString, ModelField, ModelList, no_relative_urls, not_empty
 from indico.util.placeholders import get_sorted_placeholders, replace_placeholders
 from indico.util.string import validate_email
@@ -149,20 +149,23 @@ class RHEmailRepresentativesSend(RHEmailRepresentativesBase):
         return jsonify(count=sent_count, skipped=skipped_count)
 
 
-class RHEmailRepresentativesImageUpload(RHAdminBase):
+class RHEmailRepresentativesImageUpload(UploadFileMixin, RHAdminBase):
     """Upload an image to embed in affiliation emails."""
 
-    @use_kwargs({'upload': fields.Raw(required=True)}, location='files')
-    def _process(self, upload):
-        if not validate_upload_file_size(upload):
-            abort(422, messages={'upload': ['File is too large']})
-        filename = secure_client_filename(upload.filename)
-        content_type = mimetypes.guess_type(upload.filename)[0] or upload.mimetype or 'application/octet-stream'
-        if not content_type.startswith('image/'):
-            abort(422, messages={'upload': ['Only image files are allowed']})
-        file = File.create_from_stream(upload.stream, filename, content_type, context=('affiliations', 'email'))
-        db.session.refresh(file)
-        return jsonify(url=file.signed_download_url)
+    @use_kwargs({'file': fields.Raw(required=True, data_key='upload')}, location='files')
+    def _process(self, file):
+        response, __ = UploadFileMixin._process.__wrapped__(self, file)
+        file_uuid = response.get_json()['uuid']
+        file_obj = File.query.filter_by(uuid=UUID(file_uuid)).one()
+        db.session.refresh(file_obj)
+        return jsonify(url=file_obj.signed_download_url)
+
+    def get_file_context(self):
+        return ('affiliations', 'email')
+
+    def validate_file(self, file):
+        content_type = mimetypes.guess_type(file.filename)[0] or file.mimetype or 'application/octet-stream'
+        return content_type.startswith('image/')
 
 
 class RHAffiliationGroups(RHAdminBase):
