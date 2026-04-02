@@ -8,7 +8,7 @@
 from indico.core.plugins import IndicoPluginBlueprint
 
 from indico_affiliation_extras.controllers import (RHAffiliationGroup, RHAffiliationGroups, RHAffiliationTag,
-                                                   RHAffiliationTags, RHContactListNames, RHEmailRepresentativesImage,
+                                                   RHAffiliationTags, RHContactListNames,
                                                    RHEmailRepresentativesImageUpload, RHEmailRepresentativesMetadata,
                                                    RHEmailRepresentativesPreview, RHEmailRepresentativesSend)
 
@@ -23,8 +23,6 @@ blueprint.add_url_rule('/representatives/email/send', 'email_representatives_sen
                        methods=('POST',))
 blueprint.add_url_rule('/representatives/email/image', 'email_representatives_image_upload',
                        RHEmailRepresentativesImageUpload, methods=('POST',))
-blueprint.add_url_rule('/representatives/email/image/<token>', 'email_representatives_image',
-                       RHEmailRepresentativesImage, methods=('GET',))
 
 blueprint.add_url_rule('/groups', 'api_affiliation_groups', RHAffiliationGroups, methods=('GET', 'POST'))
 blueprint.add_url_rule('/groups/<int:group_id>', 'api_affiliation_group', RHAffiliationGroup,

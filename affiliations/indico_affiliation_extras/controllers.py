@@ -6,17 +6,14 @@
 # MIT License see the LICENSE file for more details.
 
 import mimetypes
-from email.utils import formataddr
 
 from flask import jsonify, session
 from marshmallow import fields, validate
 from webargs.flaskparser import abort
-from werkzeug.exceptions import Forbidden, NotFound
 
-from indico.core.config import config
 from indico.core.db import db
 from indico.core.notifications import make_email, send_email
-from indico.core.plugins import get_plugin_template_module, url_for_plugin
+from indico.core.plugins import get_plugin_template_module
 from indico.modules.admin import RHAdminBase
 from indico.modules.files.models.files import File
 from indico.modules.files.util import validate_upload_file_size
@@ -33,8 +30,8 @@ from indico_affiliation_extras.models.groups import AffiliationGroup
 from indico_affiliation_extras.models.tags import AffiliationTag
 from indico_affiliation_extras.schemas import (AffiliationGroupArgs, AffiliationGroupSchema, AffiliationTagArgs,
                                                AffiliationTagSchema)
-from indico_affiliation_extras.util import (IMAGE_TOKEN_MAX_AGE, get_contact_list_names, load_image_token,
-                                            make_image_token, populate_memberships, prepare_inline_images)
+from indico_affiliation_extras.util import (get_allowed_sender_emails, get_contact_list_names, populate_memberships,
+                                            prepare_inline_images)
 
 
 class RHEmailRepresentativesBase(RHAdminBase):
@@ -53,25 +50,6 @@ class RHEmailRepresentativesBase(RHAdminBase):
         RHAdminBase._process_args(self)
         self.affiliations = affiliations
 
-    def _get_allowed_sender_emails(self, *, for_sending=False):
-        emails = {}
-        if session.user:
-            emails[session.user.email] = session.user.full_name
-        for email in (config.SUPPORT_EMAIL, config.PUBLIC_SUPPORT_EMAIL, config.NO_REPLY_EMAIL):
-            if email:
-                emails.setdefault(email, None)
-        formatted = {
-            email.strip().lower(): (
-                formataddr((name, email.strip().lower()))
-                if for_sending and name
-                else (f'{name} <{email}>' if name else email)
-            )
-            for email, name in emails.items()
-            if email and email.strip()
-        }
-        own_email = session.user.email if session.user else None
-        return dict(sorted(formatted.items(), key=lambda x: (x[0] != own_email, x[1].lower())))
-
 
 class RHEmailRepresentativesMetadata(RHEmailRepresentativesBase):
     """Return metadata for the email representatives form."""
@@ -80,7 +58,7 @@ class RHEmailRepresentativesMetadata(RHEmailRepresentativesBase):
         all_emails = {email for a in self.affiliations for lst in a.contact_lists for email in lst.emails}
         placeholders = get_sorted_placeholders('affiliation-representation-email')
         return jsonify({
-            'senders': list(self._get_allowed_sender_emails().items()),
+            'senders': list(get_allowed_sender_emails().items()),
             'invalid_emails': [e for e in all_emails if not validate_email(e)],
             'contact_list_options': get_contact_list_names(),
             'placeholders': [p.serialize() for p in placeholders],
@@ -116,7 +94,7 @@ class RHEmailRepresentativesSend(RHEmailRepresentativesBase):
     })
     def _process(self, sender_address, body, subject, bcc_addresses, copy_for_sender, contact_lists,
                  include_unnamed_lists):
-        sender_address = self._get_allowed_sender_emails(for_sending=True).get(sender_address)
+        sender_address = get_allowed_sender_emails(for_sending=True).get(sender_address)
         if not sender_address:
             abort(422, messages={'sender_address': ['Invalid sender address']})
 
@@ -164,24 +142,8 @@ class RHEmailRepresentativesImageUpload(RHAdminBase):
         if not content_type.startswith('image/'):
             abort(422, messages={'upload': ['Only image files are allowed']})
         file = File.create_from_stream(upload.stream, filename, content_type, context=('affiliations', 'email'))
-        file_uuid = file.uuid.hex if hasattr(file.uuid, 'hex') else str(file.uuid)
-        token = make_image_token(file_uuid, session.user.id)
-        url = url_for_plugin('affiliation_extras.email_representatives_image', token=token, _external=True)
-        return jsonify(url=url)
-
-
-class RHEmailRepresentativesImage(RHAdminBase):
-    """Serve an uploaded image for previewing in the editor."""
-
-    @use_kwargs({'token': fields.String(required=True)}, location='view_args')
-    def _process(self, token):
-        data = load_image_token(token, max_age=IMAGE_TOKEN_MAX_AGE)
-        if not data:
-            raise NotFound
-        if data.get('user_id') != session.user.id:
-            raise Forbidden
-        file = File.query.filter_by(uuid=data['uuid']).first_or_404()
-        return file.send(inline=True)
+        db.session.refresh(file)
+        return jsonify(url=file.signed_download_url)
 
 
 class RHAffiliationGroups(RHAdminBase):
