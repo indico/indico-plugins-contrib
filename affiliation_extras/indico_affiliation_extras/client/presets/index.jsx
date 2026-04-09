@@ -10,10 +10,17 @@ import ReactDOM from 'react-dom';
 
 import PresetManagement from './PresetManagement';
 
-export default function setupAffiliationPresets(elem, ownPresets, inheritedPresets, targetLocator) {
+export default function setupAffiliationPresets(
+  elem,
+  ownPresets,
+  inheritedPresets,
+  defaultPresetId,
+  explicitDefaultPresetId,
+  targetLocator
+) {
   ReactDOM.render(
     <PresetManagement
-      initialState={{ownPresets, inheritedPresets}}
+      initialState={{ownPresets, inheritedPresets, defaultPresetId, explicitDefaultPresetId}}
       targetLocator={targetLocator}
     />,
     elem

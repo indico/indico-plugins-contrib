@@ -7,6 +7,7 @@
 
 import clonePresetURL from 'indico-url:plugin_affiliation_extras.api_clone_preset';
 import deletePresetURL from 'indico-url:plugin_affiliation_extras.api_delete_preset';
+import toggleDefaultPresetURL from 'indico-url:plugin_affiliation_extras.api_toggle_default_preset';
 import presetDetailURL from 'indico-url:plugin_affiliation_extras.category_preset_detail';
 import presetListURL from 'indico-url:plugin_affiliation_extras.manage_category_affiliations';
 import presetNewURL from 'indico-url:plugin_affiliation_extras.create_category_preset';
@@ -23,7 +24,17 @@ import {handleAxiosError, indicoAxios} from 'indico/utils/axios';
 
 import './PresetListPane.module.scss';
 
-function PresetRow({preset, dispatch, setDeletePrompt, targetLocator, inherited}) {
+function PresetRow({
+  preset,
+  dispatch,
+  setDeletePrompt,
+  targetLocator,
+  inherited,
+  defaultPresetId,
+  explicitDefaultPresetId,
+}) {
+  const isDefault = preset.id === defaultPresetId;
+  const isInheritedDefault = isDefault && preset.id !== explicitDefaultPresetId;
   const deletePreset = async () => {
     try {
       await indicoAxios.delete(deletePresetURL({preset_id: preset.id, ...targetLocator}));
@@ -34,7 +45,8 @@ function PresetRow({preset, dispatch, setDeletePrompt, targetLocator, inherited}
     }
   };
 
-  const clonePreset = async () => {
+  const clonePreset = async evt => {
+    evt.target.dispatchEvent(new Event('indico:closeAutoTooltip'));
     try {
       const {data: clonedPreset} = await indicoAxios.post(
         clonePresetURL({preset_id: preset.id, ...targetLocator})
@@ -44,6 +56,33 @@ function PresetRow({preset, dispatch, setDeletePrompt, targetLocator, inherited}
       handleAxiosError(err);
     }
   };
+
+  const toggleDefaultPreset = async evt => {
+    evt.target.dispatchEvent(new Event('indico:closeAutoTooltip'));
+    try {
+      const {data} = await indicoAxios.post(
+        toggleDefaultPresetURL({preset_id: preset.id, ...targetLocator})
+      );
+      dispatch({
+        type: 'SET_DEFAULT_PRESET',
+        defaultPresetId: data.default_preset_id,
+        explicitDefaultPresetId: data.explicit_default_preset_id,
+      });
+    } catch (err) {
+      handleAxiosError(err);
+    }
+  };
+
+  const openDeletePrompt = evt => {
+    evt.target.dispatchEvent(new Event('indico:closeAutoTooltip'));
+    setDeletePrompt({name: preset.name, func: deletePreset});
+  };
+
+  const defaultTitle = isInheritedDefault
+    ? Translate.string('This is the inherited default preset')
+    : isDefault
+      ? Translate.string('Clear default preset')
+      : Translate.string('Set as default preset');
 
   return (
     <tr>
@@ -68,11 +107,15 @@ function PresetRow({preset, dispatch, setDeletePrompt, targetLocator, inherited}
       </td>
       <td styleName="preset-actions">
         <div className="thin toolbar right">
+          <Icon
+            name="pin"
+            color={isDefault ? 'blue' : 'grey'}
+            title={defaultTitle}
+            disabled={isInheritedDefault}
+            onClick={toggleDefaultPreset}
+          />
           {!inherited && (
-            <Link
-              to={presetDetailURL({preset_id: preset.id, ...targetLocator})}
-              onClick={evt => evt.target.dispatchEvent(new Event('indico:closeAutoTooltip'))}
-            >
+            <Link to={presetDetailURL({preset_id: preset.id, ...targetLocator})}>
               <Icon name="edit" color="blue" title={Translate.string('Edit preset')} />
             </Link>
           )}
@@ -80,23 +123,14 @@ function PresetRow({preset, dispatch, setDeletePrompt, targetLocator, inherited}
             name="clone"
             color="blue"
             title={Translate.string('Clone preset')}
-            onClick={evt => {
-              evt.target.dispatchEvent(new Event('indico:closeAutoTooltip'));
-              clonePreset();
-            }}
+            onClick={clonePreset}
           />
           {!inherited && (
             <Icon
               name="trash"
               color="red"
               title={Translate.string('Delete preset')}
-              onClick={evt => {
-                evt.target.dispatchEvent(new Event('indico:closeAutoTooltip'));
-                setDeletePrompt({
-                  name: preset.name,
-                  func: deletePreset,
-                });
-              }}
+              onClick={openDeletePrompt}
             />
           )}
         </div>
@@ -111,14 +145,25 @@ PresetRow.propTypes = {
   setDeletePrompt: PropTypes.func,
   targetLocator: PropTypes.object.isRequired,
   inherited: PropTypes.bool,
+  defaultPresetId: PropTypes.number,
+  explicitDefaultPresetId: PropTypes.number,
 };
 
 PresetRow.defaultProps = {
   inherited: false,
   setDeletePrompt: null,
+  defaultPresetId: null,
+  explicitDefaultPresetId: null,
 };
 
-export default function PresetListPane({ownPresets, inheritedPresets, targetLocator, dispatch}) {
+export default function PresetListPane({
+  ownPresets,
+  inheritedPresets,
+  targetLocator,
+  dispatch,
+  defaultPresetId,
+  explicitDefaultPresetId,
+}) {
   const [deletePrompt, setDeletePrompt] = useState(null);
 
   return (
@@ -148,6 +193,8 @@ export default function PresetListPane({ownPresets, inheritedPresets, targetLoca
                   dispatch={dispatch}
                   targetLocator={targetLocator}
                   inherited
+                  defaultPresetId={defaultPresetId}
+                  explicitDefaultPresetId={explicitDefaultPresetId}
                 />
               ))}
             </tbody>
@@ -178,6 +225,8 @@ export default function PresetListPane({ownPresets, inheritedPresets, targetLoca
                   dispatch={dispatch}
                   setDeletePrompt={setDeletePrompt}
                   targetLocator={targetLocator}
+                  defaultPresetId={defaultPresetId}
+                  explicitDefaultPresetId={explicitDefaultPresetId}
                 />
               ))}
             </tbody>
@@ -197,4 +246,6 @@ PresetListPane.propTypes = {
   inheritedPresets: PropTypes.array.isRequired,
   targetLocator: PropTypes.object.isRequired,
   dispatch: PropTypes.func.isRequired,
+  defaultPresetId: PropTypes.number,
+  explicitDefaultPresetId: PropTypes.number,
 };

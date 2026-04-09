@@ -48,6 +48,12 @@ function reducer(state, action) {
         ownPresets: state.ownPresets.filter(preset => preset.id !== action.id),
         message: Translate.string('Preset deleted'),
       };
+    case 'SET_DEFAULT_PRESET':
+      return {
+        ...state,
+        defaultPresetId: action.defaultPresetId,
+        explicitDefaultPresetId: action.explicitDefaultPresetId,
+      };
     case 'RESET_MESSAGE':
       return {
         ...state,
@@ -166,6 +172,8 @@ PresetManagement.propTypes = {
   initialState: PropTypes.shape({
     ownPresets: PropTypes.array,
     inheritedPresets: PropTypes.array,
+    defaultPresetId: PropTypes.number,
+    explicitDefaultPresetId: PropTypes.number,
   }).isRequired,
   targetLocator: PropTypes.object.isRequired,
 };
