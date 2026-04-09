@@ -19,6 +19,7 @@ from indico_affiliation_extras.controllers.admin import (
     RHEmailRepresentativesSend,
 )
 from indico_affiliation_extras.controllers.category import (
+    RHCloneAffiliationPreset,
     RHCreateAffiliationPreset,
     RHDeleteAffiliationPreset,
     RHEditAffiliationPreset,
@@ -92,6 +93,12 @@ blueprint.add_url_rule(
     'api_delete_preset',
     RHDeleteAffiliationPreset,
     methods=('DELETE',),
+)
+blueprint.add_url_rule(
+    f'{_category_prefix}/api/presets/<int:preset_id>/clone',
+    'api_clone_preset',
+    RHCloneAffiliationPreset,
+    methods=('POST',),
 )
 blueprint.add_url_rule(
     f'{_category_prefix}/api/resolve-affiliations',

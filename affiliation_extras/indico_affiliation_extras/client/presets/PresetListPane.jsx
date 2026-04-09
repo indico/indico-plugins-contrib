@@ -5,6 +5,7 @@
 // redistribute them and/or modify them under the terms of the;
 // MIT License see the LICENSE file for more details.
 
+import clonePresetURL from 'indico-url:plugin_affiliation_extras.api_clone_preset';
 import deletePresetURL from 'indico-url:plugin_affiliation_extras.api_delete_preset';
 import presetDetailURL from 'indico-url:plugin_affiliation_extras.category_preset_detail';
 import presetListURL from 'indico-url:plugin_affiliation_extras.manage_category_affiliations';
@@ -33,6 +34,17 @@ function PresetRow({preset, dispatch, setDeletePrompt, targetLocator, inherited}
     }
   };
 
+  const clonePreset = async () => {
+    try {
+      const {data: clonedPreset} = await indicoAxios.post(
+        clonePresetURL({preset_id: preset.id, ...targetLocator})
+      );
+      dispatch({type: 'ADD_PRESET', preset: clonedPreset});
+    } catch (err) {
+      handleAxiosError(err);
+    }
+  };
+
   return (
     <tr>
       <td>
@@ -55,14 +67,25 @@ function PresetRow({preset, dispatch, setDeletePrompt, targetLocator, inherited}
         )}
       </td>
       <td styleName="preset-actions">
-        {!inherited && (
-          <div className="thin toolbar right">
+        <div className="thin toolbar right">
+          {!inherited && (
             <Link
               to={presetDetailURL({preset_id: preset.id, ...targetLocator})}
               onClick={evt => evt.target.dispatchEvent(new Event('indico:closeAutoTooltip'))}
             >
               <Icon name="edit" color="blue" title={Translate.string('Edit preset')} />
             </Link>
+          )}
+          <Icon
+            name="clone"
+            color="blue"
+            title={Translate.string('Clone preset')}
+            onClick={evt => {
+              evt.target.dispatchEvent(new Event('indico:closeAutoTooltip'));
+              clonePreset();
+            }}
+          />
+          {!inherited && (
             <Icon
               name="trash"
               color="red"
@@ -75,8 +98,8 @@ function PresetRow({preset, dispatch, setDeletePrompt, targetLocator, inherited}
                 });
               }}
             />
-          </div>
-        )}
+          )}
+        </div>
       </td>
     </tr>
   );
