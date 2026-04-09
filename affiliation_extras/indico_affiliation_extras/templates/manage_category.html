@@ -11,6 +11,8 @@
             document.querySelector('#affiliation-presets'),
             {{ own_presets | tojson }},
             {{ inherited_presets | tojson }},
+            {{ default_preset_id | tojson }},
+            {{ explicit_default_preset_id | tojson }},
             {{ target_locator | tojson }}
         );
     </script>

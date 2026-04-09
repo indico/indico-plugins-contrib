@@ -29,6 +29,7 @@ from indico_affiliation_extras.models.groups import AffiliationGroup
 from indico_affiliation_extras.models.lists import AffiliationList
 from indico_affiliation_extras.models.presets import AffiliationPresets
 from indico_affiliation_extras.models.tags import AffiliationTag
+from indico_affiliation_extras.settings import category_settings
 
 
 class _Memberships(TypedDict):
@@ -351,6 +352,37 @@ def get_all_presets(category):
 def get_inherited_presets(category):
     """Get presets inherited from parent categories (excluding own)."""
     return get_all_presets(category) - set(category.affiliation_presets)
+
+
+def _get_preset_from_setting(category):
+    preset_id = category_settings.get(category, 'default_preset_id')
+    if not preset_id:
+        return None
+    preset = AffiliationPresets.query.filter_by(id=preset_id, is_deleted=False).one()
+    chain_ids = {categ['id'] for categ in category.chain}
+    return preset if preset.category_id in chain_ids else None
+
+
+def get_explicit_default_preset_on_category(category):
+    """Return the preset explicitly set as default on a category, if any."""
+    return _get_preset_from_setting(category)
+
+
+def get_default_preset_on_category(category, *, only_inherited: bool = False):
+    """Return the effective default preset for a category.
+
+    If `only_inherited` is True, only defaults from parents are considered.
+    """
+    if not only_inherited:
+        preset = _get_preset_from_setting(category)
+        if preset:
+            return preset
+    parent_chain = category.parent_chain_query.all()
+    for parent in reversed(parent_chain):
+        preset = _get_preset_from_setting(parent)
+        if preset:
+            return preset
+    return None
 
 
 def get_contact_list_names() -> list[str]:

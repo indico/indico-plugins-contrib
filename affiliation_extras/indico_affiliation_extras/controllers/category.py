@@ -9,7 +9,7 @@
 
 import re
 
-from flask import session
+from flask import jsonify, session
 from werkzeug.exceptions import Forbidden
 
 from indico.core.db import db
@@ -24,7 +24,14 @@ from indico_affiliation_extras.models.groups import AffiliationGroup
 from indico_affiliation_extras.models.presets import AffiliationPresets
 from indico_affiliation_extras.models.tags import AffiliationTag
 from indico_affiliation_extras.schemas import AffiliationPresetArgs, AffiliationPresetSchema, ExtendedAffiliationSchema
-from indico_affiliation_extras.util import get_inherited_presets, populate_preset_lists, resolve_affiliations
+from indico_affiliation_extras.settings import category_settings
+from indico_affiliation_extras.util import (
+    get_default_preset_on_category,
+    get_explicit_default_preset_on_category,
+    get_inherited_presets,
+    populate_preset_lists,
+    resolve_affiliations,
+)
 from indico_affiliation_extras.views import WPCategoryAffiliations
 
 
@@ -37,12 +44,16 @@ class RHManageCategoryAffiliations(RHManageCategoryBase):
         inherited_presets = AffiliationPresetSchema(many=True, only={'id', 'name', 'owner'}).dump(
             get_inherited_presets(self.category)
         )
+        default_preset = get_default_preset_on_category(self.category)
+        explicit_default = get_explicit_default_preset_on_category(self.category)
         return WPCategoryAffiliations.render_template(
             'manage_category.html',
             self.category,
             'affiliations',
             own_presets=own_presets,
             inherited_presets=inherited_presets,
+            default_preset_id=default_preset.id if default_preset else None,
+            explicit_default_preset_id=explicit_default.id if explicit_default else None,
             target_locator=self.category.locator,
         )
 
@@ -114,6 +125,8 @@ class RHEditAffiliationPreset(RHAffiliationPresetMixin, RHManageCategoryBase):
 class RHDeleteAffiliationPreset(RHAffiliationPresetMixin, RHManageCategoryBase):
     def _process(self):
         self.preset.is_deleted = True
+        if category_settings.get(self.category, 'default_preset_id') == self.preset.id:
+            category_settings.set(self.category, 'default_preset_id', None)
         db.session.flush()
         self.preset.log(
             AppLogRealm.admin,
@@ -174,6 +187,35 @@ class RHCloneAffiliationPreset(RHAffiliationPresetMixin, RHManageCategoryBase):
             data={'Cloned from': self.preset.name},
         )
         return AffiliationPresetSchema().jsonify(new_preset)
+
+
+class RHCategoryToggleDefaultPreset(RHManageCategoryBase):
+    """Toggle the default preset for a category."""
+
+    @use_kwargs(
+        {'preset': ModelField(AffiliationPresets, filter_deleted=True, required=True, data_key='preset_id')},
+        location='view_args',
+    )
+    def _process(self, preset):
+        chain_ids = {categ['id'] for categ in self.category.chain}
+        if preset.category_id not in chain_ids:
+            raise Forbidden
+
+        explicit_default = get_explicit_default_preset_on_category(self.category)
+        inherited_default = get_default_preset_on_category(self.category, only_inherited=True)
+        if explicit_default and explicit_default.id == preset.id:
+            category_settings.set(self.category, 'default_preset_id', None)
+        elif inherited_default and inherited_default.id == preset.id:
+            category_settings.set(self.category, 'default_preset_id', None)
+        else:
+            category_settings.set(self.category, 'default_preset_id', preset.id)
+
+        default_preset = get_default_preset_on_category(self.category)
+        explicit_default = get_explicit_default_preset_on_category(self.category)
+        return jsonify({
+            'default_preset_id': default_preset.id if default_preset else None,
+            'explicit_default_preset_id': explicit_default.id if explicit_default else None,
+        })
 
 
 class RHResolveAffiliations(RHManageCategoryBase):
