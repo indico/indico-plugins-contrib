@@ -1,4 +1,4 @@
-"""Add affiliation presets
+"""Add affiliation catalogs
 
 Revision ID: 053dd42396ff
 Revises: 7434e891c031
@@ -18,7 +18,7 @@ depends_on = None
 
 def upgrade():
     op.create_table(
-        'affiliation_presets',
+        'affiliation_catalogs',
         sa.Column('id', sa.Integer(), nullable=False),
         sa.Column('event_id', sa.Integer(), nullable=True),
         sa.Column('category_id', sa.Integer(), nullable=True),
@@ -27,27 +27,27 @@ def upgrade():
         sa.Column('is_deleted', sa.Boolean(), nullable=False),
         sa.ForeignKeyConstraint(['category_id'], ['categories.categories.id']),
         sa.ForeignKeyConstraint(['event_id'], ['events.events.id']),
-        sa.ForeignKeyConstraint(['parent_id'], ['plugin_affiliation_extras.affiliation_presets.id']),
+        sa.ForeignKeyConstraint(['parent_id'], ['plugin_affiliation_extras.affiliation_catalogs.id']),
         sa.PrimaryKeyConstraint('id'),
         schema='plugin_affiliation_extras',
     )
-    op.create_index(None, 'affiliation_presets', ['category_id'], unique=False, schema='plugin_affiliation_extras')
-    op.create_index(None, 'affiliation_presets', ['event_id'], unique=False, schema='plugin_affiliation_extras')
-    op.create_index(None, 'affiliation_presets', ['parent_id'], unique=False, schema='plugin_affiliation_extras')
+    op.create_index(None, 'affiliation_catalogs', ['category_id'], unique=False, schema='plugin_affiliation_extras')
+    op.create_index(None, 'affiliation_catalogs', ['event_id'], unique=False, schema='plugin_affiliation_extras')
+    op.create_index(None, 'affiliation_catalogs', ['parent_id'], unique=False, schema='plugin_affiliation_extras')
     op.create_table(
         'affiliation_lists',
         sa.Column('id', sa.Integer(), nullable=False),
-        sa.Column('preset_id', sa.Integer(), nullable=False),
+        sa.Column('catalog_id', sa.Integer(), nullable=False),
         sa.Column('position', sa.Integer(), nullable=False),
         sa.Column('name', sa.String(), nullable=False),
         sa.Column('is_enabled', sa.Boolean(), nullable=False),
         sa.ForeignKeyConstraint(
-            ['preset_id'], ['plugin_affiliation_extras.affiliation_presets.id'], ondelete='CASCADE'
+            ['catalog_id'], ['plugin_affiliation_extras.affiliation_catalogs.id'], ondelete='CASCADE'
         ),
         sa.PrimaryKeyConstraint('id'),
         schema='plugin_affiliation_extras',
     )
-    op.create_index(None, 'affiliation_lists', ['preset_id'], unique=False, schema='plugin_affiliation_extras')
+    op.create_index(None, 'affiliation_lists', ['catalog_id'], unique=False, schema='plugin_affiliation_extras')
     op.create_table(
         'list_affiliation_links',
         sa.Column('list_id', sa.Integer(), nullable=False),
@@ -87,4 +87,4 @@ def downgrade():
     op.drop_table('list_group_links', schema='plugin_affiliation_extras')
     op.drop_table('list_affiliation_links', schema='plugin_affiliation_extras')
     op.drop_table('affiliation_lists', schema='plugin_affiliation_extras')
-    op.drop_table('affiliation_presets', schema='plugin_affiliation_extras')
+    op.drop_table('affiliation_catalogs', schema='plugin_affiliation_extras')

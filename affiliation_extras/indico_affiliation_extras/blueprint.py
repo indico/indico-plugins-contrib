@@ -19,11 +19,11 @@ from indico_affiliation_extras.controllers.admin import (
     RHEmailRepresentativesSend,
 )
 from indico_affiliation_extras.controllers.category import (
-    RHCategoryToggleDefaultPreset,
-    RHCloneAffiliationPreset,
-    RHCreateAffiliationPreset,
-    RHDeleteAffiliationPreset,
-    RHEditAffiliationPreset,
+    RHCategoryToggleDefaultCatalog,
+    RHCloneAffiliationCatalog,
+    RHCreateAffiliationCatalog,
+    RHDeleteAffiliationCatalog,
+    RHEditAffiliationCatalog,
     RHManageCategoryAffiliations,
     RHResolveAffiliations,
 )
@@ -70,46 +70,43 @@ blueprint.add_url_rule(
 )
 blueprint.add_url_rule(f'{_admin_prefix}/tags', 'api_affiliation_tags', RHAffiliationTags, methods=('GET', 'POST'))
 blueprint.add_url_rule(
-    f'{_admin_prefix}/tags/<int:tag_id>',
-    'api_affiliation_tag',
-    RHAffiliationTag,
-    methods=('GET', 'PATCH', 'DELETE'),
+    f'{_admin_prefix}/tags/<int:tag_id>', 'api_affiliation_tag', RHAffiliationTag, methods=('GET', 'PATCH', 'DELETE')
 )
 blueprint.add_url_rule(f'{_admin_prefix}/contact-lists/names', 'api_contact_list_names', RHContactListNames)
 
 # SPA page routes (React Router handles display)
 blueprint.add_url_rule(f'{_category_prefix}/', 'manage_category_affiliations', RHManageCategoryAffiliations)
-blueprint.add_url_rule(f'{_category_prefix}/new/', 'create_category_preset', RHManageCategoryAffiliations)
-blueprint.add_url_rule(f'{_category_prefix}/<int:preset_id>/', 'category_preset_detail', RHManageCategoryAffiliations)
+blueprint.add_url_rule(f'{_category_prefix}/new/', 'create_category_catalog', RHManageCategoryAffiliations)
+blueprint.add_url_rule(f'{_category_prefix}/<int:catalog_id>/', 'category_catalog_detail', RHManageCategoryAffiliations)
 
-# Preset API
+# Catalog API
 blueprint.add_url_rule(
-    f'{_category_prefix}/api/presets', 'api_create_preset', RHCreateAffiliationPreset, methods=('POST',)
+    f'{_category_prefix}/api/catalogs', 'api_create_catalog', RHCreateAffiliationCatalog, methods=('POST',)
 )
 blueprint.add_url_rule(
-    f'{_category_prefix}/api/presets/<int:preset_id>', 'api_edit_preset', RHEditAffiliationPreset, methods=('PATCH',)
+    f'{_category_prefix}/api/catalogs/<int:catalog_id>',
+    'api_edit_catalog',
+    RHEditAffiliationCatalog,
+    methods=('PATCH',),
 )
 blueprint.add_url_rule(
-    f'{_category_prefix}/api/presets/<int:preset_id>',
-    'api_delete_preset',
-    RHDeleteAffiliationPreset,
+    f'{_category_prefix}/api/catalogs/<int:catalog_id>',
+    'api_delete_catalog',
+    RHDeleteAffiliationCatalog,
     methods=('DELETE',),
 )
 blueprint.add_url_rule(
-    f'{_category_prefix}/api/presets/<int:preset_id>/clone',
-    'api_clone_preset',
-    RHCloneAffiliationPreset,
+    f'{_category_prefix}/api/catalogs/<int:catalog_id>/clone',
+    'api_clone_catalog',
+    RHCloneAffiliationCatalog,
     methods=('POST',),
 )
 blueprint.add_url_rule(
-    f'{_category_prefix}/api/presets/<int:preset_id>/toggle-default',
-    'api_toggle_default_preset',
-    RHCategoryToggleDefaultPreset,
+    f'{_category_prefix}/api/catalogs/<int:catalog_id>/toggle-default',
+    'api_toggle_default_catalog',
+    RHCategoryToggleDefaultCatalog,
     methods=('POST',),
 )
 blueprint.add_url_rule(
-    f'{_category_prefix}/api/resolve-affiliations',
-    'api_resolve_affiliations',
-    RHResolveAffiliations,
-    methods=('POST',),
+    f'{_category_prefix}/api/resolve-affiliations', 'api_resolve_affiliations', RHResolveAffiliations, methods=('POST',)
 )

@@ -69,9 +69,9 @@ class AffiliationList(db.Model):
     __table_args__ = {'schema': 'plugin_affiliation_extras'}
 
     id = db.Column(db.Integer, primary_key=True)
-    preset_id = db.Column(
+    catalog_id = db.Column(
         db.Integer,
-        db.ForeignKey('plugin_affiliation_extras.affiliation_presets.id', ondelete='CASCADE'),
+        db.ForeignKey('plugin_affiliation_extras.affiliation_catalogs.id', ondelete='CASCADE'),
         nullable=False,
         index=True,
     )
@@ -79,13 +79,13 @@ class AffiliationList(db.Model):
     name = db.Column(db.String, nullable=False, default='')
     is_enabled = db.Column(db.Boolean, nullable=False, default=True)
 
-    preset = db.relationship(
-        'AffiliationPresets',
+    catalog = db.relationship(
+        'AffiliationCatalog',
         lazy=True,
-        foreign_keys=preset_id,
+        foreign_keys=catalog_id,
         backref=db.backref(
             'lists',
-            primaryjoin='(AffiliationList.preset_id == AffiliationPresets.id) & ~AffiliationPresets.is_deleted',
+            primaryjoin='(AffiliationList.catalog_id == AffiliationCatalog.id) & ~AffiliationCatalog.is_deleted',
             lazy=True,
         ),
     )

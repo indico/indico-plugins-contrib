@@ -5,14 +5,19 @@
 // redistribute them and/or modify them under the terms of the;
 // MIT License see the LICENSE file for more details.
 
-.preset-detail {
+.catalog-list {
   section + section {
     margin-top: 2em;
   }
 }
 
-.form-actions {
-  margin-top: 2em;
-  display: flex;
-  justify-content: flex-end;
+.catalog-actions {
+  white-space: nowrap;
+  width: 1px;
+
+  i {
+    cursor: pointer;
+    margin: auto 0.5em auto 0.5em;
+    line-height: 1em;
+  }
 }

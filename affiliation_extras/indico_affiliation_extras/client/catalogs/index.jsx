@@ -8,19 +8,19 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
 
-import PresetManagement from './PresetManagement';
+import CatalogManagement from './CatalogManagement';
 
-export default function setupAffiliationPresets(
+export default function setupAffiliationCatalogs(
   elem,
-  ownPresets,
-  inheritedPresets,
-  defaultPresetId,
-  explicitDefaultPresetId,
+  ownCatalogs,
+  inheritedCatalogs,
+  defaultCatalogId,
+  explicitDefaultCatalogId,
   targetLocator
 ) {
   ReactDOM.render(
-    <PresetManagement
-      initialState={{ownPresets, inheritedPresets, defaultPresetId, explicitDefaultPresetId}}
+    <CatalogManagement
+      initialState={{ownCatalogs, inheritedCatalogs, defaultCatalogId, explicitDefaultCatalogId}}
       targetLocator={targetLocator}
     />,
     elem

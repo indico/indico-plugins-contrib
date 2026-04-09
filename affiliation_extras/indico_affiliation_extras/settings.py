@@ -11,6 +11,6 @@ from indico.modules.categories.settings import CategorySettingsProxy
 category_settings = CategorySettingsProxy(
     'plugin_affiliation_extras',
     {
-        'default_preset_id': None,
+        'default_catalog_id': None,
     },
 )

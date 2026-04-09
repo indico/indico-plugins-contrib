@@ -17,15 +17,15 @@ import {ManagementPageSubTitle} from 'indico/react/components';
 import {FinalInput, FinalSubmitButton} from 'indico/react/forms';
 import {Translate} from 'indico/react/i18n';
 
-import FinalPresetList from '../components/PresetListField';
+import FinalCatalogList from '../components/CatalogListField';
 
-import './PresetDetailPane.module.scss';
+import './CatalogDetailPane.module.scss';
 
-export default function PresetDetailPane({preset, targetLocator, isNew, onSubmit}) {
+export default function CatalogDetailPane({catalog, targetLocator, isNew, onSubmit}) {
   const isCreate = isNew === true;
   const initialValues = {
-    name: preset?.name || '',
-    lists: _.sortBy(preset?.lists || [], 'position').map(list => ({
+    name: catalog?.name || '',
+    lists: _.sortBy(catalog?.lists || [], 'position').map(list => ({
       id: list.id,
       name: list.name,
       position: list.position,
@@ -36,10 +36,10 @@ export default function PresetDetailPane({preset, targetLocator, isNew, onSubmit
     })),
   };
 
-  if (!preset && !isCreate) {
+  if (!catalog && !isCreate) {
     return (
       <Segment placeholder>
-        <Translate>Preset not found</Translate>
+        <Translate>Catalog not found</Translate>
       </Segment>
     );
   }
@@ -59,8 +59,8 @@ export default function PresetDetailPane({preset, targetLocator, isNew, onSubmit
     });
 
   return (
-    <div styleName="preset-detail">
-      <ManagementPageSubTitle title={isCreate ? Translate.string('New preset') : preset.name} />
+    <div styleName="catalog-detail">
+      <ManagementPageSubTitle title={isCreate ? Translate.string('New catalog') : catalog.name} />
       <DndProvider backend={HTML5Backend}>
         <FinalForm
           onSubmit={handleSubmit}
@@ -77,9 +77,11 @@ export default function PresetDetailPane({preset, targetLocator, isNew, onSubmit
                 <FinalInput
                   name="name"
                   required
-                  placeholder={Translate.string('Enter a name for the preset')}
+                  placeholder={Translate.string('Enter a name for the catalog')}
                   validate={value =>
-                    value && value.trim() ? undefined : Translate.string('Preset name is required.')
+                    value && value.trim()
+                      ? undefined
+                      : Translate.string('Catalog name is required.')
                   }
                 />
               </section>
@@ -87,7 +89,7 @@ export default function PresetDetailPane({preset, targetLocator, isNew, onSubmit
                 <h3>
                   <Translate>Lists</Translate>
                 </h3>
-                <FinalPresetList name="lists" targetLocator={targetLocator} required />
+                <FinalCatalogList name="lists" targetLocator={targetLocator} required />
               </section>
               <div styleName="form-actions">
                 <FinalSubmitButton label={Translate.string('Save changes')} disabledUntilChange />
@@ -100,14 +102,14 @@ export default function PresetDetailPane({preset, targetLocator, isNew, onSubmit
   );
 }
 
-PresetDetailPane.propTypes = {
-  preset: PropTypes.object,
+CatalogDetailPane.propTypes = {
+  catalog: PropTypes.object,
   targetLocator: PropTypes.object.isRequired,
   isNew: PropTypes.bool,
   onSubmit: PropTypes.func.isRequired,
 };
 
-PresetDetailPane.defaultProps = {
-  preset: null,
+CatalogDetailPane.defaultProps = {
+  catalog: null,
   isNew: false,
 };

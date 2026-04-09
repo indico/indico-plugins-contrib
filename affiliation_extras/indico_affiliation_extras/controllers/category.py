@@ -5,7 +5,7 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-# Category-level preset controllers for affiliations.
+# Category-level catalog controllers for affiliations.
 
 import re
 
@@ -20,16 +20,20 @@ from indico.modules.users.models.affiliations import Affiliation
 from indico.util.marshmallow import ModelField, ModelList
 from indico.web.args import use_args, use_kwargs
 
+from indico_affiliation_extras.models.catalogs import AffiliationCatalog
 from indico_affiliation_extras.models.groups import AffiliationGroup
-from indico_affiliation_extras.models.presets import AffiliationPresets
 from indico_affiliation_extras.models.tags import AffiliationTag
-from indico_affiliation_extras.schemas import AffiliationPresetArgs, AffiliationPresetSchema, ExtendedAffiliationSchema
+from indico_affiliation_extras.schemas import (
+    AffiliationCatalogArgs,
+    AffiliationCatalogSchema,
+    ExtendedAffiliationSchema,
+)
 from indico_affiliation_extras.settings import category_settings
 from indico_affiliation_extras.util import (
-    get_default_preset_on_category,
-    get_explicit_default_preset_on_category,
-    get_inherited_presets,
-    populate_preset_lists,
+    get_default_catalog_on_category,
+    get_explicit_default_catalog_on_category,
+    get_inherited_catalogs,
+    populate_catalog_lists,
     resolve_affiliations,
 )
 from indico_affiliation_extras.views import WPCategoryAffiliations
@@ -40,118 +44,118 @@ TITLE_ENUM_RE = re.compile(r'^(.*) \((\d+)\)$')
 
 class RHManageCategoryAffiliations(RHManageCategoryBase):
     def _process(self):
-        own_presets = AffiliationPresetSchema(many=True).dump(self.category.affiliation_presets)
-        inherited_presets = AffiliationPresetSchema(many=True, only={'id', 'name', 'owner'}).dump(
-            get_inherited_presets(self.category)
+        own_catalogs = AffiliationCatalogSchema(many=True).dump(self.category.affiliation_catalogs)
+        inherited_catalogs = AffiliationCatalogSchema(many=True, only={'id', 'name', 'owner'}).dump(
+            get_inherited_catalogs(self.category)
         )
-        default_preset = get_default_preset_on_category(self.category)
-        explicit_default = get_explicit_default_preset_on_category(self.category)
+        default_catalog = get_default_catalog_on_category(self.category)
+        explicit_default = get_explicit_default_catalog_on_category(self.category)
         return WPCategoryAffiliations.render_template(
             'manage_category.html',
             self.category,
             'affiliations',
-            own_presets=own_presets,
-            inherited_presets=inherited_presets,
-            default_preset_id=default_preset.id if default_preset else None,
-            explicit_default_preset_id=explicit_default.id if explicit_default else None,
+            own_catalogs=own_catalogs,
+            inherited_catalogs=inherited_catalogs,
+            default_catalog_id=default_catalog.id if default_catalog else None,
+            explicit_default_catalog_id=explicit_default.id if explicit_default else None,
             target_locator=self.category.locator,
         )
 
 
-class RHAffiliationPresetMixin:
-    """Mixin that loads an affiliation preset and validates ownership."""
+class RHAffiliationCatalogMixin:
+    """Mixin that loads an affiliation catalog and validates ownership."""
 
     ALLOW_INHERITED = False
 
     @use_kwargs(
-        {'preset': ModelField(AffiliationPresets, filter_deleted=True, required=True, data_key='preset_id')},
+        {'catalog': ModelField(AffiliationCatalog, filter_deleted=True, required=True, data_key='catalog_id')},
         location='view_args',
     )
-    def _process_args(self, preset):
+    def _process_args(self, catalog):
         super()._process_args()
-        self.preset = preset
+        self.catalog = catalog
         if self.ALLOW_INHERITED:
             chain_ids = {categ['id'] for categ in self.category.chain}
-            if self.preset.category_id not in chain_ids:
+            if self.catalog.category_id not in chain_ids:
                 raise Forbidden
-        elif self.preset.category_id != self.category.id:
+        elif self.catalog.category_id != self.category.id:
             raise Forbidden
 
 
-class RHCreateAffiliationPreset(RHManageCategoryBase):
-    @use_args(AffiliationPresetArgs)
+class RHCreateAffiliationCatalog(RHManageCategoryBase):
+    @use_args(AffiliationCatalogArgs)
     def _process(self, data):
         lists = data.pop('lists')
-        preset = AffiliationPresets(category=self.category, **data)
-        db.session.add(preset)
+        catalog = AffiliationCatalog(category=self.category, **data)
+        db.session.add(catalog)
         db.session.flush()
-        list_changes, list_log_fields = populate_preset_lists(preset, lists)
+        list_changes, list_log_fields = populate_catalog_lists(catalog, lists)
         log_fields = {'name': 'Name', 'lists': {'title': 'Lists', 'type': 'list'}}
         log_fields.update(list_log_fields)
-        preset.log(
+        catalog.log(
             AppLogRealm.admin,
             LogKind.positive,
-            'Affiliation Presets',
-            f'Affiliation preset "{preset.name}" created',
+            'Affiliation Catalogs',
+            f'Affiliation catalog "{catalog.name}" created',
             session.user,
             data={'Changes': make_diff_log(list_changes, log_fields)} if list_changes else None,
         )
-        return AffiliationPresetSchema().jsonify(preset), 201
+        return AffiliationCatalogSchema().jsonify(catalog), 201
 
 
-class RHEditAffiliationPreset(RHAffiliationPresetMixin, RHManageCategoryBase):
-    @use_args(AffiliationPresetArgs)
+class RHEditAffiliationCatalog(RHAffiliationCatalogMixin, RHManageCategoryBase):
+    @use_args(AffiliationCatalogArgs)
     def _process(self, data):
         lists = data.pop('lists')
-        changes = self.preset.populate_from_dict(data)
-        list_changes, list_log_fields = populate_preset_lists(self.preset, lists)
+        changes = self.catalog.populate_from_dict(data)
+        list_changes, list_log_fields = populate_catalog_lists(self.catalog, lists)
         if list_changes:
             changes.update(list_changes)
         if changes:
             log_fields = {'name': 'Name', 'lists': {'title': 'Lists', 'type': 'list'}}
             log_fields.update(list_log_fields)
-            self.preset.log(
+            self.catalog.log(
                 AppLogRealm.admin,
                 LogKind.change,
-                'Affiliation Presets',
-                f'Affiliation preset "{self.preset.name}" modified',
+                'Affiliation Catalogs',
+                f'Affiliation catalog "{self.catalog.name}" modified',
                 session.user,
                 data={'Changes': make_diff_log(changes, log_fields)},
             )
         db.session.flush()
-        return AffiliationPresetSchema().jsonify(self.preset)
+        return AffiliationCatalogSchema().jsonify(self.catalog)
 
 
-class RHDeleteAffiliationPreset(RHAffiliationPresetMixin, RHManageCategoryBase):
+class RHDeleteAffiliationCatalog(RHAffiliationCatalogMixin, RHManageCategoryBase):
     def _process(self):
-        self.preset.is_deleted = True
-        if category_settings.get(self.category, 'default_preset_id') == self.preset.id:
-            category_settings.set(self.category, 'default_preset_id', None)
+        self.catalog.is_deleted = True
+        if category_settings.get(self.category, 'default_catalog_id') == self.catalog.id:
+            category_settings.set(self.category, 'default_catalog_id', None)
         db.session.flush()
-        self.preset.log(
+        self.catalog.log(
             AppLogRealm.admin,
             LogKind.negative,
-            'Affiliation Presets',
-            f'Affiliation preset "{self.preset.name}" deleted',
+            'Affiliation Catalogs',
+            f'Affiliation catalog "{self.catalog.name}" deleted',
             session.user,
         )
         return '', 204
 
 
-class RHCloneAffiliationPreset(RHAffiliationPresetMixin, RHManageCategoryBase):
-    """Clone an affiliation preset into the current category."""
+class RHCloneAffiliationCatalog(RHAffiliationCatalogMixin, RHManageCategoryBase):
+    """Clone an affiliation catalog into the current category."""
 
     ALLOW_INHERITED = True
 
     def _process(self):
-        name = self.preset.name
+        name = self.catalog.name
         max_index = 0
 
         if m := TITLE_ENUM_RE.match(name):
             name = m.group(1)
             max_index = int(m.group(2))
 
-        matches = {tpl for tpl in self.category.affiliation_presets if tpl.name.startswith(name)}
+        matches = {tpl for tpl in self.category.affiliation_catalogs if tpl.name.startswith(name)}
         found = False
         for match in matches:
             if m := TITLE_ENUM_RE.match(match.name):
@@ -163,8 +167,8 @@ class RHCloneAffiliationPreset(RHAffiliationPresetMixin, RHManageCategoryBase):
         if found:
             name = f'{name} ({max_index + 1})'
 
-        new_preset = AffiliationPresets(category=self.category, name=name)
-        db.session.add(new_preset)
+        new_catalog = AffiliationCatalog(category=self.category, name=name)
+        db.session.add(new_catalog)
         db.session.flush()
         lists = [
             {
@@ -175,46 +179,46 @@ class RHCloneAffiliationPreset(RHAffiliationPresetMixin, RHManageCategoryBase):
                 'tags': lst.tags,
                 'affiliations': lst.affiliations,
             }
-            for lst in self.preset.lists
+            for lst in self.catalog.lists
         ]
-        populate_preset_lists(new_preset, lists)
-        new_preset.log(
+        populate_catalog_lists(new_catalog, lists)
+        new_catalog.log(
             AppLogRealm.admin,
             LogKind.positive,
-            'Affiliation Presets',
-            f'Affiliation preset "{new_preset.name}" created',
+            'Affiliation Catalogs',
+            f'Affiliation catalog "{new_catalog.name}" created',
             session.user,
-            data={'Cloned from': self.preset.name},
+            data={'Cloned from': self.catalog.name},
         )
-        return AffiliationPresetSchema().jsonify(new_preset)
+        return AffiliationCatalogSchema().jsonify(new_catalog)
 
 
-class RHCategoryToggleDefaultPreset(RHManageCategoryBase):
-    """Toggle the default preset for a category."""
+class RHCategoryToggleDefaultCatalog(RHManageCategoryBase):
+    """Toggle the default catalog for a category."""
 
     @use_kwargs(
-        {'preset': ModelField(AffiliationPresets, filter_deleted=True, required=True, data_key='preset_id')},
+        {'catalog': ModelField(AffiliationCatalog, filter_deleted=True, required=True, data_key='catalog_id')},
         location='view_args',
     )
-    def _process(self, preset):
+    def _process(self, catalog):
         chain_ids = {categ['id'] for categ in self.category.chain}
-        if preset.category_id not in chain_ids:
+        if catalog.category_id not in chain_ids:
             raise Forbidden
 
-        explicit_default = get_explicit_default_preset_on_category(self.category)
-        inherited_default = get_default_preset_on_category(self.category, only_inherited=True)
-        if explicit_default and explicit_default.id == preset.id:
-            category_settings.set(self.category, 'default_preset_id', None)
-        elif inherited_default and inherited_default.id == preset.id:
-            category_settings.set(self.category, 'default_preset_id', None)
+        explicit_default = get_explicit_default_catalog_on_category(self.category)
+        inherited_default = get_default_catalog_on_category(self.category, only_inherited=True)
+        if explicit_default and explicit_default.id == catalog.id:
+            category_settings.set(self.category, 'default_catalog_id', None)
+        elif inherited_default and inherited_default.id == catalog.id:
+            category_settings.set(self.category, 'default_catalog_id', None)
         else:
-            category_settings.set(self.category, 'default_preset_id', preset.id)
+            category_settings.set(self.category, 'default_catalog_id', catalog.id)
 
-        default_preset = get_default_preset_on_category(self.category)
-        explicit_default = get_explicit_default_preset_on_category(self.category)
+        default_catalog = get_default_catalog_on_category(self.category)
+        explicit_default = get_explicit_default_catalog_on_category(self.category)
         return jsonify({
-            'default_preset_id': default_preset.id if default_preset else None,
-            'explicit_default_preset_id': explicit_default.id if explicit_default else None,
+            'default_catalog_id': default_catalog.id if default_catalog else None,
+            'explicit_default_catalog_id': explicit_default.id if explicit_default else None,
         })
 
 
