@@ -24,10 +24,10 @@ from indico.modules.files.models.files import File
 from indico.modules.users.models.affiliations import Affiliation
 from indico.util.signing import secure_serializer
 
+from indico_affiliation_extras.models.catalogs import AffiliationCatalog
 from indico_affiliation_extras.models.contacts import AffiliationContactList
 from indico_affiliation_extras.models.groups import AffiliationGroup
 from indico_affiliation_extras.models.lists import AffiliationList
-from indico_affiliation_extras.models.presets import AffiliationPresets
 from indico_affiliation_extras.models.tags import AffiliationTag
 from indico_affiliation_extras.settings import category_settings
 
@@ -224,7 +224,7 @@ def populate_contacts(affiliation: Affiliation, contact_lists: list[dict]) -> tu
     return changes, log_fields
 
 
-def serialize_preset_lists(preset_lists: list[AffiliationList]) -> dict[int, dict]:
+def serialize_catalog_lists(catalog_lists: list[AffiliationList]) -> dict[int, dict]:
     return {
         item.id: {
             'name': item.name or '(unnamed list)',
@@ -234,11 +234,11 @@ def serialize_preset_lists(preset_lists: list[AffiliationList]) -> dict[int, dic
             'tags': sorted(t.code for t in item.tags),
             'affiliations': sorted(a.name for a in item.affiliations),
         }
-        for item in preset_lists
+        for item in catalog_lists
     }
 
 
-def _format_preset_list_log_lines(data: dict) -> list[str]:
+def _format_catalog_list_log_lines(data: dict) -> list[str]:
     if not data:
         return []
     enabled = data.get('is_enabled')
@@ -256,15 +256,15 @@ def _format_preset_list_log_lines(data: dict) -> list[str]:
     ]
 
 
-def populate_preset_lists(preset: AffiliationPresets, preset_lists: list[dict]) -> tuple[_Changes, _LogFields]:
-    existing_by_id = {item.id: item for item in preset.lists}
+def populate_catalog_lists(catalog: AffiliationCatalog, catalog_lists: list[dict]) -> tuple[_Changes, _LogFields]:
+    existing_by_id = {item.id: item for item in catalog.lists}
     touched_ids = set()
 
-    old_lists = serialize_preset_lists(preset.lists)
-    for list_data in preset_lists:
+    old_lists = serialize_catalog_lists(catalog.lists)
+    for list_data in catalog_lists:
         list_obj = list_data.get('id')
         if list_obj is None:
-            list_obj = AffiliationList(preset=preset)
+            list_obj = AffiliationList(catalog=catalog)
             db.session.add(list_obj)
         list_obj.name = list_data['name'].strip()
         list_obj.is_enabled = list_data['is_enabled']
@@ -280,7 +280,7 @@ def populate_preset_lists(preset: AffiliationPresets, preset_lists: list[dict]) 
             db.session.delete(list_obj)
 
     db.session.flush()
-    new_lists = serialize_preset_lists(preset.lists)
+    new_lists = serialize_catalog_lists(catalog.lists)
     if old_lists == new_lists:
         return {}, {}
 
@@ -295,8 +295,8 @@ def populate_preset_lists(preset: AffiliationPresets, preset_lists: list[dict]) 
     for id_ in old_lists.keys() | new_lists.keys():
         old_data = old_lists.get(id_, {})
         new_data = new_lists.get(id_, {})
-        old_lines = _format_preset_list_log_lines(old_data)
-        new_lines = _format_preset_list_log_lines(new_data)
+        old_lines = _format_catalog_list_log_lines(old_data)
+        new_lines = _format_catalog_list_log_lines(new_data)
         if old_lines == new_lines:
             continue
         name = new_data.get('name') or old_data.get('name') or '(unnamed list)'
@@ -340,48 +340,48 @@ def resolve_object_path(obj: dict | list, path: str) -> str:
     return ''
 
 
-def get_all_presets(category):
-    """Get all affiliation presets usable by a category (from its chain)."""
+def get_all_catalogs(category):
+    """Get all affiliation catalogs usable by a category (from its chain)."""
     return set(
-        AffiliationPresets.query.filter(
-            ~AffiliationPresets.is_deleted, AffiliationPresets.category_id.in_(categ['id'] for categ in category.chain)
+        AffiliationCatalog.query.filter(
+            ~AffiliationCatalog.is_deleted, AffiliationCatalog.category_id.in_(categ['id'] for categ in category.chain)
         )
     )
 
 
-def get_inherited_presets(category):
-    """Get presets inherited from parent categories (excluding own)."""
-    return get_all_presets(category) - set(category.affiliation_presets)
+def get_inherited_catalogs(category):
+    """Get catalogs inherited from parent categories (excluding own)."""
+    return get_all_catalogs(category) - set(category.affiliation_catalogs)
 
 
-def _get_preset_from_setting(category):
-    preset_id = category_settings.get(category, 'default_preset_id')
-    if not preset_id:
+def _get_catalog_from_setting(category):
+    catalog_id = category_settings.get(category, 'default_catalog_id')
+    if not catalog_id:
         return None
-    preset = AffiliationPresets.query.filter_by(id=preset_id, is_deleted=False).one()
+    catalog = AffiliationCatalog.query.filter_by(id=catalog_id, is_deleted=False).one()
     chain_ids = {categ['id'] for categ in category.chain}
-    return preset if preset.category_id in chain_ids else None
+    return catalog if catalog.category_id in chain_ids else None
 
 
-def get_explicit_default_preset_on_category(category):
-    """Return the preset explicitly set as default on a category, if any."""
-    return _get_preset_from_setting(category)
+def get_explicit_default_catalog_on_category(category):
+    """Return the catalog explicitly set as default on a category, if any."""
+    return _get_catalog_from_setting(category)
 
 
-def get_default_preset_on_category(category, *, only_inherited: bool = False):
-    """Return the effective default preset for a category.
+def get_default_catalog_on_category(category, *, only_inherited: bool = False):
+    """Return the effective default catalog for a category.
 
     If `only_inherited` is True, only defaults from parents are considered.
     """
     if not only_inherited:
-        preset = _get_preset_from_setting(category)
-        if preset:
-            return preset
+        catalog = _get_catalog_from_setting(category)
+        if catalog:
+            return catalog
     parent_chain = category.parent_chain_query.all()
     for parent in reversed(parent_chain):
-        preset = _get_preset_from_setting(parent)
-        if preset:
-            return preset
+        catalog = _get_catalog_from_setting(parent)
+        if catalog:
+            return catalog
     return None
 
 

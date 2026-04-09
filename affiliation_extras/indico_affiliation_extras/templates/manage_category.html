@@ -5,14 +5,14 @@
 {% endblock %}
 
 {% block content %}
-    <div id="affiliation-presets"></div>
+    <div id="affiliation-catalogs"></div>
     <script>
-        setupAffiliationPresets(
-            document.querySelector('#affiliation-presets'),
-            {{ own_presets | tojson }},
-            {{ inherited_presets | tojson }},
-            {{ default_preset_id | tojson }},
-            {{ explicit_default_preset_id | tojson }},
+        setupAffiliationCatalogs(
+            document.querySelector('#affiliation-catalogs'),
+            {{ own_catalogs | tojson }},
+            {{ inherited_catalogs | tojson }},
+            {{ default_catalog_id | tojson }},
+            {{ explicit_default_catalog_id | tojson }},
             {{ target_locator | tojson }}
         );
     </script>

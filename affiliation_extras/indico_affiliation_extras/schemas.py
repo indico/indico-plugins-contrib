@@ -18,10 +18,10 @@ from indico.util.marshmallow import LowercaseString, ModelField, ModelList, Sort
 from indico.util.string import validate_email
 from indico.web.forms.colors import get_sui_colors
 
+from indico_affiliation_extras.models.catalogs import AffiliationCatalog
 from indico_affiliation_extras.models.contacts import AffiliationContactList
 from indico_affiliation_extras.models.groups import AffiliationGroup
 from indico_affiliation_extras.models.lists import AffiliationList
-from indico_affiliation_extras.models.presets import AffiliationPresets
 from indico_affiliation_extras.models.tags import AffiliationTag
 
 
@@ -152,7 +152,7 @@ class AffiliationListSchema(mm.SQLAlchemyAutoSchema):
     )
 
 
-class AffiliationPresetListArgs(mm.Schema):
+class AffiliationCatalogListArgs(mm.Schema):
     id = ModelField(AffiliationList, load_default=None, allow_none=True)
     name = fields.String(required=True, validate=not_empty)
     position = fields.Integer(required=True)
@@ -167,12 +167,12 @@ class AffiliationPresetListArgs(mm.Schema):
             raise ValidationError(_('Each list must contain at least one group, tag, or affiliation.'))
 
 
-class AffiliationPresetArgs(mm.Schema):
+class AffiliationCatalogArgs(mm.Schema):
     class Meta:
         unknown = EXCLUDE
 
     name = fields.String(required=True, validate=not_empty)
-    lists = fields.List(fields.Nested(AffiliationPresetListArgs), required=True, validate=not_empty)
+    lists = fields.List(fields.Nested(AffiliationCatalogListArgs), required=True, validate=not_empty)
 
 
 class OwnerDataSchema(mm.Schema):
@@ -181,16 +181,16 @@ class OwnerDataSchema(mm.Schema):
     locator = fields.Dict()
 
 
-class AffiliationPresetSchema(mm.SQLAlchemyAutoSchema):
+class AffiliationCatalogSchema(mm.SQLAlchemyAutoSchema):
     class Meta:
-        model = AffiliationPresets
+        model = AffiliationCatalog
         fields = ('id', 'name', 'owner', 'lists')
 
     owner = fields.Method('_get_owner')
     lists = fields.List(fields.Nested(AffiliationListSchema))
 
-    def _get_owner(self, preset):
-        owner = preset.category or preset.event
+    def _get_owner(self, catalog):
+        owner = catalog.category or catalog.event
         if owner is None:
             return None
         return OwnerDataSchema().dump({
