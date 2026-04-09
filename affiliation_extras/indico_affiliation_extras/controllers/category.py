@@ -7,6 +7,8 @@
 
 # Category-level preset controllers for affiliations.
 
+import re
+
 from flask import session
 from werkzeug.exceptions import Forbidden
 
@@ -24,6 +26,9 @@ from indico_affiliation_extras.models.tags import AffiliationTag
 from indico_affiliation_extras.schemas import AffiliationPresetArgs, AffiliationPresetSchema, ExtendedAffiliationSchema
 from indico_affiliation_extras.util import get_inherited_presets, populate_preset_lists, resolve_affiliations
 from indico_affiliation_extras.views import WPCategoryAffiliations
+
+
+TITLE_ENUM_RE = re.compile(r'^(.*) \((\d+)\)$')
 
 
 class RHManageCategoryAffiliations(RHManageCategoryBase):
@@ -45,6 +50,8 @@ class RHManageCategoryAffiliations(RHManageCategoryBase):
 class RHAffiliationPresetMixin:
     """Mixin that loads an affiliation preset and validates ownership."""
 
+    ALLOW_INHERITED = False
+
     @use_kwargs(
         {'preset': ModelField(AffiliationPresets, filter_deleted=True, required=True, data_key='preset_id')},
         location='view_args',
@@ -52,7 +59,11 @@ class RHAffiliationPresetMixin:
     def _process_args(self, preset):
         super()._process_args()
         self.preset = preset
-        if self.preset.category_id != self.category.id:
+        if self.ALLOW_INHERITED:
+            chain_ids = {categ['id'] for categ in self.category.chain}
+            if self.preset.category_id not in chain_ids:
+                raise Forbidden
+        elif self.preset.category_id != self.category.id:
             raise Forbidden
 
 
@@ -112,6 +123,57 @@ class RHDeleteAffiliationPreset(RHAffiliationPresetMixin, RHManageCategoryBase):
             session.user,
         )
         return '', 204
+
+
+class RHCloneAffiliationPreset(RHAffiliationPresetMixin, RHManageCategoryBase):
+    """Clone an affiliation preset into the current category."""
+
+    ALLOW_INHERITED = True
+
+    def _process(self):
+        name = self.preset.name
+        max_index = 0
+
+        if m := TITLE_ENUM_RE.match(name):
+            name = m.group(1)
+            max_index = int(m.group(2))
+
+        matches = {tpl for tpl in self.category.affiliation_presets if tpl.name.startswith(name)}
+        found = False
+        for match in matches:
+            if m := TITLE_ENUM_RE.match(match.name):
+                found = True
+                index = int(m.group(2))
+                max_index = max(index, max_index)
+            elif match.name == name:
+                found = True
+        if found:
+            name = f'{name} ({max_index + 1})'
+
+        new_preset = AffiliationPresets(category=self.category, name=name)
+        db.session.add(new_preset)
+        db.session.flush()
+        lists = [
+            {
+                'name': lst.name,
+                'position': lst.position,
+                'is_enabled': lst.is_enabled,
+                'groups': lst.groups,
+                'tags': lst.tags,
+                'affiliations': lst.affiliations,
+            }
+            for lst in self.preset.lists
+        ]
+        populate_preset_lists(new_preset, lists)
+        new_preset.log(
+            AppLogRealm.admin,
+            LogKind.positive,
+            'Affiliation Presets',
+            f'Affiliation preset "{new_preset.name}" created',
+            session.user,
+            data={'Cloned from': self.preset.name},
+        )
+        return AffiliationPresetSchema().jsonify(new_preset)
 
 
 class RHResolveAffiliations(RHManageCategoryBase):
