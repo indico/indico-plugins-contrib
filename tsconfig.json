@@ -5,6 +5,6 @@
   },
   "include": [
     "../../src/indico/web/client/js/types",
-    "affiliations/indico_affiliations/client/**/*",
+    "affiliation_extras/indico_affiliation_extras/client/**/*",
   ]
 }
