@@ -27,7 +27,7 @@ AFFILIATION_EXTRA_FIELDS = {
 
 
 class AffiliationExtrasPlugin(IndicoPlugin):
-    """Extended Affiliations"""
+    """Affiliation Extras"""
 
     def init(self):
         super().init()
