@@ -1,4 +1,4 @@
-# Extended Affiliations Plugin
+# Affiliation Extras Plugin
 
 This plugin extends Indico's predefined affiliations management with groups, tags,
 representative contact emails, and built-in emailing tools for affiliation representatives.
