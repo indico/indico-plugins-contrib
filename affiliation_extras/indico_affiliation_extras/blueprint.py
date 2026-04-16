@@ -20,7 +20,7 @@ from indico_affiliation_extras.controllers.admin import (
     RHEmailRepresentativesPreview,
     RHEmailRepresentativesSend,
 )
-from indico_affiliation_extras.controllers.category import (
+from indico_affiliation_extras.controllers.catalogs import (
     RHCloneAffiliationCatalog,
     RHCreateAffiliationCatalog,
     RHDeleteAffiliationCatalog,
