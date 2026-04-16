@@ -1,0 +1,49 @@
+[project]
+name = 'indico-plugin-registration-prefill'
+description = 'Indico plugin to prefill registration form fields from previous registrations'
+readme = 'README.md'
+version = '3.3-dev'
+license = 'MIT'
+authors = [
+    { name = 'Juan Villarejo', email = 'juan.bautista@unconventional.dev' },
+]
+classifiers = [
+    'Environment :: Plugins',
+    'Environment :: Web Environment',
+    'License :: OSI Approved :: MIT License',
+    'Programming Language :: Python :: 3.12',
+]
+requires-python = '>=3.12.2, <3.13'
+dependencies = ['indico>=3.3.13.dev0']
+
+[project.urls]
+GitHub = 'https://github.com/indico/indico-plugins-contrib'
+
+[project.entry-points.'indico.plugins']
+registration_prefill = 'indico_registration_prefill.plugin:RegistrationPrefillPlugin'
+
+[build-system]
+requires = ['hatchling==1.27.0']
+build-backend = 'hatchling.build'
+
+[tool.hatch.build]
+packages = ['indico_registration_prefill']
+exclude = [
+    '*.no-header',
+    '.keep',
+    # exclude original client sources (they are all included in source maps anyway)
+    'indico_*/client/',
+    # no need for tests outside development
+    'test_snapshots/',
+    'tests/',
+    '*_test.py',
+]
+artifacts = [
+    'indico_*/translations/**/messages-react.json',
+    'indico_*/translations/**/*.mo',
+    'indico_*/static/dist/',
+]
+
+[tool.hatch.build.targets.sdist.hooks.custom]
+path = '../hatch_build.py'
+dependencies = ['babel==2.16.0']
