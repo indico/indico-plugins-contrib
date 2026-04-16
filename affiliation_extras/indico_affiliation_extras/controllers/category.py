@@ -5,20 +5,23 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-# Category-level catalog controllers for affiliations.
-
 import re
 
-from flask import jsonify, session
+from flask import jsonify, request, session
 from werkzeug.exceptions import Forbidden
 
 from indico.core.db import db
 from indico.modules.categories.controllers.base import RHManageCategoryBase
-from indico.modules.logs.models.entries import AppLogRealm, LogKind
+from indico.modules.categories.models.categories import Category
+from indico.modules.events.management.controllers import RHManageEventBase
+from indico.modules.events.models.events import Event
+from indico.modules.events.util import check_event_locked
+from indico.modules.logs.models.entries import LogKind
 from indico.modules.logs.util import make_diff_log
 from indico.modules.users.models.affiliations import Affiliation
 from indico.util.marshmallow import ModelField, ModelList
 from indico.web.args import use_args, use_kwargs
+from indico.web.rh import RHProtected
 
 from indico_affiliation_extras.models.catalogs import AffiliationCatalog
 from indico_affiliation_extras.models.groups import AffiliationGroup
@@ -28,41 +31,85 @@ from indico_affiliation_extras.schemas import (
     AffiliationCatalogSchema,
     ExtendedAffiliationSchema,
 )
-from indico_affiliation_extras.settings import category_settings
+from indico_affiliation_extras.settings import category_settings, event_settings
 from indico_affiliation_extras.util import (
-    get_default_catalog_on_category,
-    get_explicit_default_catalog_on_category,
+    get_all_catalogs,
+    get_default_catalog,
+    get_explicit_default_catalog,
     get_inherited_catalogs,
     populate_catalog_lists,
     resolve_affiliations,
 )
-from indico_affiliation_extras.views import WPCategoryAffiliations
+from indico_affiliation_extras.views import WPCategoryAffiliations, WPEventAffiliations
 
 
 TITLE_ENUM_RE = re.compile(r'^(.*) \((\d+)\)$')
 
 
-class RHManageCategoryAffiliations(RHManageCategoryBase):
+class AffiliationCatalogListMixin:
+    @property
+    def target(self):
+        return self.event if hasattr(self, 'event') else self.category
+
     def _process(self):
-        own_catalogs = AffiliationCatalogSchema(many=True).dump(self.category.affiliation_catalogs)
+        own_catalogs = AffiliationCatalogSchema(many=True).dump(self.target.affiliation_catalogs)
         inherited_catalogs = AffiliationCatalogSchema(many=True, only={'id', 'name', 'owner'}).dump(
-            get_inherited_catalogs(self.category)
+            get_inherited_catalogs(self.target)
         )
-        default_catalog = get_default_catalog_on_category(self.category)
-        explicit_default = get_explicit_default_catalog_on_category(self.category)
-        return WPCategoryAffiliations.render_template(
-            'manage_category.html',
-            self.category,
-            'affiliations',
+        default_catalog = get_default_catalog(self.target)
+        explicit_default = get_explicit_default_catalog(self.target)
+        view_class = WPEventAffiliations if isinstance(self.target, Event) else WPCategoryAffiliations
+        return view_class.render_template(
+            'manage_affiliations.html',
+            self.target,
+            'affiliation_extras',
             own_catalogs=own_catalogs,
             inherited_catalogs=inherited_catalogs,
             default_catalog_id=default_catalog.id if default_catalog else None,
             explicit_default_catalog_id=explicit_default.id if explicit_default else None,
-            target_locator=self.category.locator,
+            target_locator=self.target.locator,
         )
 
 
-class RHAffiliationCatalogMixin:
+class RHManageCategoryAffiliations(AffiliationCatalogListMixin, RHManageCategoryBase):
+    pass
+
+
+class RHManageEventAffiliations(AffiliationCatalogListMixin, RHManageEventBase):
+    pass
+
+
+class AffiliationAreaMixin:
+    @property
+    def object_type(self):
+        return request.view_args['object_type']
+
+    @property
+    def target(self):
+        event_id = request.view_args.get('event_id')
+        category_id = request.view_args.get('category_id')
+        return Event.get_or_404(event_id) if self.object_type == 'event' else Category.get_or_404(category_id)
+
+    @property
+    def target_dict(self):
+        return {'event': self.target} if self.object_type == 'event' else {'category': self.target}
+
+    @property
+    def settings_proxy(self):
+        return event_settings if isinstance(self.target, Event) else category_settings
+
+    def _check_access(self):
+        if not self.target.can_manage(session.user):
+            raise Forbidden
+        if isinstance(self.target, Event):
+            check_event_locked(self, self.target)
+
+
+class RHAffiliationCatalogsManagementBase(RHProtected):
+    DENY_FRAMES = True
+
+
+class RHAffiliationCatalogMixin(AffiliationAreaMixin):
     """Mixin that loads an affiliation catalog and validates ownership."""
 
     ALLOW_INHERITED = False
@@ -74,36 +121,33 @@ class RHAffiliationCatalogMixin:
     def _process_args(self, catalog):
         super()._process_args()
         self.catalog = catalog
-        if self.ALLOW_INHERITED:
-            chain_ids = {categ['id'] for categ in self.category.chain}
-            if self.catalog.category_id not in chain_ids:
-                raise Forbidden
-        elif self.catalog.category_id != self.category.id:
+        allowed_catalogs = (
+            get_all_catalogs(self.target) if self.ALLOW_INHERITED else set(self.target.affiliation_catalogs)
+        )
+        if self.catalog.id not in {item.id for item in allowed_catalogs}:
             raise Forbidden
 
 
-class RHCreateAffiliationCatalog(RHManageCategoryBase):
+class RHCreateAffiliationCatalog(AffiliationAreaMixin, RHAffiliationCatalogsManagementBase):
     @use_args(AffiliationCatalogArgs)
     def _process(self, data):
         lists = data.pop('lists')
-        catalog = AffiliationCatalog(category=self.category, **data)
+        catalog = AffiliationCatalog(**self.target_dict, **data)
         db.session.add(catalog)
         db.session.flush()
-        list_changes, list_log_fields = populate_catalog_lists(catalog, lists)
-        log_fields = {'name': 'Name', 'lists': {'title': 'Lists', 'type': 'list'}}
-        log_fields.update(list_log_fields)
-        catalog.log(
-            AppLogRealm.admin,
+        populate_catalog_lists(catalog, lists)
+        catalog.owner.log(
+            catalog.log_realm,
             LogKind.positive,
             'Affiliation Catalogs',
             f'Affiliation catalog "{catalog.name}" created',
             session.user,
-            data={'Changes': make_diff_log(list_changes, log_fields)} if list_changes else None,
+            meta={'affiliation_catalog_id': catalog.id},
         )
         return AffiliationCatalogSchema().jsonify(catalog), 201
 
 
-class RHEditAffiliationCatalog(RHAffiliationCatalogMixin, RHManageCategoryBase):
+class RHEditAffiliationCatalog(RHAffiliationCatalogMixin, RHAffiliationCatalogsManagementBase):
     @use_args(AffiliationCatalogArgs)
     def _process(self, data):
         lists = data.pop('lists')
@@ -114,36 +158,38 @@ class RHEditAffiliationCatalog(RHAffiliationCatalogMixin, RHManageCategoryBase):
         if changes:
             log_fields = {'name': 'Name', 'lists': {'title': 'Lists', 'type': 'list'}}
             log_fields.update(list_log_fields)
-            self.catalog.log(
-                AppLogRealm.admin,
+            self.catalog.owner.log(
+                self.catalog.log_realm,
                 LogKind.change,
                 'Affiliation Catalogs',
                 f'Affiliation catalog "{self.catalog.name}" modified',
                 session.user,
                 data={'Changes': make_diff_log(changes, log_fields)},
+                meta={'affiliation_catalog_id': self.catalog.id},
             )
         db.session.flush()
         return AffiliationCatalogSchema().jsonify(self.catalog)
 
 
-class RHDeleteAffiliationCatalog(RHAffiliationCatalogMixin, RHManageCategoryBase):
+class RHDeleteAffiliationCatalog(RHAffiliationCatalogMixin, RHAffiliationCatalogsManagementBase):
     def _process(self):
         self.catalog.is_deleted = True
-        if category_settings.get(self.category, 'default_catalog_id') == self.catalog.id:
-            category_settings.set(self.category, 'default_catalog_id', None)
+        if self.settings_proxy.get(self.target, 'default_catalog_id') == self.catalog.id:
+            self.settings_proxy.set(self.target, 'default_catalog_id', None)
         db.session.flush()
-        self.catalog.log(
-            AppLogRealm.admin,
+        self.catalog.owner.log(
+            self.catalog.log_realm,
             LogKind.negative,
             'Affiliation Catalogs',
             f'Affiliation catalog "{self.catalog.name}" deleted',
             session.user,
+            meta={'affiliation_catalog_id': self.catalog.id},
         )
         return '', 204
 
 
-class RHCloneAffiliationCatalog(RHAffiliationCatalogMixin, RHManageCategoryBase):
-    """Clone an affiliation catalog into the current category."""
+class RHCloneAffiliationCatalog(RHAffiliationCatalogMixin, RHAffiliationCatalogsManagementBase):
+    """Clone an affiliation catalog into the current category/event."""
 
     ALLOW_INHERITED = True
 
@@ -155,7 +201,7 @@ class RHCloneAffiliationCatalog(RHAffiliationCatalogMixin, RHManageCategoryBase)
             name = m.group(1)
             max_index = int(m.group(2))
 
-        matches = {tpl for tpl in self.category.affiliation_catalogs if tpl.name.startswith(name)}
+        matches = {tpl for tpl in self.target.affiliation_catalogs if tpl.name.startswith(name)}
         found = False
         for match in matches:
             if m := TITLE_ENUM_RE.match(match.name):
@@ -167,7 +213,7 @@ class RHCloneAffiliationCatalog(RHAffiliationCatalogMixin, RHManageCategoryBase)
         if found:
             name = f'{name} ({max_index + 1})'
 
-        new_catalog = AffiliationCatalog(category=self.category, name=name)
+        new_catalog = AffiliationCatalog(**self.target_dict, name=name)
         db.session.add(new_catalog)
         db.session.flush()
         lists = [
@@ -182,47 +228,47 @@ class RHCloneAffiliationCatalog(RHAffiliationCatalogMixin, RHManageCategoryBase)
             for lst in self.catalog.lists
         ]
         populate_catalog_lists(new_catalog, lists)
-        new_catalog.log(
-            AppLogRealm.admin,
+        new_catalog.owner.log(
+            new_catalog.log_realm,
             LogKind.positive,
             'Affiliation Catalogs',
             f'Affiliation catalog "{new_catalog.name}" created',
             session.user,
             data={'Cloned from': self.catalog.name},
+            meta={'affiliation_catalog_id': new_catalog.id},
         )
         return AffiliationCatalogSchema().jsonify(new_catalog)
 
 
-class RHCategoryToggleDefaultCatalog(RHManageCategoryBase):
-    """Toggle the default catalog for a category."""
+class RHToggleDefaultCatalog(AffiliationAreaMixin, RHAffiliationCatalogsManagementBase):
+    """Toggle the default catalog for a category/event target."""
 
     @use_kwargs(
         {'catalog': ModelField(AffiliationCatalog, filter_deleted=True, required=True, data_key='catalog_id')},
         location='view_args',
     )
     def _process(self, catalog):
-        chain_ids = {categ['id'] for categ in self.category.chain}
-        if catalog.category_id not in chain_ids:
+        if catalog.id not in {item.id for item in get_all_catalogs(self.target)}:
             raise Forbidden
 
-        explicit_default = get_explicit_default_catalog_on_category(self.category)
-        inherited_default = get_default_catalog_on_category(self.category, only_inherited=True)
+        explicit_default = get_explicit_default_catalog(self.target)
+        inherited_default = get_default_catalog(self.target, only_inherited=True)
         if explicit_default and explicit_default.id == catalog.id:
-            category_settings.set(self.category, 'default_catalog_id', None)
+            self.settings_proxy.set(self.target, 'default_catalog_id', None)
         elif inherited_default and inherited_default.id == catalog.id:
-            category_settings.set(self.category, 'default_catalog_id', None)
+            self.settings_proxy.set(self.target, 'default_catalog_id', None)
         else:
-            category_settings.set(self.category, 'default_catalog_id', catalog.id)
+            self.settings_proxy.set(self.target, 'default_catalog_id', catalog.id)
 
-        default_catalog = get_default_catalog_on_category(self.category)
-        explicit_default = get_explicit_default_catalog_on_category(self.category)
+        default_catalog = get_default_catalog(self.target)
+        explicit_default = get_explicit_default_catalog(self.target)
         return jsonify({
             'default_catalog_id': default_catalog.id if default_catalog else None,
             'explicit_default_catalog_id': explicit_default.id if explicit_default else None,
         })
 
 
-class RHResolveAffiliations(RHManageCategoryBase):
+class RHResolveAffiliations(AffiliationAreaMixin, RHAffiliationCatalogsManagementBase):
     """Resolve affiliations from groups/tags/affiliations."""
 
     @use_kwargs(

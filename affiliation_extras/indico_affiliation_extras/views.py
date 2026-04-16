@@ -7,11 +7,16 @@
 
 from indico.core.plugins import WPJinjaMixinPlugin
 from indico.modules.categories.views import WPCategoryManagement
+from indico.modules.events.management.views import WPEventManagement
 from indico.web.flask.util import url_for
+
+
+class WPEventAffiliations(WPJinjaMixinPlugin, WPEventManagement):
+    pass
 
 
 class WPCategoryAffiliations(WPJinjaMixinPlugin, WPCategoryManagement):
     def _get_parent_category_breadcrumb_url(self, category, management=False):
         if not management:
             return category.url
-        return url_for('plugin_affiliation_extras.manage_category_affiliations', category)
+        return url_for('plugin_affiliation_extras.manage_affiliations', category)

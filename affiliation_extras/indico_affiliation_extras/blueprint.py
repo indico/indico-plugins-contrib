@@ -6,6 +6,8 @@
 # MIT License see the LICENSE file for more details.
 
 from indico.core.plugins import IndicoPluginBlueprint
+from indico.util.caching import memoize
+from indico.web.flask.util import make_view_func
 
 from indico_affiliation_extras.controllers.admin import (
     RHAffiliationGroup,
@@ -19,20 +21,32 @@ from indico_affiliation_extras.controllers.admin import (
     RHEmailRepresentativesSend,
 )
 from indico_affiliation_extras.controllers.category import (
-    RHCategoryToggleDefaultCatalog,
     RHCloneAffiliationCatalog,
     RHCreateAffiliationCatalog,
     RHDeleteAffiliationCatalog,
     RHEditAffiliationCatalog,
     RHManageCategoryAffiliations,
+    RHManageEventAffiliations,
     RHResolveAffiliations,
+    RHToggleDefaultCatalog,
 )
 
 
 blueprint = IndicoPluginBlueprint('affiliation_extras', __name__)
 
 _admin_prefix = '/api/admin/plugins/affiliation_extras'
-_category_prefix = '/category/<int:category_id>/manage/affiliations'
+
+
+@memoize
+def _dispatch(event_rh, category_rh):
+    event_view = make_view_func(event_rh)
+    category_view = make_view_func(category_rh)
+
+    def view_func(**kwargs):
+        return category_view(**kwargs) if kwargs['object_type'] == 'category' else event_view(**kwargs)
+
+    return view_func
+
 
 blueprint.add_url_rule(
     f'{_admin_prefix}/representatives/email/metadata',
@@ -75,38 +89,61 @@ blueprint.add_url_rule(
 blueprint.add_url_rule(f'{_admin_prefix}/contact-lists/names', 'api_contact_list_names', RHContactListNames)
 
 # SPA page routes (React Router handles display)
-blueprint.add_url_rule(f'{_category_prefix}/', 'manage_category_affiliations', RHManageCategoryAffiliations)
-blueprint.add_url_rule(f'{_category_prefix}/new/', 'create_category_catalog', RHManageCategoryAffiliations)
-blueprint.add_url_rule(f'{_category_prefix}/<int:catalog_id>/', 'category_catalog_detail', RHManageCategoryAffiliations)
+_management_page = _dispatch(RHManageEventAffiliations, RHManageCategoryAffiliations)
 
-# Catalog API
-blueprint.add_url_rule(
-    f'{_category_prefix}/api/catalogs', 'api_create_catalog', RHCreateAffiliationCatalog, methods=('POST',)
-)
-blueprint.add_url_rule(
-    f'{_category_prefix}/api/catalogs/<int:catalog_id>',
-    'api_edit_catalog',
-    RHEditAffiliationCatalog,
-    methods=('PATCH',),
-)
-blueprint.add_url_rule(
-    f'{_category_prefix}/api/catalogs/<int:catalog_id>',
-    'api_delete_catalog',
-    RHDeleteAffiliationCatalog,
-    methods=('DELETE',),
-)
-blueprint.add_url_rule(
-    f'{_category_prefix}/api/catalogs/<int:catalog_id>/clone',
-    'api_clone_catalog',
-    RHCloneAffiliationCatalog,
-    methods=('POST',),
-)
-blueprint.add_url_rule(
-    f'{_category_prefix}/api/catalogs/<int:catalog_id>/toggle-default',
-    'api_toggle_default_catalog',
-    RHCategoryToggleDefaultCatalog,
-    methods=('POST',),
-)
-blueprint.add_url_rule(
-    f'{_category_prefix}/api/resolve-affiliations', 'api_resolve_affiliations', RHResolveAffiliations, methods=('POST',)
-)
+for object_type in ('event', 'category'):
+    if object_type == 'category':
+        prefix = '/category/<int:category_id>'
+    else:
+        prefix = '/event/<int:event_id>'
+    prefix += '/manage/affiliations'
+    defaults = {'object_type': object_type}
+
+    # SPA page routes (React Router handles display)
+    blueprint.add_url_rule(f'{prefix}/', 'manage_affiliations', _management_page, defaults=defaults)
+    blueprint.add_url_rule(f'{prefix}/new/', 'create_catalog', _management_page, defaults=defaults)
+    blueprint.add_url_rule(f'{prefix}/<int:catalog_id>/', 'catalog_detail', _management_page, defaults=defaults)
+
+    # Catalog API
+    blueprint.add_url_rule(
+        f'{prefix}/api/affiliations/catalogs',
+        'api_create_catalog',
+        RHCreateAffiliationCatalog,
+        defaults=defaults,
+        methods=('POST',),
+    )
+    blueprint.add_url_rule(
+        f'{prefix}/api/affiliations/catalogs/<int:catalog_id>',
+        'api_edit_catalog',
+        RHEditAffiliationCatalog,
+        defaults=defaults,
+        methods=('PATCH',),
+    )
+    blueprint.add_url_rule(
+        f'{prefix}/api/affiliations/catalogs/<int:catalog_id>',
+        'api_delete_catalog',
+        RHDeleteAffiliationCatalog,
+        defaults=defaults,
+        methods=('DELETE',),
+    )
+    blueprint.add_url_rule(
+        f'{prefix}/api/affiliations/catalogs/<int:catalog_id>/clone',
+        'api_clone_catalog',
+        RHCloneAffiliationCatalog,
+        defaults=defaults,
+        methods=('POST',),
+    )
+    blueprint.add_url_rule(
+        f'{prefix}/api/affiliations/catalogs/<int:catalog_id>/toggle-default',
+        'api_toggle_default_catalog',
+        RHToggleDefaultCatalog,
+        defaults=defaults,
+        methods=('POST',),
+    )
+    blueprint.add_url_rule(
+        f'{prefix}/api/affiliations/resolve',
+        'api_resolve_affiliations',
+        RHResolveAffiliations,
+        defaults=defaults,
+        methods=('POST',),
+    )
