@@ -160,7 +160,7 @@ jobs:
       matrix:
         include:
           - plugin: registration_prefill
-          - plugin: affiliations
+          - plugin: affiliation_extras
 
     steps:
       - uses: actions/checkout@v6
