@@ -20,6 +20,8 @@ from werkzeug.exceptions import HTTPException
 from indico.core.config import config
 from indico.core.db import db
 from indico.core.errors import UserValueError
+from indico.modules.categories.models.categories import Category
+from indico.modules.events.models.events import Event
 from indico.modules.files.models.files import File
 from indico.modules.users.models.affiliations import Affiliation
 from indico.util.signing import secure_serializer
@@ -29,7 +31,7 @@ from indico_affiliation_extras.models.contacts import AffiliationContactList
 from indico_affiliation_extras.models.groups import AffiliationGroup
 from indico_affiliation_extras.models.lists import AffiliationList
 from indico_affiliation_extras.models.tags import AffiliationTag
-from indico_affiliation_extras.settings import category_settings
+from indico_affiliation_extras.settings import category_settings, event_settings
 
 
 class _Memberships(TypedDict):
@@ -340,49 +342,85 @@ def resolve_object_path(obj: dict | list, path: str) -> str:
     return ''
 
 
-def get_all_catalogs(category):
-    """Get all affiliation catalogs usable by a category (from its chain)."""
-    return set(
-        AffiliationCatalog.query.filter(
-            ~AffiliationCatalog.is_deleted, AffiliationCatalog.category_id.in_(categ['id'] for categ in category.chain)
-        )
-    )
-
-
-def get_inherited_catalogs(category):
-    """Get catalogs inherited from parent categories (excluding own)."""
-    return get_all_catalogs(category) - set(category.affiliation_catalogs)
-
-
-def _get_catalog_from_setting(category):
-    catalog_id = category_settings.get(category, 'default_catalog_id')
+def _get_catalog_setting(target: Category | Event):
+    settings = event_settings if isinstance(target, Event) else category_settings
+    catalog_id = settings.get(target, 'default_catalog_id')
     if not catalog_id:
         return None
-    catalog = AffiliationCatalog.query.filter_by(id=catalog_id, is_deleted=False).one()
-    chain_ids = {categ['id'] for categ in category.chain}
-    return catalog if catalog.category_id in chain_ids else None
+    catalog = AffiliationCatalog.query.filter_by(id=catalog_id, is_deleted=False).first()
+    if not catalog:
+        return None
+    valid_catalog_ids = {item.id for item in get_all_catalogs(target)}
+    return catalog if catalog.id in valid_catalog_ids else None
 
 
-def get_explicit_default_catalog_on_category(category):
-    """Return the catalog explicitly set as default on a category, if any."""
-    return _get_catalog_from_setting(category)
-
-
-def get_default_catalog_on_category(category, *, only_inherited: bool = False):
-    """Return the effective default catalog for a category.
-
-    If `only_inherited` is True, only defaults from parents are considered.
-    """
+def _get_default_catalog_on_category(category: Category, *, only_inherited: bool = False):
     if not only_inherited:
-        catalog = _get_catalog_from_setting(category)
+        catalog = _get_catalog_setting(category)
         if catalog:
             return catalog
     parent_chain = category.parent_chain_query.all()
     for parent in reversed(parent_chain):
-        catalog = _get_catalog_from_setting(parent)
+        catalog = _get_catalog_setting(parent)
         if catalog:
             return catalog
     return None
+
+
+def get_all_catalogs(target: Category | Event):
+    """Get all affiliation catalogs usable by a category/event target."""
+    if isinstance(target, Event):
+        category = target.category or Category.get_root()
+        return set(
+            AffiliationCatalog.query.filter(
+                ~AffiliationCatalog.is_deleted,
+                db.or_(
+                    AffiliationCatalog.event_id == target.id,
+                    AffiliationCatalog.category_id.in_(categ['id'] for categ in category.chain),
+                ),
+            )
+        )
+    if isinstance(target, Category):
+        return set(
+            AffiliationCatalog.query.filter(
+                ~AffiliationCatalog.is_deleted,
+                AffiliationCatalog.category_id.in_(categ['id'] for categ in target.chain),
+            )
+        )
+    raise TypeError(f'Unsupported target type: {type(target).__name__}')
+
+
+def get_inherited_catalogs(target: Category | Event):
+    """Get catalogs inherited from parent categories (excluding own)."""
+    return get_all_catalogs(target) - set(target.affiliation_catalogs)
+
+
+def get_explicit_default_catalog(target: Category | Event):
+    """Return the catalog explicitly set as default on a category/event, if any."""
+    return _get_catalog_setting(target)
+
+
+def get_default_catalog(target: Category | Event, *, only_inherited: bool = False):
+    """Return the effective default catalog for a category/event."""
+    if isinstance(target, Event):
+        if not only_inherited:
+            catalog = _get_catalog_setting(target)
+            if catalog:
+                return catalog
+        return _get_default_catalog_on_category(target.category or Category.get_root())
+    if isinstance(target, Category):
+        return _get_default_catalog_on_category(target, only_inherited=only_inherited)
+    raise TypeError(f'Unsupported target type: {type(target).__name__}')
+
+
+def get_explicit_default_catalog_on_category(category):
+    """Return the catalog explicitly set as default on a category, if any."""
+    return get_explicit_default_catalog(category)
+
+
+def get_default_catalog_on_category(category, *, only_inherited: bool = False):
+    """Return the effective default catalog for a category."""
+    return get_default_catalog(category, only_inherited=only_inherited)
 
 
 def get_contact_list_names() -> list[str]:

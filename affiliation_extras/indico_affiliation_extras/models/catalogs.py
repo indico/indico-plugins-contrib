@@ -6,7 +6,7 @@
 # MIT License see the LICENSE file for more details.
 
 from indico.core.db import db
-from indico.modules.logs.models.entries import AppLogEntry
+from indico.modules.logs.models.entries import CategoryLogRealm, EventLogRealm
 from indico.util.string import format_repr
 
 
@@ -60,6 +60,10 @@ class AffiliationCatalog(db.Model):
     def __repr__(self):
         return format_repr(self, 'id', 'event_id', 'category_id', is_deleted=False, _text=self.name)
 
-    def log(self, *args, **kwargs):
-        """Log with prefilled metadata for the affiliation catalog."""
-        return AppLogEntry.log(*args, meta={'affiliation_catalog_id': self.id}, **kwargs)
+    @property
+    def owner(self):
+        return self.event or self.category
+
+    @property
+    def log_realm(self):
+        return EventLogRealm.management if self.event else CategoryLogRealm.category

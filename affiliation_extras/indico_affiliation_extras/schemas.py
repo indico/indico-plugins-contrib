@@ -186,15 +186,5 @@ class AffiliationCatalogSchema(mm.SQLAlchemyAutoSchema):
         model = AffiliationCatalog
         fields = ('id', 'name', 'owner', 'lists')
 
-    owner = fields.Method('_get_owner')
+    owner = fields.Nested(OwnerDataSchema)
     lists = fields.List(fields.Nested(AffiliationListSchema))
-
-    def _get_owner(self, catalog):
-        owner = catalog.category or catalog.event
-        if owner is None:
-            return None
-        return OwnerDataSchema().dump({
-            'id': owner.id,
-            'title': owner.title,
-            'locator': owner.locator,
-        })

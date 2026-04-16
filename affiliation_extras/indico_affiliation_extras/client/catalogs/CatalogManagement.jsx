@@ -7,9 +7,9 @@
 
 import createCatalogURL from 'indico-url:plugin_affiliation_extras.api_create_catalog';
 import editCatalogURL from 'indico-url:plugin_affiliation_extras.api_edit_catalog';
-import catalogDetailURL from 'indico-url:plugin_affiliation_extras.category_catalog_detail';
-import catalogListURL from 'indico-url:plugin_affiliation_extras.manage_category_affiliations';
-import catalogNewURL from 'indico-url:plugin_affiliation_extras.create_category_catalog';
+import catalogDetailURL from 'indico-url:plugin_affiliation_extras.catalog_detail';
+import catalogListURL from 'indico-url:plugin_affiliation_extras.manage_affiliations';
+import catalogNewURL from 'indico-url:plugin_affiliation_extras.create_catalog';
 
 import PropTypes from 'prop-types';
 import React, {useEffect, useReducer} from 'react';

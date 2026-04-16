@@ -14,9 +14,11 @@ from indico.core.errors import UserValueError
 from indico.modules.users.models.affiliations import Affiliation
 
 from indico_affiliation_extras import util
+from indico_affiliation_extras.models.catalogs import AffiliationCatalog
 from indico_affiliation_extras.models.contacts import AffiliationContactList
 from indico_affiliation_extras.models.groups import AffiliationGroup
 from indico_affiliation_extras.models.tags import AffiliationTag
+from indico_affiliation_extras.settings import category_settings, event_settings
 
 
 EMAIL_IMAGE_URL_PREFIX = '/files/123e4567-e89b-12d3-a456-426614174000/download?token='
@@ -141,6 +143,13 @@ def _create_tag(db, name, code=None, color='red'):
     db.session.add(tag)
     db.session.flush()
     return tag
+
+
+def _create_catalog(db, *, category=None, event=None, name='Catalog'):
+    catalog = AffiliationCatalog(name=name, category=category, event=event)
+    db.session.add(catalog)
+    db.session.flush()
+    return catalog
 
 
 def test_resolve_affiliations_includes_groups_and_tags(db):
@@ -422,3 +431,51 @@ def test_populate_contacts_rejects_duplicate_names_in_db(db):
             ],
         )
     db.session.rollback()
+
+
+def test_get_inherited_catalogs_on_event_excludes_own_catalogs(db, create_category, create_event):
+    parent = create_category(title='Parent')
+    child = create_category(title='Child', parent=parent)
+    event = create_event(category=child)
+
+    parent_catalog = _create_catalog(db, category=parent, name='Parent catalog')
+    child_catalog = _create_catalog(db, category=child, name='Child catalog')
+    _create_catalog(db, event=event, name='Event catalog')
+
+    inherited_ids = {catalog.id for catalog in util.get_inherited_catalogs(event)}
+    assert inherited_ids == {parent_catalog.id, child_catalog.id}
+
+
+def test_get_default_catalog_on_event_uses_explicit_override(db, create_category, create_event):
+    category = create_category(title='Child')
+    event = create_event(category=category)
+
+    category_default = _create_catalog(db, category=category, name='Category default')
+    event_default = _create_catalog(db, event=event, name='Event default')
+    category_settings.set(category, 'default_catalog_id', category_default.id)
+    event_settings.set(event, 'default_catalog_id', event_default.id)
+
+    assert util.get_default_catalog(event).id == event_default.id
+
+
+def test_get_default_catalog_on_event_falls_back_to_category(db, create_category, create_event):
+    category = create_category(title='Child')
+    event = create_event(category=category)
+
+    category_default = _create_catalog(db, category=category, name='Category default')
+    category_settings.set(category, 'default_catalog_id', category_default.id)
+    event_settings.set(event, 'default_catalog_id', None)
+
+    assert util.get_default_catalog(event).id == category_default.id
+
+
+def test_get_default_catalog_on_event_only_inherited_ignores_event_default(db, create_category, create_event):
+    category = create_category(title='Child')
+    event = create_event(category=category)
+
+    category_default = _create_catalog(db, category=category, name='Category default')
+    event_default = _create_catalog(db, event=event, name='Event default')
+    category_settings.set(category, 'default_catalog_id', category_default.id)
+    event_settings.set(event, 'default_catalog_id', event_default.id)
+
+    assert util.get_default_catalog(event, only_inherited=True).id == category_default.id
