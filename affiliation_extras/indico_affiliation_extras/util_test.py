@@ -17,6 +17,7 @@ from indico_affiliation_extras import util
 from indico_affiliation_extras.models.catalogs import AffiliationCatalog
 from indico_affiliation_extras.models.contacts import AffiliationContactList
 from indico_affiliation_extras.models.groups import AffiliationGroup
+from indico_affiliation_extras.models.lists import AffiliationList
 from indico_affiliation_extras.models.tags import AffiliationTag
 from indico_affiliation_extras.settings import category_settings, event_settings
 
@@ -150,6 +151,61 @@ def _create_catalog(db, *, category=None, event=None, name='Catalog'):
     db.session.add(catalog)
     db.session.flush()
     return catalog
+
+
+def _create_catalog_list(db, catalog, *, name='List', position=1, is_enabled=True, groups=(), tags=(), affiliations=()):
+    list_obj = AffiliationList(
+        catalog=catalog,
+        name=name,
+        position=position,
+        is_enabled=is_enabled,
+        groups=set(groups),
+        tags=set(tags),
+        affiliations=set(affiliations),
+    )
+    db.session.add(list_obj)
+    db.session.flush()
+    return list_obj
+
+
+def _catalog_list_payload(
+    *,
+    list_link=None,
+    name='List',
+    position=1,
+    is_enabled=True,
+    groups=(),
+    tags=(),
+    affiliations=(),
+):
+    return {
+        'list_link': list_link,
+        'name': name,
+        'position': position,
+        'is_enabled': is_enabled,
+        'groups': set(groups),
+        'tags': set(tags),
+        'affiliations': set(affiliations),
+    }
+
+
+def _catalog_list_log_lines(
+    *,
+    name='List',
+    position=1,
+    is_enabled=True,
+    groups='',
+    tags='',
+    affiliations='',
+):
+    return [
+        f'Name: {name}',
+        f'Enabled: {"Yes" if is_enabled else "No"}',
+        f'Position: {position}',
+        f'Groups: {groups}',
+        f'Tags: {tags}',
+        f'Affiliations: {affiliations}',
+    ]
 
 
 def test_resolve_affiliations_includes_groups_and_tags(db):
@@ -433,6 +489,168 @@ def test_populate_contacts_rejects_duplicate_names_in_db(db):
     db.session.rollback()
 
 
+def test_populate_catalog_lists_adds_new_list_and_logs_details(db):
+    catalog = _create_catalog(db, name='Catalog')
+    affiliation = _create_affiliation(db, 'CERN')
+    group = _create_group(db, 'Group A', 'group-a')
+    tag = _create_tag(db, 'Tag A', 'tag-a')
+
+    changes, log_fields = util.populate_catalog_lists(
+        catalog,
+        [
+            _catalog_list_payload(
+                name=' Representatives ',
+                position=2,
+                groups={group},
+                tags={tag},
+                affiliations={affiliation},
+            ),
+        ],
+    )
+
+    assert [lst.name for lst in catalog.lists] == ['Representatives']
+    list_id = catalog.lists[0].id
+    assert changes == {
+        'lists': ([], ['Representatives']),
+        f'lists_item_{list_id}': (
+            [],
+            _catalog_list_log_lines(
+                name='Representatives',
+                position=2,
+                groups='group-a',
+                tags='tag-a',
+                affiliations='CERN',
+            ),
+        ),
+    }
+    assert log_fields == {f'lists_item_{list_id}': {'title': 'List: Representatives', 'type': 'list'}}
+
+
+def test_populate_catalog_lists_updates_existing_list_and_logs_details(db):
+    catalog = _create_catalog(db, name='Catalog')
+    old_affiliation = _create_affiliation(db, 'Alpha')
+    new_affiliation = _create_affiliation(db, 'Beta')
+    old_group = _create_group(db, 'Group A', 'group-a')
+    new_group = _create_group(db, 'Group B', 'group-b')
+    old_tag = _create_tag(db, 'Tag A', 'tag-a')
+    new_tag = _create_tag(db, 'Tag B', 'tag-b')
+    list_obj = _create_catalog_list(
+        db,
+        catalog,
+        name='Representatives',
+        position=1,
+        is_enabled=True,
+        groups={old_group},
+        tags={old_tag},
+        affiliations={old_affiliation},
+    )
+
+    changes, log_fields = util.populate_catalog_lists(
+        catalog,
+        [
+            _catalog_list_payload(
+                list_link=list_obj,
+                name='Representatives',
+                position=2,
+                is_enabled=False,
+                groups={new_group},
+                tags={new_tag},
+                affiliations={new_affiliation},
+            ),
+        ],
+    )
+
+    assert list_obj.position == 2
+    assert not list_obj.is_enabled
+    assert changes == {
+        f'lists_item_{list_obj.id}': (
+            _catalog_list_log_lines(
+                name='Representatives',
+                groups='group-a',
+                tags='tag-a',
+                affiliations='Alpha',
+            ),
+            _catalog_list_log_lines(
+                name='Representatives',
+                position=2,
+                is_enabled=False,
+                groups='group-b',
+                tags='tag-b',
+                affiliations='Beta',
+            ),
+        ),
+    }
+    assert log_fields == {f'lists_item_{list_obj.id}': {'title': 'List: Representatives', 'type': 'list'}}
+
+
+def test_populate_catalog_lists_noop(db):
+    catalog = _create_catalog(db, name='Catalog')
+    affiliation = _create_affiliation(db, 'CERN')
+    group = _create_group(db, 'Group A', 'group-a')
+    tag = _create_tag(db, 'Tag A', 'tag-a')
+    list_obj = _create_catalog_list(
+        db,
+        catalog,
+        name='Representatives',
+        position=1,
+        is_enabled=True,
+        groups={group},
+        tags={tag},
+        affiliations={affiliation},
+    )
+
+    changes, log_fields = util.populate_catalog_lists(
+        catalog,
+        [
+            _catalog_list_payload(
+                list_link=list_obj,
+                name='Representatives',
+                position=1,
+                is_enabled=True,
+                groups={group},
+                tags={tag},
+                affiliations={affiliation},
+            ),
+        ],
+    )
+
+    assert changes == {}
+    assert log_fields == {}
+
+
+def test_populate_catalog_lists_deletes_omitted_list(db):
+    catalog = _create_catalog(db, name='Catalog')
+    affiliation = _create_affiliation(db, 'CERN')
+    list_obj = _create_catalog_list(db, catalog, name='Representatives', affiliations={affiliation})
+
+    changes, log_fields = util.populate_catalog_lists(catalog, [])
+
+    assert db.session.get(AffiliationList, list_obj.id) is None
+    assert changes == {
+        'lists': (['Representatives'], []),
+        f'lists_item_{list_obj.id}': (
+            _catalog_list_log_lines(name='Representatives', affiliations='CERN'),
+            [],
+        ),
+    }
+    assert log_fields == {f'lists_item_{list_obj.id}': {'title': 'List: Representatives', 'type': 'list'}}
+
+
+def test_populate_catalog_lists_rejects_list_from_other_catalog(db):
+    catalog = _create_catalog(db, name='Catalog')
+    other_catalog = _create_catalog(db, name='Other catalog')
+    affiliation = _create_affiliation(db, 'CERN')
+    foreign_list = _create_catalog_list(db, other_catalog, name='Representatives', affiliations={affiliation})
+
+    with pytest.raises(UserValueError, match='does not belong'):
+        util.populate_catalog_lists(
+            catalog,
+            [
+                _catalog_list_payload(list_link=foreign_list, name='Representatives', affiliations={affiliation}),
+            ],
+        )
+
+
 def test_get_inherited_catalogs_on_event_excludes_own_catalogs(db, create_category, create_event):
     parent = create_category(title='Parent')
     child = create_category(title='Child', parent=parent)
@@ -479,3 +697,83 @@ def test_get_default_catalog_on_event_only_inherited_ignores_event_default(db, c
     event_settings.set(event, 'default_catalog_id', event_default.id)
 
     assert util.get_default_catalog(event, only_inherited=True).id == category_default.id
+
+
+def test_get_representation_affiliation_lists_uses_effective_default_catalog(db, create_category, create_event):
+    category = create_category(title='Category')
+    event = create_event(category=category)
+    category_catalog = _create_catalog(db, category=category, name='Category default')
+    event_catalog = _create_catalog(db, event=event, name='Event default')
+    event_settings.set(event, 'default_catalog_id', event_catalog.id)
+    category_settings.set(category, 'default_catalog_id', category_catalog.id)
+    _create_catalog_list(db, event_catalog, name='Enabled event list', position=2, is_enabled=True)
+    _create_catalog_list(db, event_catalog, name='Disabled event list', position=1, is_enabled=False)
+    _create_catalog_list(db, category_catalog, name='Category list', position=1, is_enabled=True)
+
+    affiliation_lists = util.get_representation_affiliation_lists(event, enabled_only=True)
+
+    assert [item.name for item in affiliation_lists] == ['Enabled event list']
+
+
+def test_get_representation_affiliation_list_rejects_disabled_or_missing(db, create_category, create_event):
+    category = create_category(title='Category')
+    event = create_event(category=category)
+    catalog = _create_catalog(db, category=category, name='Default')
+    category_settings.set(category, 'default_catalog_id', catalog.id)
+    enabled_list = _create_catalog_list(db, catalog, name='Enabled', is_enabled=True)
+    disabled_list = _create_catalog_list(db, catalog, name='Disabled', is_enabled=False)
+
+    assert util.get_representation_affiliation_list(event, enabled_list.id).id == enabled_list.id
+    assert util.get_representation_affiliation_list(event, disabled_list.id) is None
+    assert util.get_representation_affiliation_list(event, 999999) is None
+
+
+def test_get_representation_affiliations_resolves_groups_tags_and_direct_members(db):
+    alpha = _create_affiliation(db, 'Alpha')
+    beta = _create_affiliation(db, 'Beta')
+    gamma = _create_affiliation(db, 'Gamma')
+    group = _create_group(db, 'Group', 'group')
+    tag = _create_tag(db, 'Tag', 'tag')
+    group.affiliations.add(beta)
+    tag.affiliations.add(gamma)
+    tag.groups.add(group)
+    catalog = _create_catalog(db, name='Catalog')
+    affiliation_list = _create_catalog_list(
+        db,
+        catalog,
+        name='Representatives',
+        groups={group},
+        tags={tag},
+        affiliations={alpha},
+    )
+
+    resolved = util.get_representation_affiliations(affiliation_list)
+
+    assert [item.name for item in resolved] == ['Alpha', 'Beta', 'Gamma']
+
+
+def test_get_representation_affiliation_filters_limits_to_affiliation_list(db):
+    allowed = _create_affiliation(db, 'Allowed')
+    blocked = _create_affiliation(db, 'Blocked')
+    catalog = _create_catalog(db, name='Catalog')
+    affiliation_list = _create_catalog_list(db, catalog, affiliations={allowed})
+
+    filters = util.get_representation_affiliation_filters({'affiliation_list': affiliation_list})
+    results = Affiliation.query.filter(Affiliation.id.in_([allowed.id, blocked.id]), *filters).all()
+
+    assert {item.id for item in results} == {allowed.id}
+
+
+def test_get_representation_affiliation_filters_ignores_context_without_affiliation_list():
+    assert util.get_representation_affiliation_filters({}) == []
+
+
+def test_get_representation_affiliation_filters_returns_no_matches_for_empty_affiliation_list(db):
+    affiliation = _create_affiliation(db, 'CERN')
+    catalog = _create_catalog(db, name='Catalog')
+    affiliation_list = _create_catalog_list(db, catalog)
+
+    filters = util.get_representation_affiliation_filters({'affiliation_list': affiliation_list})
+    results = Affiliation.query.filter(Affiliation.id == affiliation.id, *filters).all()
+
+    assert results == []

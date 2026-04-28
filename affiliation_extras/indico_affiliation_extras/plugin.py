@@ -9,6 +9,12 @@ from flask import g, has_request_context, request, session
 
 from indico.core import signals
 from indico.core.plugins import IndicoPlugin, url_for_plugin
+from indico.modules.events.registration.fields.base import RegistrationFormFieldBase
+from indico.modules.events.registration.views import (
+    WPDisplayRegistrationFormConference,
+    WPDisplayRegistrationFormSimpleEvent,
+    WPManageRegistration,
+)
 from indico.modules.logs import AppLogRealm, LogKind
 from indico.modules.logs.util import make_diff_log
 from indico.modules.users.schemas import AffiliationArgs, AffiliationSchema
@@ -17,8 +23,13 @@ from indico.util.i18n import _
 from indico.web.menu import SideMenuItem
 
 from indico_affiliation_extras.blueprint import blueprint
+from indico_affiliation_extras.fields import RepresentationField
 from indico_affiliation_extras.schemas import AffiliationExtraAttrsArgs, AffiliationExtraAttrsSchema
-from indico_affiliation_extras.util import populate_contacts, populate_memberships
+from indico_affiliation_extras.util import (
+    get_representation_affiliation_filters,
+    populate_contacts,
+    populate_memberships,
+)
 from indico_affiliation_extras.views import WPCategoryAffiliations, WPEventAffiliations
 
 
@@ -34,13 +45,22 @@ class AffiliationExtrasPlugin(IndicoPlugin):
 
     def init(self):
         super().init()
-        wps = (WPAffiliationsDashboard, WPCategoryAffiliations, WPEventAffiliations)
+        wps = (
+            WPAffiliationsDashboard,
+            WPCategoryAffiliations,
+            WPEventAffiliations,
+            WPManageRegistration,
+            WPDisplayRegistrationFormConference,
+            WPDisplayRegistrationFormSimpleEvent,
+        )
         self.inject_bundle('main.js', wps)
         self.inject_bundle('main.css', wps)
+        self.connect(signals.core.get_fields, self._get_fields, sender=RegistrationFormFieldBase)
         self.connect(signals.plugin.schema_post_dump, self._extend_affiliation_schema, sender=AffiliationSchema)
         self.connect(signals.plugin.schema_pre_load, self._capture_affiliation_extra_attrs, sender=AffiliationArgs)
         self.connect(signals.affiliations.affiliation_created, self._set_affiliation_extra_attrs)
         self.connect(signals.affiliations.affiliation_updated, self._set_affiliation_extra_attrs)
+        self.connect(signals.affiliations.get_affiliation_filters, self._restrict_affiliations_for_representation)
         self.connect(signals.menu.items, self._category_sidemenu_items, sender='category-management-sidemenu')
         self.connect(signals.menu.items, self._event_sidemenu_items, sender='event-management-sidemenu')
         self.connect(
@@ -105,3 +125,9 @@ class AffiliationExtrasPlugin(IndicoPlugin):
                 url_for_plugin('affiliation_extras.manage_affiliations', event),
                 section='customization',
             )
+
+    def _get_fields(self, sender, **kwargs):
+        yield RepresentationField
+
+    def _restrict_affiliations_for_representation(self, sender, context, **kwargs):
+        return get_representation_affiliation_filters(context)

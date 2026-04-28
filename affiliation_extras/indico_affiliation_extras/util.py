@@ -258,31 +258,33 @@ def _format_catalog_list_log_lines(data: dict) -> list[str]:
     ]
 
 
-def populate_catalog_lists(catalog: AffiliationCatalog, catalog_lists: list[dict]) -> tuple[_Changes, _LogFields]:
+def _apply_catalog_lists(catalog: AffiliationCatalog, catalog_lists: list[dict]) -> None:
     existing_by_id = {item.id: item for item in catalog.lists}
     touched_ids = set()
 
-    old_lists = serialize_catalog_lists(catalog.lists)
     for list_data in catalog_lists:
-        list_obj = list_data.get('id')
+        list_obj = list_data.get('list_link')
         if list_obj is None:
             list_obj = AffiliationList(catalog=catalog)
             db.session.add(list_obj)
+        else:
+            if list_obj.id not in existing_by_id:
+                raise UserValueError('List does not belong to this catalog')
+            touched_ids.add(list_obj.id)
         list_obj.name = list_data['name'].strip()
         list_obj.is_enabled = list_data['is_enabled']
         list_obj.position = list_data['position']
         list_obj.groups = list_data['groups']
         list_obj.tags = list_data['tags']
         list_obj.affiliations = list_data['affiliations']
-        if list_obj.id is not None:
-            touched_ids.add(list_obj.id)
 
     for list_id, list_obj in existing_by_id.items():
         if list_id not in touched_ids:
+            catalog.lists.remove(list_obj)
             db.session.delete(list_obj)
 
-    db.session.flush()
-    new_lists = serialize_catalog_lists(catalog.lists)
+
+def _get_catalog_list_changes(old_lists: dict[int, dict], new_lists: dict[int, dict]) -> tuple[_Changes, _LogFields]:
     if old_lists == new_lists:
         return {}, {}
 
@@ -308,9 +310,16 @@ def populate_catalog_lists(catalog: AffiliationCatalog, catalog_lists: list[dict
     return changes, log_fields
 
 
-def resolve_affiliations(
-    groups: set[AffiliationGroup], tags: set[AffiliationTag], affiliations: set[Affiliation]
-) -> list[Affiliation]:
+def populate_catalog_lists(catalog: AffiliationCatalog, catalog_lists: list[dict]) -> tuple[_Changes, _LogFields]:
+    old_lists = serialize_catalog_lists(catalog.lists)
+    _apply_catalog_lists(catalog, catalog_lists)
+    db.session.flush()
+    new_lists = serialize_catalog_lists(catalog.lists)
+    return _get_catalog_list_changes(old_lists, new_lists)
+
+
+def resolve_affiliations(groups: set[AffiliationGroup], tags: set[AffiliationTag],
+                         affiliations: set[Affiliation]) -> list[Affiliation]:
     all_affiliations = set(affiliations)
     all_groups = set(groups)
     for tag in tags:
@@ -421,6 +430,41 @@ def get_explicit_default_catalog_on_category(category):
 def get_default_catalog_on_category(category, *, only_inherited: bool = False):
     """Return the effective default catalog for a category."""
     return get_default_catalog(category, only_inherited=only_inherited)
+
+
+def get_representation_affiliation_lists(event: Event, *, enabled_only: bool = True) -> list[AffiliationList]:
+    """Return affiliation lists configured as representation types for the event."""
+    if not (catalog := get_default_catalog(event)):
+        return []
+    lists = catalog.lists
+    if enabled_only:
+        lists = [item for item in lists if item.is_enabled]
+    return sorted(lists, key=lambda item: (item.position, item.name.lower(), item.id))
+
+
+def get_representation_affiliation_list(event: Event, affiliation_list_id: int | None, *,
+                                        enabled_only: bool = True) -> AffiliationList | None:
+    """Return a single affiliation list if it exists in the event's default catalog."""
+    if affiliation_list_id is None:
+        return None
+    return next((item for item in get_representation_affiliation_lists(event, enabled_only=enabled_only)
+                 if item.id == affiliation_list_id), None)
+
+
+def get_representation_affiliations(affiliation_list: AffiliationList) -> list[Affiliation]:
+    """Return affiliations allowed by an affiliation list."""
+    return resolve_affiliations(affiliation_list.groups, affiliation_list.tags, affiliation_list.affiliations)
+
+
+def get_representation_affiliation_filters(context):
+    affiliation_list = context.get('affiliation_list')
+    if not affiliation_list:
+        return []
+
+    affiliation_ids = {item.id for item in get_representation_affiliations(affiliation_list)}
+    if not affiliation_ids:
+        return [db.false()]
+    return [Affiliation.id.in_(affiliation_ids)]
 
 
 def get_contact_list_names() -> list[str]:

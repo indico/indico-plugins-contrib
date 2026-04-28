@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: indico-plugin-affiliation-extras 3.3-dev\n"
 "Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
-"POT-Creation-Date: 2026-05-12 19:43+0100\n"
+"POT-Creation-Date: 2026-05-12 19:46+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -41,8 +41,16 @@ msgstr ""
 msgid "Value in the affiliation's metadata. Supports nested keys like \"foo.bar\" and list indices like \"items.0\"."
 msgstr ""
 
+#: indico_affiliation_extras/plugin.py indico_affiliation_extras/templates/manage_affiliations.html
+msgid "Affiliations"
+msgstr ""
+
 #: indico_affiliation_extras/schemas.py
 #, python-brace-format
 msgid "Invalid email address: {email}"
+msgstr ""
+
+#: indico_affiliation_extras/schemas.py
+msgid "Each list must contain at least one group, tag, or affiliation."
 msgstr ""
 

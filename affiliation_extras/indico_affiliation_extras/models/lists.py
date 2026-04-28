@@ -120,4 +120,4 @@ class AffiliationList(db.Model):
     )
 
     def __repr__(self):
-        return format_repr(self, 'id', 'event_id', 'category_id', _text=self.name)
+        return format_repr(self, 'id', 'catalog_id', _text=self.name)

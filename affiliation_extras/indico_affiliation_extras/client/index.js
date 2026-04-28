@@ -12,12 +12,14 @@ import dashboardColumns from './dashboard/columns';
 import formSection from './dashboard/formSection';
 import affiliationFilters from './dashboard/filters';
 import AffiliationRowActions from './dashboard/AffiliationRowActions';
+import representationField from './regform/fields';
 
 const PLUGIN_NAME = 'affiliation_extras';
 
 registerPluginObject(PLUGIN_NAME, 'affiliations-dashboard-columns', dashboardColumns);
 registerPluginObject(PLUGIN_NAME, 'affiliation-form-sections', formSection);
 registerPluginObject(PLUGIN_NAME, 'affiliations-dashboard-filter-extensions', affiliationFilters);
+registerPluginObject(PLUGIN_NAME, 'regformCustomFields', representationField);
 
 registerPluginComponent(
   PLUGIN_NAME,

@@ -15,10 +15,23 @@ class AffiliationCatalog(db.Model):
     __table_args__ = {'schema': 'plugin_affiliation_extras'}
 
     id = db.Column(db.Integer, primary_key=True)
-    event_id = db.Column(db.Integer, db.ForeignKey('events.events.id'), index=True, nullable=True)
-    category_id = db.Column(db.Integer, db.ForeignKey('categories.categories.id'), index=True, nullable=True)
+    event_id = db.Column(
+        db.Integer,
+        db.ForeignKey('events.events.id', ondelete='CASCADE'),
+        index=True,
+        nullable=True
+    )
+    category_id = db.Column(
+        db.Integer,
+        db.ForeignKey('categories.categories.id', ondelete='CASCADE'),
+        index=True,
+        nullable=True
+    )
     parent_id = db.Column(
-        db.Integer, db.ForeignKey('plugin_affiliation_extras.affiliation_catalogs.id'), index=True, nullable=True
+        db.Integer,
+        db.ForeignKey('plugin_affiliation_extras.affiliation_catalogs.id'),
+        index=True,
+        nullable=True
     )
     name = db.Column(db.String, nullable=False, default='')
     is_deleted = db.Column(db.Boolean, nullable=False, default=False)
