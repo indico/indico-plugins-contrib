@@ -30,6 +30,10 @@ from indico_affiliation_extras.controllers.catalogs import (
     RHResolveAffiliations,
     RHToggleDefaultCatalog,
 )
+from indico_affiliation_extras.controllers.regform import (
+    RHManageSearchRepresentationAffiliation,
+    RHSearchRepresentationAffiliation,
+)
 
 
 blueprint = IndicoPluginBlueprint('affiliation_extras', __name__)
@@ -87,6 +91,18 @@ blueprint.add_url_rule(
     f'{_admin_prefix}/tags/<int:tag_id>', 'api_affiliation_tag', RHAffiliationTag, methods=('GET', 'PATCH', 'DELETE')
 )
 blueprint.add_url_rule(f'{_admin_prefix}/contact-lists/names', 'api_contact_list_names', RHContactListNames)
+blueprint.add_url_rule(
+    '/event/<int:event_id>/affiliation-extras/registration/<int:reg_form_id>/affiliations/'
+    '<int:field_id>/list/<int:affiliation_list_id>',
+    'search_registration_affiliation',
+    RHSearchRepresentationAffiliation,
+)
+blueprint.add_url_rule(
+    '/event/<int:event_id>/manage/affiliation-extras/registration/<int:reg_form_id>/affiliations/'
+    '<int:field_id>/list/<int:affiliation_list_id>',
+    'search_registration_affiliation_management',
+    RHManageSearchRepresentationAffiliation,
+)
 
 # SPA page routes (React Router handles display)
 _management_page = _dispatch(RHManageEventAffiliations, RHManageCategoryAffiliations)

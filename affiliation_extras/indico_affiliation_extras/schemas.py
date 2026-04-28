@@ -153,7 +153,7 @@ class AffiliationListSchema(mm.SQLAlchemyAutoSchema):
 
 
 class AffiliationCatalogListArgs(mm.Schema):
-    id = ModelField(AffiliationList, load_default=None, allow_none=True)
+    list_link = ModelField(AffiliationList, data_key='id', load_default=None, allow_none=True, load_only=True)
     name = fields.String(required=True, validate=not_empty)
     position = fields.Integer(required=True)
     is_enabled = fields.Boolean(load_default=True)
