@@ -29,6 +29,7 @@ on:
         type: choice
         options:
           - ''  # all plugins
+          - registration_prefill
 
 permissions:
   contents: read
