@@ -5,7 +5,6 @@ from indico.modules.events.registration.models.form_fields import RegistrationFo
 from indico.modules.events.registration.models.items import RegistrationFormItem, RegistrationFormItemType
 from indico.modules.events.registration.models.registrations import Registration, RegistrationData, RegistrationState
 from indico.modules.files.models.files import File
-from indico.util.signals import make_interceptable
 from indico.util.string import camelize_keys
 
 
