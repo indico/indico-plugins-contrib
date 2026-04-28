@@ -1,3 +1,10 @@
+# This file is part of the third-party Indico plugins.
+# Copyright (C) 2026 CERN
+#
+# The third-party Indico plugins are free software; you can
+# redistribute them and/or modify them under the terms of the;
+# MIT License see the LICENSE file for more details.
+
 """Tests for get_previous_registration_data.
 
 Architecture
@@ -9,9 +16,11 @@ so the prefill logic can match them. The target field IDs are in the
 ``excluded_ids`` list, so the query falls back to the source form's data.
 """
 from datetime import UTC, datetime, timedelta
+
 import pytest
 
 from indico.modules.events.registration.models.registrations import RegistrationState
+
 from indico_registration_prefill.util import get_previous_registration_data
 
 
