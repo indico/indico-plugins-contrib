@@ -9,7 +9,7 @@ from sqlalchemy import tuple_
 
 from indico.core.db import db
 from indico.modules.events.registration.models.form_fields import RegistrationFormFieldData
-from indico.modules.events.registration.models.items import RegistrationFormItem, RegistrationFormItemType
+from indico.modules.events.registration.models.items import RegistrationFormItem
 from indico.modules.events.registration.models.registrations import Registration, RegistrationData, RegistrationState
 from indico.modules.files.models.files import File
 from indico.util.string import camelize_keys
@@ -50,9 +50,9 @@ def _create_prefill_file(reg_data, field):
 def get_previous_registration_data(regform, user, file_data=None):
     """Prefill custom fields from the user's most recent completed registration.
 
-    For each active custom field (non-personal-data) with ``internal_name`` set,
-    finds the user's last completed registration on any regform that also has a field
-    with the same ``internal_name`` and ``input_type``, and returns its stored value.
+    For each active field with ``internal_name`` set, finds the user's last completed
+    registration on any regform that also has a field with the same ``internal_name`` and
+    ``input_type``, and returns its stored value.
     File and picture fields are handled by creating a new unclaimed File for prefill.
 
     Args:
@@ -68,7 +68,7 @@ def get_previous_registration_data(regform, user, file_data=None):
 
     custom_fields = [
         field for field in regform.active_fields
-        if field.type == RegistrationFormItemType.field and field.internal_name
+        if field.is_field and field.internal_name
     ]
     if not custom_fields:
         return {}

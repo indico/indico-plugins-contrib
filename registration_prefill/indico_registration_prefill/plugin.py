@@ -17,7 +17,7 @@ from indico_registration_prefill.util import get_previous_registration_data
 
 
 class RegistrationPrefillPlugin(IndicoPlugin):
-    """Registration Prefill Plugin.
+    """Registration Prefill
 
     Automatically prefills registration form fields with data from
     the user's most recent completed registration.

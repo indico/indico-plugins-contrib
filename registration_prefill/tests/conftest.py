@@ -10,8 +10,10 @@ from io import BytesIO
 
 import pytest
 
-from indico.modules.events.registration.models.form_fields import RegistrationFormField
-from indico.modules.events.registration.models.items import RegistrationFormSection
+from indico.modules.events.registration.models.form_fields import (RegistrationFormField,
+                                                                   RegistrationFormPersonalDataField)
+from indico.modules.events.registration.models.items import (PersonalDataType, RegistrationFormPersonalDataSection,
+                                                             RegistrationFormSection)
 from indico.modules.events.registration.models.registrations import Registration, RegistrationData, RegistrationState
 
 
@@ -28,6 +30,65 @@ def make_section(db):
         db.session.flush()
         return section
     return _make_section
+
+
+@pytest.fixture
+def make_pd_section(db):
+    """Factory: get or create a personal-data section on any regform.
+
+    Each registration form may only have one section_pd (unique constraint),
+    so this returns the existing one if already present.
+    """
+    def _make_pd_section(regform, title='Personal Data'):
+        existing = next(
+            (item for item in regform.form_items
+             if item.type.name == 'section_pd'),
+            None,
+        )
+        if existing is not None:
+            return existing
+        section = RegistrationFormPersonalDataSection(
+            registration_form=regform,
+            title=title,
+            is_manager_only=False,
+        )
+        db.session.add(section)
+        db.session.flush()
+        return section
+    return _make_pd_section
+
+
+@pytest.fixture
+def make_pd_field(db):
+    """Factory: get or create a RegistrationFormPersonalDataField (type field_pd).
+
+    Each registration form may only have one field per personal_data_type (unique
+    constraint), so returns the existing field if already present.  ``internal_name``
+    is set to ``pd_type.name`` to mirror how Indico initialises personal-data fields.
+    """
+    _field_data_by_type = dict(PersonalDataType.FIELD_DATA)
+
+    def _make_pd_field(section, pd_type: PersonalDataType, **kwargs):
+        existing = next(
+            (item for item in section.registration_form.form_items
+             if getattr(item, 'personal_data_type', None) == pd_type),
+            None,
+        )
+        if existing is not None:
+            return existing
+        field = RegistrationFormPersonalDataField(
+            parent=section,
+            registration_form=section.registration_form,
+        )
+        field.title = pd_type.get_title()
+        field.input_type = _field_data_by_type[pd_type]['input_type']
+        field.data = kwargs
+        field.versioned_data = {}
+        field.internal_name = pd_type.name
+        field.personal_data_type = pd_type
+        db.session.flush()
+        return field
+    return _make_pd_field
 
 
 @pytest.fixture

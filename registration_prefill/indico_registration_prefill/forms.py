@@ -17,10 +17,5 @@ class SettingsForm(IndicoForm):
 
     enabled = BooleanField(
         _('Enable registration form prefilling'),
-        widget=SwitchWidget(),
-        description=_(
-            'Automatically prefill custom registration form fields with data '
-            "from the user's most recent completed registration. Fields are "
-            'matched by internal name and field type across all events.'
-        )
+        widget=SwitchWidget()
     )

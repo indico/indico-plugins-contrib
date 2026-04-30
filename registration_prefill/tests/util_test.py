@@ -19,6 +19,7 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
+from indico.modules.events.registration.models.items import PersonalDataType
 from indico.modules.events.registration.models.registrations import RegistrationState
 
 from indico_registration_prefill.util import get_previous_registration_data
@@ -570,3 +571,25 @@ class TestGetPreviousRegistrationData:
         result = get_previous_registration_data(dummy_regform, dummy_user)
 
         assert tgt_field.html_field_name not in result
+
+    # ── personal data (field_pd) fields ─────────────────────────────────────
+    def test_personal_data_field_prefilled_from_previous_registration(
+        self, dummy_event, dummy_regform, dummy_user,
+        create_regform, make_pd_section, make_pd_field, make_registration
+    ):
+        """field_pd fields in the personaldata section are prefilled when internal_name and input_type match.
+
+        Previously the filter used an exact type check (== field) which excluded field_pd,
+        so personaldata-section fields with matching internal_name were silently skipped.
+        """
+        source_regform = create_regform(dummy_event, title='Source Form')
+        src_pd_section = make_pd_section(source_regform)
+        tgt_pd_section = make_pd_section(dummy_regform)
+        src_field = make_pd_field(src_pd_section, PersonalDataType.affiliation)
+        tgt_field = make_pd_field(tgt_pd_section, PersonalDataType.affiliation)
+
+        make_registration(dummy_user, source_regform, {src_field: 'CERN'})
+        result = get_previous_registration_data(dummy_regform, dummy_user)
+
+        assert tgt_field.html_field_name in result
+        assert result[tgt_field.html_field_name] == 'CERN'
