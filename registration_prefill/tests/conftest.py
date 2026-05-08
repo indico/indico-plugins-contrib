@@ -25,6 +25,7 @@ from indico.modules.events.registration.models.registrations import Registration
 @pytest.fixture
 def make_section(db):
     """Factory: create a section on any regform."""
+
     def _make_section(regform, title='Test Section'):
         section = RegistrationFormSection(
             registration_form=regform,
@@ -34,6 +35,7 @@ def make_section(db):
         db.session.add(section)
         db.session.flush()
         return section
+
     return _make_section
 
 
@@ -44,10 +46,10 @@ def make_pd_section(db):
     Each registration form may only have one section_pd (unique constraint),
     so this returns the existing one if already present.
     """
+
     def _make_pd_section(regform, title='Personal Data'):
         existing = next(
-            (item for item in regform.form_items
-             if item.type.name == 'section_pd'),
+            (item for item in regform.form_items if item.type.name == 'section_pd'),
             None,
         )
         if existing is not None:
@@ -60,6 +62,7 @@ def make_pd_section(db):
         db.session.add(section)
         db.session.flush()
         return section
+
     return _make_pd_section
 
 
@@ -75,8 +78,11 @@ def make_pd_field(db):
 
     def _make_pd_field(section, pd_type: PersonalDataType, **kwargs):
         existing = next(
-            (item for item in section.registration_form.form_items
-             if getattr(item, 'personal_data_type', None) == pd_type),
+            (
+                item
+                for item in section.registration_form.form_items
+                if getattr(item, 'personal_data_type', None) == pd_type
+            ),
             None,
         )
         if existing is not None:
@@ -93,12 +99,14 @@ def make_pd_field(db):
         field.personal_data_type = pd_type
         db.session.flush()
         return field
+
     return _make_pd_field
 
 
 @pytest.fixture
 def make_field(db):
     """Create a RegistrationFormField with an internal name."""
+
     def _make_field(section, internal_name, input_type, **kwargs):
         choices = kwargs.pop('choices', None)
 
@@ -114,6 +122,7 @@ def make_field(db):
         field.internal_name = internal_name
         db.session.flush()
         return field
+
     return _make_field
 
 
@@ -127,8 +136,8 @@ def make_registration(db):
       and ``content`` (bytes) to create a RegistrationData entry backed by
       storage.  Pass None to create a RegistrationData with no file stored.
     """
-    def _make_registration(user, regform, field_values=None, *,
-                            state=RegistrationState.complete, submitted_dt=None):
+
+    def _make_registration(user, regform, field_values=None, *, state=RegistrationState.complete, submitted_dt=None):
         reg = Registration(
             registration_form=regform,
             user=user,
@@ -155,11 +164,14 @@ def make_registration(db):
                 with BytesIO(data_value.get('content', b'test content')) as f:
                     reg_data.save(f)
             else:
-                db.session.add(RegistrationData(
-                    registration=reg,
-                    field_data=field.current_data,
-                    data=data_value,
-                ))
+                db.session.add(
+                    RegistrationData(
+                        registration=reg,
+                        field_data=field.current_data,
+                        data=data_value,
+                    )
+                )
         db.session.flush()
         return reg
+
     return _make_registration

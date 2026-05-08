@@ -15,6 +15,7 @@ Fields on the two forms share the same ``internal_name`` + ``input_type`` pair
 so the prefill logic can match them. The target field IDs are in the
 ``excluded_ids`` list, so the query falls back to the source form's data.
 """
+
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -46,10 +47,22 @@ _MULTI_CHOICES = [
     {'id': _UUID_B, 'caption': 'Option B', 'is_enabled': True, 'price': 0, 'places_limit': 0},
 ]
 _ACCOMM_CHOICES = [
-    {'id': _UUID_NO_ACCOMM, 'caption': 'No Accommodation', 'is_enabled': True,
-     'price': 0, 'places_limit': 0, 'is_no_accommodation': True},
-    {'id': _UUID_ROOM, 'caption': 'Single Room', 'is_enabled': True,
-     'price': 0, 'places_limit': 0, 'is_no_accommodation': False},
+    {
+        'id': _UUID_NO_ACCOMM,
+        'caption': 'No Accommodation',
+        'is_enabled': True,
+        'price': 0,
+        'places_limit': 0,
+        'is_no_accommodation': True,
+    },
+    {
+        'id': _UUID_ROOM,
+        'caption': 'Single Room',
+        'is_enabled': True,
+        'price': 0,
+        'places_limit': 0,
+        'is_no_accommodation': False,
+    },
 ]
 _ACCOMM_DATES = {
     'arrival': {'start_date': '2025-11-20', 'end_date': '2025-11-22'},
@@ -222,9 +235,9 @@ def _all_field_specs():
 # Test class
 # ============================================================================
 
+
 @pytest.mark.usefixtures('db', 'request_context')
 class TestGetPreviousRegistrationData:
-
     # ── basic guard tests ────────────────────────────────────────────────────
     def test_returns_empty_for_anonymous_user(self, dummy_regform):
         assert get_previous_registration_data(dummy_regform, None) == {}
@@ -233,8 +246,9 @@ class TestGetPreviousRegistrationData:
         assert get_previous_registration_data(dummy_regform, dummy_user) == {}
 
     # ── happy path ───────────────────────────────────────────────────────────
-    def test_happy_path_all_field_types(self, dummy_event, dummy_regform, dummy_user,
-                                         create_regform, make_section, make_field, make_registration):
+    def test_happy_path_all_field_types(
+        self, dummy_event, dummy_regform, dummy_user, create_regform, make_section, make_field, make_registration
+    ):
         """Every supported field type is prefilled from the most recent registration."""
         source_regform = create_regform(dummy_event, title='Source Form')
         source_section = make_section(source_regform, 'Source Section')
@@ -268,56 +282,51 @@ class TestGetPreviousRegistrationData:
                     f'Field "{iname}" (type={tgt_field.input_type}) should be prefilled'
                 )
                 assert result[tgt_field.html_field_name] == expected, (
-                    f'Field "{iname}": expected {expected!r}, '
-                    f'got {result[tgt_field.html_field_name]!r}'
+                    f'Field "{iname}": expected {expected!r}, got {result[tgt_field.html_field_name]!r}'
                 )
 
     # ── choice field corner cases ────────────────────────────────────────────
-    def test_disabled_choice_filtered_from_result(self, dummy_event, dummy_regform, dummy_user,
-                                                   create_regform, make_section, make_field,
-                                                   make_registration):
+    def test_disabled_choice_filtered_from_result(
+        self, dummy_event, dummy_regform, dummy_user, create_regform, make_section, make_field, make_registration
+    ):
         """Choices that are disabled in the target form are removed from the prefilled value."""
         source_regform = create_regform(dummy_event, title='Source Form')
         src_section = make_section(source_regform, 'Source Section')
         tgt_section = make_section(dummy_regform, 'Target Section')
-        src_field = make_field(src_section, 'diet', 'multi_choice',
-                               with_extra_slots=False, choices=_MULTI_CHOICES)
+        src_field = make_field(src_section, 'diet', 'multi_choice', with_extra_slots=False, choices=_MULTI_CHOICES)
         tgt_choices = [
             {'id': _UUID_A, 'caption': 'Option A', 'is_enabled': False, 'price': 0, 'places_limit': 0},
             {'id': _UUID_B, 'caption': 'Option B', 'is_enabled': True, 'price': 0, 'places_limit': 0},
         ]
-        tgt_field = make_field(tgt_section, 'diet', 'multi_choice',
-                               with_extra_slots=False, choices=tgt_choices)
+        tgt_field = make_field(tgt_section, 'diet', 'multi_choice', with_extra_slots=False, choices=tgt_choices)
         make_registration(dummy_user, source_regform, {src_field: {_UUID_A: 1, _UUID_B: 1}})
         result = get_previous_registration_data(dummy_regform, dummy_user)
 
         assert tgt_field.html_field_name in result
         assert result[tgt_field.html_field_name] == {_UUID_B: 1}
 
-    def test_choice_absent_from_target_is_filtered(self, dummy_event, dummy_regform, dummy_user,
-                                                    create_regform, make_section, make_field,
-                                                    make_registration):
+    def test_choice_absent_from_target_is_filtered(
+        self, dummy_event, dummy_regform, dummy_user, create_regform, make_section, make_field, make_registration
+    ):
         """A previously selected choice that no longer exists in the target form is dropped."""
         source_regform = create_regform(dummy_event, title='Source Form')
         src_section = make_section(source_regform, 'Source Section')
         tgt_section = make_section(dummy_regform, 'Target Section')
 
-        src_field = make_field(src_section, 'tier', 'single_choice',
-                               item_type='radiogroup', choices=_SINGLE_CHOICES)
+        src_field = make_field(src_section, 'tier', 'single_choice', item_type='radiogroup', choices=_SINGLE_CHOICES)
         tgt_choices = [
             {'id': _UUID_C, 'caption': 'Option C', 'is_enabled': True, 'price': 0, 'places_limit': 0},
         ]
-        tgt_field = make_field(tgt_section, 'tier', 'single_choice',
-                               item_type='radiogroup', choices=tgt_choices)
+        tgt_field = make_field(tgt_section, 'tier', 'single_choice', item_type='radiogroup', choices=tgt_choices)
         make_registration(dummy_user, source_regform, {src_field: {_UUID_A: 1}})
         result = get_previous_registration_data(dummy_regform, dummy_user)
         value = result.get(tgt_field.html_field_name)
 
         assert value == {} or tgt_field.html_field_name not in result
 
-    def test_all_choices_filtered_returns_default(self, dummy_event, dummy_regform, dummy_user,
-                                                   create_regform, make_section, make_field,
-                                                   make_registration):
+    def test_all_choices_filtered_returns_default(
+        self, dummy_event, dummy_regform, dummy_user, create_regform, make_section, make_field, make_registration
+    ):
         """When every previously selected choice is disabled in the target, the field's
         default value (empty dict for single_choice with no default item) is used.
         """
@@ -325,33 +334,31 @@ class TestGetPreviousRegistrationData:
         src_section = make_section(source_regform, 'Source Section')
         tgt_section = make_section(dummy_regform, 'Target Section')
 
-        src_field = make_field(src_section, 'meal', 'single_choice',
-                               item_type='radiogroup', choices=_SINGLE_CHOICES)
+        src_field = make_field(src_section, 'meal', 'single_choice', item_type='radiogroup', choices=_SINGLE_CHOICES)
         tgt_choices = [
             {'id': _UUID_A, 'caption': 'Option A', 'is_enabled': False, 'price': 0, 'places_limit': 0},
             {'id': _UUID_B, 'caption': 'Option B', 'is_enabled': False, 'price': 0, 'places_limit': 0},
         ]
-        tgt_field = make_field(tgt_section, 'meal', 'single_choice',
-                               item_type='radiogroup', choices=tgt_choices)
+        tgt_field = make_field(tgt_section, 'meal', 'single_choice', item_type='radiogroup', choices=tgt_choices)
         make_registration(dummy_user, source_regform, {src_field: {_UUID_A: 1}})
         result = get_previous_registration_data(dummy_regform, dummy_user)
 
         assert tgt_field.html_field_name in result
         assert result[tgt_field.html_field_name] == {}
 
-    def test_different_choice_order_still_matches_by_uuid(self, dummy_event, dummy_regform,
-                                                           dummy_user, create_regform,
-                                                           make_section, make_field, make_registration):
+    def test_different_choice_order_still_matches_by_uuid(
+        self, dummy_event, dummy_regform, dummy_user, create_regform, make_section, make_field, make_registration
+    ):
         """Reordering choices in the target form does not affect UUID-based matching."""
         source_regform = create_regform(dummy_event, title='Source Form')
         src_section = make_section(source_regform, 'Source Section')
         tgt_section = make_section(dummy_regform, 'Target Section')
 
-        src_field = make_field(src_section, 'transport', 'single_choice',
-                               item_type='radiogroup', choices=_SINGLE_CHOICES)
+        src_field = make_field(
+            src_section, 'transport', 'single_choice', item_type='radiogroup', choices=_SINGLE_CHOICES
+        )
         tgt_choices = list(reversed(_SINGLE_CHOICES))
-        tgt_field = make_field(tgt_section, 'transport', 'single_choice',
-                               item_type='radiogroup', choices=tgt_choices)
+        tgt_field = make_field(tgt_section, 'transport', 'single_choice', item_type='radiogroup', choices=tgt_choices)
         make_registration(dummy_user, source_regform, {src_field: {_UUID_B: 1}})
         result = get_previous_registration_data(dummy_regform, dummy_user)
 
@@ -359,9 +366,9 @@ class TestGetPreviousRegistrationData:
         assert result[tgt_field.html_field_name] == {_UUID_B: 1}
 
     # ── file_data population ─────────────────────────────────────────────────
-    def test_file_data_populated_for_picture_field(self, dummy_event, dummy_regform, dummy_user,
-                                                    create_regform, make_section, make_field,
-                                                    make_registration):
+    def test_file_data_populated_for_picture_field(
+        self, dummy_event, dummy_regform, dummy_user, create_regform, make_section, make_field, make_registration
+    ):
         """file_data is populated with display metadata for picture fields.
 
         The ``uuid`` in file_data must match the UUID returned in initial_values so
@@ -372,9 +379,13 @@ class TestGetPreviousRegistrationData:
         tgt_section = make_section(dummy_regform, 'Target Section')
         src_field = make_field(src_section, 'headshot', 'picture')
         tgt_field = make_field(tgt_section, 'headshot', 'picture')
-        make_registration(dummy_user, source_regform, {
-            src_field: {'filename': 'photo.jpg', 'content_type': 'image/jpeg', 'content': b'jpeg data'},
-        })
+        make_registration(
+            dummy_user,
+            source_regform,
+            {
+                src_field: {'filename': 'photo.jpg', 'content_type': 'image/jpeg', 'content': b'jpeg data'},
+            },
+        )
         file_data = {}
         result = get_previous_registration_data(dummy_regform, dummy_user, file_data=file_data)
         uuid_str = result[tgt_field.html_field_name]
@@ -385,18 +396,22 @@ class TestGetPreviousRegistrationData:
         assert isinstance(fd['size'], int)
         assert isinstance(fd['locator'], dict)
 
-    def test_file_data_populated_for_file_field(self, dummy_event, dummy_regform, dummy_user,
-                                                 create_regform, make_section, make_field,
-                                                 make_registration):
+    def test_file_data_populated_for_file_field(
+        self, dummy_event, dummy_regform, dummy_user, create_regform, make_section, make_field, make_registration
+    ):
         """file_data is populated with display metadata for file fields."""
         source_regform = create_regform(dummy_event, title='Source Form')
         src_section = make_section(source_regform, 'Source Section')
         tgt_section = make_section(dummy_regform, 'Target Section')
         src_field = make_field(src_section, 'cv_doc', 'file')
         tgt_field = make_field(tgt_section, 'cv_doc', 'file')
-        make_registration(dummy_user, source_regform, {
-            src_field: {'filename': 'cv.txt', 'content_type': 'text/plain', 'content': b'my cv'},
-        })
+        make_registration(
+            dummy_user,
+            source_regform,
+            {
+                src_field: {'filename': 'cv.txt', 'content_type': 'text/plain', 'content': b'my cv'},
+            },
+        )
         file_data = {}
         result = get_previous_registration_data(dummy_regform, dummy_user, file_data=file_data)
         uuid_str = result[tgt_field.html_field_name]
@@ -406,26 +421,31 @@ class TestGetPreviousRegistrationData:
         assert fd['filename'] == 'cv.txt'
         assert isinstance(fd['locator'], dict)
 
-    def test_file_data_not_populated_when_none(self, dummy_event, dummy_regform, dummy_user,
-                                                create_regform, make_section, make_field,
-                                                make_registration):
+    def test_file_data_not_populated_when_none(
+        self, dummy_event, dummy_regform, dummy_user, create_regform, make_section, make_field, make_registration
+    ):
         """When file_data=None (default), no locator access is attempted."""
         source_regform = create_regform(dummy_event, title='Source Form')
         src_section = make_section(source_regform, 'Source Section')
         tgt_section = make_section(dummy_regform, 'Target Section')
         src_field = make_field(src_section, 'headshot', 'picture')
         tgt_field = make_field(tgt_section, 'headshot', 'picture')
-        make_registration(dummy_user, source_regform, {
-            src_field: {'filename': 'photo.jpg', 'content_type': 'image/jpeg', 'content': b'jpeg data'},
-        })
+        make_registration(
+            dummy_user,
+            source_regform,
+            {
+                src_field: {'filename': 'photo.jpg', 'content_type': 'image/jpeg', 'content': b'jpeg data'},
+            },
+        )
 
         result = get_previous_registration_data(dummy_regform, dummy_user)
         assert tgt_field.html_field_name in result
         assert isinstance(result[tgt_field.html_field_name], str)
 
     # ── file, picture and sessions corner cases ──────────────────────────────
-    def test_file_field_not_prefilled_when_no_upload(self, dummy_event, dummy_regform, dummy_user,
-                                                      create_regform, make_section, make_field, make_registration):
+    def test_file_field_not_prefilled_when_no_upload(
+        self, dummy_event, dummy_regform, dummy_user, create_regform, make_section, make_field, make_registration
+    ):
         """A file field with no file stored (storage_file_id=None) is not prefilled."""
         source_regform = create_regform(dummy_event, title='Source Form')
         src_section = make_section(source_regform, 'Source Section')
@@ -437,8 +457,9 @@ class TestGetPreviousRegistrationData:
 
         assert tgt_field.html_field_name not in result
 
-    def test_picture_field_not_prefilled_when_no_upload(self, dummy_event, dummy_regform, dummy_user,
-                                                         create_regform, make_section, make_field, make_registration):
+    def test_picture_field_not_prefilled_when_no_upload(
+        self, dummy_event, dummy_regform, dummy_user, create_regform, make_section, make_field, make_registration
+    ):
         """A picture field with no file stored (storage_file_id=None) is not prefilled."""
         source_regform = create_regform(dummy_event, title='Source Form')
         src_section = make_section(source_regform, 'Source Section')
@@ -450,9 +471,9 @@ class TestGetPreviousRegistrationData:
 
         assert tgt_field.html_field_name not in result
 
-    def test_sessions_field_returns_block_id_list(self, dummy_event, dummy_regform, dummy_user,
-                                                   create_regform, make_section, make_field,
-                                                   make_registration):
+    def test_sessions_field_returns_block_id_list(
+        self, dummy_event, dummy_regform, dummy_user, create_regform, make_section, make_field, make_registration
+    ):
         """Sessions fields store a list of session-block IDs.  The list is returned
         as-is (camelize_keys is only applied to dicts).
         """
@@ -469,8 +490,9 @@ class TestGetPreviousRegistrationData:
         assert result[tgt_field.html_field_name] == session_ids
 
     # ── most-recent registration selection ───────────────────────────────────
-    def test_most_recent_registration_selected(self, dummy_event, dummy_regform, dummy_user,
-                                                create_regform, make_section, make_field, make_registration):
+    def test_most_recent_registration_selected(
+        self, dummy_event, dummy_regform, dummy_user, create_regform, make_section, make_field, make_registration
+    ):
         """When a user has registrations on multiple forms, the most recent value wins.
 
         A user can have at most one registration per form, so we use a separate source form per registration.
@@ -488,31 +510,30 @@ class TestGetPreviousRegistrationData:
             src_rf = create_regform(dummy_event, title=title)
             src_sec = make_section(src_rf, 'Source Section')
             src_field = make_field(src_sec, 'company', 'text')
-            make_registration(dummy_user, src_rf, {src_field: company},
-                              submitted_dt=now - timedelta(days=days_ago))
+            make_registration(dummy_user, src_rf, {src_field: company}, submitted_dt=now - timedelta(days=days_ago))
         result = get_previous_registration_data(dummy_regform, dummy_user)
 
         assert result[tgt_field.html_field_name] == 'Latest Corp'
 
     # ── registration state ───────────────────────────────────────────────────
-    def test_incomplete_registration_ignored(self, dummy_event, dummy_regform, dummy_user,
-                                              create_regform, make_section, make_field, make_registration):
+    def test_incomplete_registration_ignored(
+        self, dummy_event, dummy_regform, dummy_user, create_regform, make_section, make_field, make_registration
+    ):
         """Only registrations in state=complete are used as prefill sources."""
         source_regform = create_regform(dummy_event, title='Source Form')
         src_section = make_section(source_regform, 'Source Section')
         tgt_section = make_section(dummy_regform, 'Target Section')
         src_field = make_field(src_section, 'company', 'text')
         tgt_field = make_field(tgt_section, 'company', 'text')
-        make_registration(dummy_user, source_regform, {src_field: 'Pending Corp'},
-                          state=RegistrationState.pending)
+        make_registration(dummy_user, source_regform, {src_field: 'Pending Corp'}, state=RegistrationState.pending)
         result = get_previous_registration_data(dummy_regform, dummy_user)
 
         assert tgt_field.html_field_name not in result
 
     # ── field state on source form ───────────────────────────────────────────
-    def test_deleted_source_field_not_used(self, dummy_event, dummy_regform, dummy_user,
-                                            create_regform, make_section, make_field,
-                                            make_registration, db):
+    def test_deleted_source_field_not_used(
+        self, dummy_event, dummy_regform, dummy_user, create_regform, make_section, make_field, make_registration, db
+    ):
         """If the source field is deleted, its data is not used for prefilling."""
         source_regform = create_regform(dummy_event, title='Source Form')
         src_section = make_section(source_regform, 'Source Section')
@@ -526,9 +547,9 @@ class TestGetPreviousRegistrationData:
 
         assert tgt_field.html_field_name not in result
 
-    def test_disabled_source_field_not_used(self, dummy_event, dummy_regform, dummy_user,
-                                             create_regform, make_section, make_field,
-                                             make_registration, db):
+    def test_disabled_source_field_not_used(
+        self, dummy_event, dummy_regform, dummy_user, create_regform, make_section, make_field, make_registration, db
+    ):
         """If the source field is disabled, its data is not used for prefilling."""
         source_regform = create_regform(dummy_event, title='Source Form')
         src_section = make_section(source_regform, 'Source Section')
@@ -543,8 +564,9 @@ class TestGetPreviousRegistrationData:
         assert tgt_field.html_field_name not in result
 
     # ── matching logic ───────────────────────────────────────────────────────
-    def test_current_regform_fields_not_used_as_source(self, dummy_regform, dummy_user,
-                                                         make_section, make_field, make_registration):
+    def test_current_regform_fields_not_used_as_source(
+        self, dummy_regform, dummy_user, make_section, make_field, make_registration
+    ):
         """Target form fields are excluded from the source query (self-prefill prevention).
 
         In practice a user can only register once per form, so their own data from the
@@ -558,9 +580,9 @@ class TestGetPreviousRegistrationData:
 
         assert field.html_field_name not in result
 
-    def test_field_type_mismatch_not_prefilled(self, dummy_event, dummy_regform, dummy_user,
-                                                create_regform, make_section, make_field,
-                                                make_registration):
+    def test_field_type_mismatch_not_prefilled(
+        self, dummy_event, dummy_regform, dummy_user, create_regform, make_section, make_field, make_registration
+    ):
         """Same internal_name but different input_type → no match."""
         source_regform = create_regform(dummy_event, title='Source Form')
         src_section = make_section(source_regform, 'Source Section')
@@ -574,8 +596,7 @@ class TestGetPreviousRegistrationData:
 
     # ── personal data (field_pd) fields ─────────────────────────────────────
     def test_personal_data_field_prefilled_from_previous_registration(
-        self, dummy_event, dummy_regform, dummy_user,
-        create_regform, make_pd_section, make_pd_field, make_registration
+        self, dummy_event, dummy_regform, dummy_user, create_regform, make_pd_section, make_pd_field, make_registration
     ):
         """field_pd fields in the personaldata section are prefilled when internal_name and input_type match.
 

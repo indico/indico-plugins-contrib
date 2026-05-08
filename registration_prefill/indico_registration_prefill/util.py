@@ -66,10 +66,7 @@ def get_previous_registration_data(regform, user, file_data=None):
     if user is None:
         return {}
 
-    custom_fields = [
-        field for field in regform.active_fields
-        if field.is_field and field.internal_name
-    ]
+    custom_fields = [field for field in regform.active_fields if field.is_field and field.internal_name]
     if not custom_fields:
         return {}
 
@@ -130,8 +127,7 @@ def get_previous_registration_data(regform, user, file_data=None):
 
         if field.input_type in {'single_choice', 'multi_choice'}:
             valid_uuids = {
-                c['id'] for c in (field.versioned_data or {}).get('choices', [])
-                if c.get('is_enabled', True)
+                c['id'] for c in (field.versioned_data or {}).get('choices', []) if c.get('is_enabled', True)
             }
             value = {uuid: slots for uuid, slots in value.items() if uuid in valid_uuids}
             if not value:

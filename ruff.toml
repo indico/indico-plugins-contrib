@@ -70,7 +70,6 @@ ignore = [
     'S704',    # somewhat noisy and many FPs: see https://github.com/astral-sh/ruff/issues/14523
     'B011',    # we don't run python with `-O` (also see S101)
     'B904',    # possibly useful but too noisy
-    'COM812',  # trailing commas on multiline lists are nice, but we have 2.5k violations
     'PIE807',  # `lambda: []` is much clearer for `load_default` in schemas
     'PT011',   # very noisy
     'PT015',   # nice for tests but not so nice elsewhere
@@ -102,6 +101,7 @@ ignore = [
     'FURB113', # less readable
     'FURB140', # less readable and actually slower in 3.12+
     'FURB189', # we pass those objects to code that may expect the real thing
+    'COM812',  # formatter conflict
 ]
 
 extend-safe-fixes = [
@@ -132,7 +132,7 @@ parametrize-values-row-type = 'tuple'
 
 [lint.flake8-quotes]
 inline-quotes = 'single'
-multiline-quotes = 'single'
+multiline-quotes = 'double'
 docstring-quotes = 'double'
 avoid-escape = true
 

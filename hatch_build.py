@@ -25,6 +25,7 @@ class CustomBuildHook(BuildHookInterface):
 
 def _compile_languages(translations_dir: Path):
     from babel.messages.frontend import CompileCatalog
+
     if not any(translations_dir.glob('**/*.po')):
         return
     cmd = CompileCatalog()

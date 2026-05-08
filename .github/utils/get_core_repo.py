@@ -25,7 +25,7 @@ def lookup_via_referenced_prs():
     referenced_prs = set()
     for match in itertools.chain(
         re.finditer(r'(?:(?<![/\w.-])(\w[\w.-]+)/(\w[\w.-]+)|\B)#([1-9]\d*)\b', this_pr_body),
-        re.finditer(r'\bhttps://github\.com/([^/]+)/([^/]+)/pull/([1-9]\d*)\b', this_pr_body)
+        re.finditer(r'\bhttps://github\.com/([^/]+)/([^/]+)/pull/([1-9]\d*)\b', this_pr_body),
     ):
         user, repo, num = match.groups()
         if user != CORE_USER or repo != CORE_REPO:
