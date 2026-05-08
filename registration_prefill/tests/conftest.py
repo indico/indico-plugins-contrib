@@ -10,10 +10,15 @@ from io import BytesIO
 
 import pytest
 
-from indico.modules.events.registration.models.form_fields import (RegistrationFormField,
-                                                                   RegistrationFormPersonalDataField)
-from indico.modules.events.registration.models.items import (PersonalDataType, RegistrationFormPersonalDataSection,
-                                                             RegistrationFormSection)
+from indico.modules.events.registration.models.form_fields import (
+    RegistrationFormField,
+    RegistrationFormPersonalDataField,
+)
+from indico.modules.events.registration.models.items import (
+    PersonalDataType,
+    RegistrationFormPersonalDataSection,
+    RegistrationFormSection,
+)
 from indico.modules.events.registration.models.registrations import Registration, RegistrationData, RegistrationState
 
 
