@@ -16,18 +16,15 @@ from indico.util.string import format_repr
 affiliation_group_link_table = db.Table(
     'affiliation_group_links',
     db.Column(
-        'affiliation_id',
-        db.Integer,
-        db.ForeignKey('indico.affiliations.id', ondelete='CASCADE'),
-        primary_key=True
+        'affiliation_id', db.Integer, db.ForeignKey('indico.affiliations.id', ondelete='CASCADE'), primary_key=True
     ),
     db.Column(
         'group_id',
         db.Integer,
         db.ForeignKey('plugin_affiliation_extras.affiliation_groups.id', ondelete='CASCADE'),
-        primary_key=True
+        primary_key=True,
     ),
-    schema='plugin_affiliation_extras'
+    schema='plugin_affiliation_extras',
 )
 db.Index(None, affiliation_group_link_table.c.group_id)
 
@@ -37,15 +34,15 @@ group_tag_link_table = db.Table(
         'group_id',
         db.Integer,
         db.ForeignKey('plugin_affiliation_extras.affiliation_groups.id', ondelete='CASCADE'),
-        primary_key=True
+        primary_key=True,
     ),
     db.Column(
         'tag_id',
         db.Integer,
         db.ForeignKey('plugin_affiliation_extras.affiliation_tags.id', ondelete='CASCADE'),
-        primary_key=True
+        primary_key=True,
     ),
-    schema='plugin_affiliation_extras'
+    schema='plugin_affiliation_extras',
 )
 db.Index(None, group_tag_link_table.c.tag_id)
 
@@ -57,34 +54,17 @@ class AffiliationGroup(db.Model):
         {'schema': 'plugin_affiliation_extras'},
     )
 
-    id = db.Column(
-        db.Integer,
-        primary_key=True
-    )
-    name = db.Column(
-        db.String,
-        nullable=False
-    )
-    code = db.Column(
-        db.String,
-        nullable=False
-    )
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String, nullable=False)
+    code = db.Column(db.String, nullable=False)
     meta = db.Column(
         JSONB,
         nullable=False,
         default={},
     )
-    is_deleted = db.Column(
-        db.Boolean,
-        nullable=False,
-        default=False
-    )
+    is_deleted = db.Column(db.Boolean, nullable=False, default=False)
     #: Whether the group is system-managed and cannot be modified by admins.
-    system = db.Column(
-        db.Boolean,
-        nullable=False,
-        default=False
-    )
+    system = db.Column(db.Boolean, nullable=False, default=False)
 
     tags = db.relationship(
         'AffiliationTag',
@@ -95,11 +75,7 @@ class AffiliationGroup(db.Model):
         ),
         collection_class=set,
         lazy=True,
-        backref=db.backref(
-            'groups',
-            collection_class=set,
-            lazy=True
-        )
+        backref=db.backref('groups', collection_class=set, lazy=True),
     )
     affiliations = db.relationship(
         'Affiliation',
@@ -114,11 +90,7 @@ class AffiliationGroup(db.Model):
         ),
         collection_class=set,
         lazy=True,
-        backref=db.backref(
-            'groups',
-            collection_class=set,
-            lazy=True
-        )
+        backref=db.backref('groups', collection_class=set, lazy=True),
     )
 
     def __repr__(self):

@@ -22,7 +22,7 @@ from indico_affiliation_extras.util import populate_contacts, populate_membershi
 AFFILIATION_EXTRA_FIELDS = {
     'contact_lists': {'title': 'Contact lists', 'type': 'list'},
     'groups': {'title': 'Groups', 'type': 'list'},
-    'tags': {'title': 'Tags', 'type': 'list'}
+    'tags': {'title': 'Tags', 'type': 'list'},
 }
 
 
@@ -68,13 +68,14 @@ def _set_affiliation_extra_attrs(affiliation, **kwargs):
             'Affiliations',
             f'Extended attributes of affiliation "{affiliation.name}" modified',
             session.user,
-            data={'Changes': make_diff_log(changes, log_fields)}
+            data={'Changes': make_diff_log(changes, log_fields)},
         )
 
 
 @signals.core.get_placeholders.connect_via('affiliation-representation-email')
 def _get_email_placeholders(sender, affiliation=None, **kwargs):
     from indico_affiliation_extras import placeholders as p
+
     yield p.AffiliationNamePlaceholder
     yield p.AffiliationStreetPlaceholder
     yield p.AffiliationCityPlaceholder

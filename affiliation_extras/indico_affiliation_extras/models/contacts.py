@@ -21,25 +21,10 @@ class AffiliationContactList(db.Model):
         {'schema': 'plugin_affiliation_extras'},
     )
 
-    id = db.Column(
-        db.Integer,
-        primary_key=True
-    )
-    affiliation_id = db.Column(
-        db.Integer,
-        db.ForeignKey('indico.affiliations.id', ondelete='CASCADE'),
-        nullable=False
-    )
-    name = db.Column(
-        db.String,
-        nullable=False,
-        default=''
-    )
-    emails = db.Column(
-        db.ARRAY(db.String),
-        nullable=False,
-        default=list
-    )
+    id = db.Column(db.Integer, primary_key=True)
+    affiliation_id = db.Column(db.Integer, db.ForeignKey('indico.affiliations.id', ondelete='CASCADE'), nullable=False)
+    name = db.Column(db.String, nullable=False, default='')
+    emails = db.Column(db.ARRAY(db.String), nullable=False, default=list)
 
     affiliation = db.relationship(
         'Affiliation',
@@ -48,8 +33,8 @@ class AffiliationContactList(db.Model):
             'contact_lists',
             order_by=lambda: db.func.indico.indico_unaccent(db.func.lower(AffiliationContactList.name)),
             lazy=True,
-            cascade='all, delete-orphan'
-        )
+            cascade='all, delete-orphan',
+        ),
     )
 
     def __repr__(self):

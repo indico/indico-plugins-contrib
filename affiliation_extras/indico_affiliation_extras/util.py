@@ -133,8 +133,13 @@ def get_allowed_sender_emails(*, for_sending: bool = False) -> dict[str, str]:
     return dict(sorted(formatted.items(), key=lambda x: (x[0] != own_email, x[1].lower())))
 
 
-def populate_memberships(obj: Affiliation | AffiliationGroup, memberships: _Memberships, *,
-                         keys: set[str] | None = None, changes: _Changes = None) -> _Changes:
+def populate_memberships(
+    obj: Affiliation | AffiliationGroup,
+    memberships: _Memberships,
+    *,
+    keys: set[str] | None = None,
+    changes: _Changes = None,
+) -> _Changes:
     changes = copy(changes) or {}
     for key, value in memberships.items():
         if keys and key not in keys:
@@ -238,8 +243,11 @@ def resolve_object_path(obj: dict | list, path: str) -> str:
 
 
 def get_contact_list_names() -> list[str]:
-    names = (db.session.query(AffiliationContactList.name)
-                .filter(AffiliationContactList.name != '')  # noqa: PLC1901
-                .group_by(AffiliationContactList.name)
-                .order_by(db.func.indico.indico_unaccent(db.func.lower(AffiliationContactList.name))))
-    return [name for name, in names]
+    names = (
+        db.session
+        .query(AffiliationContactList.name)
+        .filter(AffiliationContactList.name != '')  # noqa: PLC1901
+        .group_by(AffiliationContactList.name)
+        .order_by(db.func.indico.indico_unaccent(db.func.lower(AffiliationContactList.name)))
+    )
+    return [name for (name,) in names]
