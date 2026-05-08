@@ -33,6 +33,6 @@ for structured organization and metadata of affiliations.
 
 ## Changelog
 
-### 3.3.10
+### 3.3
 
-- Initial release for Indico 3.3.10
+- Initial release
