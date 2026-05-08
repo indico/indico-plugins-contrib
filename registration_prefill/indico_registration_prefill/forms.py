@@ -15,7 +15,4 @@ from indico.web.forms.widgets import SwitchWidget
 class SettingsForm(IndicoForm):
     """Plugin settings form."""
 
-    enabled = BooleanField(
-        _('Enable registration form prefilling'),
-        widget=SwitchWidget()
-    )
+    enabled = BooleanField(_('Enable registration form prefilling'), widget=SwitchWidget())

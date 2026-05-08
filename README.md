@@ -74,7 +74,8 @@ happy by meeting them anyway). However, we do have some basic requirements:
 
 - Plugins MUST be licensed under the MIT license, and MUST NOT contain any minified or otherwise
   obfuscated or compiled code.
-- CI and linters MUST pass, and a plugin SHOULD NOT disable linting rules without a good reason
+- CI and linters/formatters MUST pass, and a plugin SHOULD NOT disable linting rules without a good
+  reason
 - Plugins SHOULD have tests, and these test MUST be run in the CI (by adding them to the build
   matrix in `ci.yml`)
 - Plugins MUST work with `CSP_ENABLED = True` in `indico.conf`

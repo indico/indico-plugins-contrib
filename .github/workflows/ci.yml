@@ -134,6 +134,11 @@ jobs:
         run: |
           ruff check --output-format github .
 
+      - name: Run ruff formatter
+        if: success() || failure()
+        run: |
+          ruff format --check --output-format github .
+
   test-plugin:
     needs: setup
     runs-on: ubuntu-22.04
