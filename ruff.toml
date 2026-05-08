@@ -37,7 +37,8 @@ select = [
     'TRY',    # tryceratops
     'PERF',   # perflint
     'FURB',   # refurb
-    # 'ERA',  # eradicate -- too many FPs for now, see https://github.com/astral-sh/ruff/issues/6100
+    'I',      # isort
+    'ERA',    # eradicate
 ]
 ignore = [
     # plugin-specific excludes:
@@ -163,6 +164,14 @@ allow-dunder-method-names = [
 
 [lint.ruff]
 parenthesize-tuple-in-subscript = true
+
+[lint.isort]
+known-first-party = ['indico_*']
+section-order = ['future', 'standard-library', 'third-party', 'indico', 'first-party', 'local-folder']
+lines-after-imports = 2
+
+[lint.isort.sections]
+indico = ['indico']
 
 [lint.per-file-ignores]
 # allow stuff that's useful in tests
