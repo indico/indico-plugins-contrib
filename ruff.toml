@@ -38,7 +38,6 @@ select = [
     'PERF',   # perflint
     'FURB',   # refurb
     'I',      # isort
-    'ERA',    # eradicate
 ]
 ignore = [
     # plugin-specific excludes:
