@@ -65,8 +65,13 @@ class AffiliationMetadataPlaceholder(ParametrizedPlaceholder):
 
     @classmethod
     def iter_param_info(cls, **kwargs):
-        yield ('key', _("Value in the affiliation's metadata. Supports nested keys like "
-                        '"foo.bar" and list indices like "items.0".'))
+        yield (
+            'key',
+            _(
+                "Value in the affiliation's metadata. Supports nested keys like "
+                '"foo.bar" and list indices like "items.0".'
+            ),
+        )
 
     @classmethod
     def render(cls, param, affiliation):

@@ -130,9 +130,12 @@ def _create_contact(db, affiliation, name, emails):
 def test_populate_contacts_adds_new_contact_and_logs_summary(db):
     affiliation = _create_affiliation(db, 'CERN')
 
-    changes, log_fields = util.populate_contacts(affiliation, [
-        {'id': None, 'name': 'Ops', 'emails': ['ops@example.test']},
-    ])
+    changes, log_fields = util.populate_contacts(
+        affiliation,
+        [
+            {'id': None, 'name': 'Ops', 'emails': ['ops@example.test']},
+        ],
+    )
 
     assert [c.name for c in affiliation.contact_lists] == ['Ops']
     assert len(affiliation.contact_lists) == 1
@@ -150,9 +153,12 @@ def test_populate_contacts_rename_only(db):
     affiliation = _create_affiliation(db, 'CERN')
     contact = _create_contact(db, affiliation, 'Old name', ['old@example.test'])
 
-    changes, log_fields = util.populate_contacts(affiliation, [
-        {'id': contact, 'name': 'New name', 'emails': ['old@example.test']},
-    ])
+    changes, log_fields = util.populate_contacts(
+        affiliation,
+        [
+            {'id': contact, 'name': 'New name', 'emails': ['old@example.test']},
+        ],
+    )
 
     assert changes == {'contact_lists': (['Old name'], ['New name'])}
     assert log_fields == {}
@@ -162,9 +168,12 @@ def test_populate_contacts_emails_only(db):
     affiliation = _create_affiliation(db, 'CERN')
     contact = _create_contact(db, affiliation, 'Old name', ['old@example.test'])
 
-    changes, log_fields = util.populate_contacts(affiliation, [
-        {'id': contact, 'name': 'Old name', 'emails': ['new@example.test']},
-    ])
+    changes, log_fields = util.populate_contacts(
+        affiliation,
+        [
+            {'id': contact, 'name': 'Old name', 'emails': ['new@example.test']},
+        ],
+    )
 
     assert changes == {
         f'contact_lists_item_{contact.id}': (['old@example.test'], ['new@example.test']),
@@ -178,9 +187,12 @@ def test_populate_contacts_rename_and_emails(db):
     affiliation = _create_affiliation(db, 'CERN')
     contact = _create_contact(db, affiliation, 'Old name', ['old@example.test'])
 
-    changes, log_fields = util.populate_contacts(affiliation, [
-        {'id': contact, 'name': 'New name', 'emails': ['new@example.test']},
-    ])
+    changes, log_fields = util.populate_contacts(
+        affiliation,
+        [
+            {'id': contact, 'name': 'New name', 'emails': ['new@example.test']},
+        ],
+    )
 
     assert changes == {
         'contact_lists': (['Old name'], ['New name']),
@@ -195,9 +207,12 @@ def test_populate_contacts_noop(db):
     affiliation = _create_affiliation(db, 'CERN')
     contact = _create_contact(db, affiliation, 'Old name', ['old@example.test'])
 
-    changes, log_fields = util.populate_contacts(affiliation, [
-        {'id': contact, 'name': 'Old name', 'emails': ['old@example.test']},
-    ])
+    changes, log_fields = util.populate_contacts(
+        affiliation,
+        [
+            {'id': contact, 'name': 'Old name', 'emails': ['old@example.test']},
+        ],
+    )
 
     assert changes == {}
     assert log_fields == {}
@@ -207,9 +222,12 @@ def test_populate_contacts_email_order_only(db):
     affiliation = _create_affiliation(db, 'CERN')
     contact = _create_contact(db, affiliation, 'Old name', ['a@example.test', 'b@example.test'])
 
-    changes, log_fields = util.populate_contacts(affiliation, [
-        {'id': contact, 'name': 'Old name', 'emails': ['b@example.test', 'a@example.test']},
-    ])
+    changes, log_fields = util.populate_contacts(
+        affiliation,
+        [
+            {'id': contact, 'name': 'Old name', 'emails': ['b@example.test', 'a@example.test']},
+        ],
+    )
 
     assert changes == {}
     assert log_fields == {}
@@ -255,9 +273,12 @@ def test_populate_contacts_uses_unnamed_list_label_in_summary(db):
     affiliation = _create_affiliation(db, 'CERN')
     contact = _create_contact(db, affiliation, 'Named', ['ops@example.test'])
 
-    changes, log_fields = util.populate_contacts(affiliation, [
-        {'id': contact, 'name': '', 'emails': ['ops@example.test']},
-    ])
+    changes, log_fields = util.populate_contacts(
+        affiliation,
+        [
+            {'id': contact, 'name': '', 'emails': ['ops@example.test']},
+        ],
+    )
 
     assert changes == {'contact_lists': (['Named'], ['(unnamed list)'])}
     assert log_fields == {}
@@ -269,11 +290,14 @@ def test_populate_contacts_mixed_add_remove_and_modify(db):
     contact_change = _create_contact(db, affiliation, 'Change', ['old@example.test'])
     contact_remove = _create_contact(db, affiliation, 'Remove', ['remove@example.test'])
 
-    changes, log_fields = util.populate_contacts(affiliation, [
-        {'id': contact_keep, 'name': 'Keep', 'emails': ['keep@example.test']},
-        {'id': contact_change, 'name': 'Change renamed', 'emails': ['new@example.test']},
-        {'id': None, 'name': 'Add', 'emails': ['add@example.test']},
-    ])
+    changes, log_fields = util.populate_contacts(
+        affiliation,
+        [
+            {'id': contact_keep, 'name': 'Keep', 'emails': ['keep@example.test']},
+            {'id': contact_change, 'name': 'Change renamed', 'emails': ['new@example.test']},
+            {'id': None, 'name': 'Add', 'emails': ['add@example.test']},
+        ],
+    )
 
     new_contact = next(c for c in affiliation.contact_lists if c.name == 'Add')
     assert changes == {
@@ -294,10 +318,13 @@ def test_populate_contacts_rejects_duplicate_ids(db):
     contact = _create_contact(db, affiliation, 'Ops', ['ops@example.test'])
 
     with pytest.raises(UserValueError, match='unique'):
-        util.populate_contacts(affiliation, [
-            {'id': contact, 'name': 'Ops', 'emails': ['ops@example.test']},
-            {'id': contact, 'name': 'Ops2', 'emails': ['ops2@example.test']},
-        ])
+        util.populate_contacts(
+            affiliation,
+            [
+                {'id': contact, 'name': 'Ops', 'emails': ['ops@example.test']},
+                {'id': contact, 'name': 'Ops2', 'emails': ['ops2@example.test']},
+            ],
+        )
 
 
 def test_populate_contacts_rejects_contact_from_other_affiliation(db):
@@ -306,9 +333,12 @@ def test_populate_contacts_rejects_contact_from_other_affiliation(db):
     foreign_contact = _create_contact(db, other_affiliation, 'Ops', ['ops@example.test'])
 
     with pytest.raises(UserValueError, match='does not belong'):
-        util.populate_contacts(affiliation, [
-            {'id': foreign_contact, 'name': 'Ops', 'emails': ['ops@example.test']},
-        ])
+        util.populate_contacts(
+            affiliation,
+            [
+                {'id': foreign_contact, 'name': 'Ops', 'emails': ['ops@example.test']},
+            ],
+        )
 
 
 def test_populate_contacts_rejects_duplicate_names_in_db(db):
@@ -316,8 +346,11 @@ def test_populate_contacts_rejects_duplicate_names_in_db(db):
     existing = _create_contact(db, affiliation, 'Ops', ['ops@example.test'])
 
     with pytest.raises(IntegrityError):
-        util.populate_contacts(affiliation, [
-            {'id': existing, 'name': 'Ops', 'emails': ['ops@example.test']},
-            {'id': None, 'name': 'ops', 'emails': ['other@example.test']},
-        ])
+        util.populate_contacts(
+            affiliation,
+            [
+                {'id': existing, 'name': 'Ops', 'emails': ['ops@example.test']},
+                {'id': None, 'name': 'ops', 'emails': ['other@example.test']},
+            ],
+        )
     db.session.rollback()

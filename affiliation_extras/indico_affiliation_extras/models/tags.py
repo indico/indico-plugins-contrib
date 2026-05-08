@@ -14,18 +14,15 @@ from indico.util.string import format_repr
 affiliation_tag_link_table = db.Table(
     'affiliation_tag_links',
     db.Column(
-        'affiliation_id',
-        db.Integer,
-        db.ForeignKey('indico.affiliations.id', ondelete='CASCADE'),
-        primary_key=True
+        'affiliation_id', db.Integer, db.ForeignKey('indico.affiliations.id', ondelete='CASCADE'), primary_key=True
     ),
     db.Column(
         'tag_id',
         db.Integer,
         db.ForeignKey('plugin_affiliation_extras.affiliation_tags.id', ondelete='CASCADE'),
-        primary_key=True
+        primary_key=True,
     ),
-    schema='plugin_affiliation_extras'
+    schema='plugin_affiliation_extras',
 )
 db.Index(None, affiliation_tag_link_table.c.tag_id)
 
@@ -34,23 +31,10 @@ class AffiliationTag(db.Model):
     __tablename__ = 'affiliation_tags'
     __table_args__ = {'schema': 'plugin_affiliation_extras'}
 
-    id = db.Column(
-        db.Integer,
-        primary_key=True
-    )
-    name = db.Column(
-        db.String,
-        nullable=False
-    )
-    code = db.Column(
-        db.String,
-        nullable=False,
-        unique=True
-    )
-    color = db.Column(
-        db.String,
-        nullable=False
-    )
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String, nullable=False)
+    code = db.Column(db.String, nullable=False, unique=True)
+    color = db.Column(db.String, nullable=False)
 
     affiliations = db.relationship(
         'Affiliation',
@@ -61,11 +45,7 @@ class AffiliationTag(db.Model):
         ),
         collection_class=set,
         lazy=True,
-        backref=db.backref(
-            'tags',
-            collection_class=set,
-            lazy=True
-        )
+        backref=db.backref('tags', collection_class=set, lazy=True),
     )
 
     # relationship backrefs:

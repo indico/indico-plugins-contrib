@@ -28,10 +28,18 @@ from indico.web.args import use_kwargs, use_rh_args, use_rh_kwargs
 
 from indico_affiliation_extras.models.groups import AffiliationGroup
 from indico_affiliation_extras.models.tags import AffiliationTag
-from indico_affiliation_extras.schemas import (AffiliationGroupArgs, AffiliationGroupSchema, AffiliationTagArgs,
-                                               AffiliationTagSchema)
-from indico_affiliation_extras.util import (get_allowed_sender_emails, get_contact_list_names, populate_memberships,
-                                            prepare_inline_images)
+from indico_affiliation_extras.schemas import (
+    AffiliationGroupArgs,
+    AffiliationGroupSchema,
+    AffiliationTagArgs,
+    AffiliationTagSchema,
+)
+from indico_affiliation_extras.util import (
+    get_allowed_sender_emails,
+    get_contact_list_names,
+    populate_memberships,
+    prepare_inline_images,
+)
 
 
 class RHEmailRepresentativesBase(RHAdminBase):
@@ -39,11 +47,7 @@ class RHEmailRepresentativesBase(RHAdminBase):
 
     @use_kwargs({
         'affiliations': ModelList(
-            Affiliation,
-            filter_deleted=True,
-            data_key='affiliation_ids',
-            required=True,
-            validate=not_empty
+            Affiliation, filter_deleted=True, data_key='affiliation_ids', required=True, validate=not_empty
         ),
     })
     def _process_args(self, affiliations):
@@ -74,8 +78,9 @@ class RHEmailRepresentativesPreview(RHEmailRepresentativesBase):
     })
     def _process(self, body, subject):
         email_body = replace_placeholders('affiliation-representation-email', body, affiliation=self.affiliations[0])
-        email_subject = replace_placeholders('affiliation-representation-email', subject,
-                                             affiliation=self.affiliations[0])
+        email_subject = replace_placeholders(
+            'affiliation-representation-email', subject, affiliation=self.affiliations[0]
+        )
         tpl = get_plugin_template_module('emails/custom_email.html', subject=email_subject, body=email_body)
         return jsonify(subject=tpl.get_subject(), body=tpl.get_body())
 
@@ -90,10 +95,11 @@ class RHEmailRepresentativesSend(RHEmailRepresentativesBase):
         'bcc_addresses': fields.List(LowercaseString(validate=validate.Email()), load_default=lambda: []),
         'copy_for_sender': fields.Bool(load_default=False),
         'contact_lists': fields.List(fields.String(), required=True),
-        'include_unnamed_lists': fields.Boolean(load_default=True)
+        'include_unnamed_lists': fields.Boolean(load_default=True),
     })
-    def _process(self, sender_address, body, subject, bcc_addresses, copy_for_sender, contact_lists,
-                 include_unnamed_lists):
+    def _process(
+        self, sender_address, body, subject, bcc_addresses, copy_for_sender, contact_lists, include_unnamed_lists
+    ):
         sender_address = get_allowed_sender_emails(for_sending=True).get(sender_address)
         if not sender_address:
             abort(422, messages={'sender_address': ['Invalid sender address']})
@@ -109,8 +115,10 @@ class RHEmailRepresentativesSend(RHEmailRepresentativesBase):
         for affiliation in self.affiliations:
             recipients = {
                 email.strip().lower()
-                for lst in affiliation.contact_lists if not contact_lists or lst.name in contact_lists
-                for email in lst.emails if validate_email(email)
+                for lst in affiliation.contact_lists
+                if not contact_lists or lst.name in contact_lists
+                for email in lst.emails
+                if validate_email(email)
             }
             if not recipients:
                 skipped_count += 1
@@ -119,14 +127,25 @@ class RHEmailRepresentativesSend(RHEmailRepresentativesBase):
             email_subject = replace_placeholders('affiliation-representation-email', subject, affiliation=affiliation)
             tpl = get_plugin_template_module('emails/custom_email.html', subject=email_subject, body=email_body)
             for recipient in recipients:
-                email = make_email(to_list=recipient, bcc_list=bcc, sender_address=sender_address,
-                                   template=tpl, html=True, attachments=inline_attachments)
+                email = make_email(
+                    to_list=recipient,
+                    bcc_list=bcc,
+                    sender_address=sender_address,
+                    template=tpl,
+                    html=True,
+                    attachments=inline_attachments,
+                )
                 send_email(email, module='Affiliations', user=session.user)
                 sent_count += 1
 
-        AppLogEntry.log(AppLogRealm.admin, LogKind.other, 'Affiliations',
-                        'Sent email to affiliation representatives', session.user,
-                        data={'Sender': sender_address, 'Subject': subject, 'Body': body, '_html_fields': ['Body']})
+        AppLogEntry.log(
+            AppLogRealm.admin,
+            LogKind.other,
+            'Affiliations',
+            'Sent email to affiliation representatives',
+            session.user,
+            data={'Sender': sender_address, 'Subject': subject, 'Body': body, '_html_fields': ['Body']},
+        )
         return jsonify(count=sent_count, skipped=skipped_count)
 
 
@@ -150,9 +169,9 @@ class RHAffiliationGroups(RHAdminBase):
     """Return all affiliation groups."""
 
     def _process_GET(self):
-        groups = (AffiliationGroup.query
-                  .filter(~AffiliationGroup.is_deleted)
-                  .order_by(db.func.indico.indico_unaccent(db.func.lower(AffiliationGroup.name))))
+        groups = AffiliationGroup.query.filter(~AffiliationGroup.is_deleted).order_by(
+            db.func.indico.indico_unaccent(db.func.lower(AffiliationGroup.name))
+        )
         return AffiliationGroupSchema(many=True).jsonify(groups)
 
     @use_rh_kwargs(AffiliationGroupArgs)
@@ -160,16 +179,23 @@ class RHAffiliationGroups(RHAdminBase):
         group = AffiliationGroup(name=name, code=code, tags=tags, meta=meta)
         db.session.add(group)
         db.session.flush()
-        group.log(AppLogRealm.admin, LogKind.positive, 'Affiliation Groups',
-                  f'Affiliation group "{group.name}" created', session.user)
+        group.log(
+            AppLogRealm.admin,
+            LogKind.positive,
+            'Affiliation Groups',
+            f'Affiliation group "{group.name}" created',
+            session.user,
+        )
         return AffiliationGroupSchema().jsonify(group), 201
 
 
 class RHAffiliationGroup(RHAdminBase):
     """CRUD operations on a single affiliation group."""
 
-    @use_kwargs({'group': ModelField(AffiliationGroup, filter_deleted=True, required=True, data_key='group_id')},
-                location='view_args')
+    @use_kwargs(
+        {'group': ModelField(AffiliationGroup, filter_deleted=True, required=True, data_key='group_id')},
+        location='view_args',
+    )
     def _process_args(self, group):
         RHAdminBase._process_args(self)
         self.group = group
@@ -187,21 +213,26 @@ class RHAffiliationGroup(RHAdminBase):
             changes = self.group.populate_from_dict(data, skip={'tags'})
         # we allow assigning tags for system groups
         changes = populate_memberships(self.group, data, keys={'tags'}, changes=changes)
-        log_fields = {
-            'name': 'Name',
-            'code': 'Code',
-            'tags': {'title': 'Tags', 'type': 'list'},
-            'meta': 'Metadata'
-        }
-        self.group.log(AppLogRealm.admin, LogKind.change, 'Affiliation Groups',
-                       f'Affiliation group "{self.group.name}" modified', session.user,
-                       data={'Changes': make_diff_log(changes, log_fields)})
+        log_fields = {'name': 'Name', 'code': 'Code', 'tags': {'title': 'Tags', 'type': 'list'}, 'meta': 'Metadata'}
+        self.group.log(
+            AppLogRealm.admin,
+            LogKind.change,
+            'Affiliation Groups',
+            f'Affiliation group "{self.group.name}" modified',
+            session.user,
+            data={'Changes': make_diff_log(changes, log_fields)},
+        )
         db.session.flush()
         return '', 204
 
     def _process_DELETE(self):
-        self.group.log(AppLogRealm.admin, LogKind.negative, 'Affiliation Groups',
-                       f'Affiliation group "{self.group.name}" deleted', session.user)
+        self.group.log(
+            AppLogRealm.admin,
+            LogKind.negative,
+            'Affiliation Groups',
+            f'Affiliation group "{self.group.name}" deleted',
+            session.user,
+        )
         self.group.is_deleted = True
         db.session.flush()
         return '', 204
@@ -211,8 +242,7 @@ class RHAffiliationTags(RHAdminBase):
     """Return all affiliation tags."""
 
     def _process_GET(self):
-        tags = (AffiliationTag.query
-                .order_by(db.func.indico.indico_unaccent(db.func.lower(AffiliationTag.name))))
+        tags = AffiliationTag.query.order_by(db.func.indico.indico_unaccent(db.func.lower(AffiliationTag.name)))
         return AffiliationTagSchema(many=True).jsonify(tags)
 
     @use_rh_kwargs(AffiliationTagArgs)
@@ -220,16 +250,20 @@ class RHAffiliationTags(RHAdminBase):
         tag = AffiliationTag(name=name, code=code, color=color)
         db.session.add(tag)
         db.session.flush()
-        tag.log(AppLogRealm.admin, LogKind.positive, 'Affiliation Tags',
-                f'Affiliation tag "{tag.name}" created', session.user)
+        tag.log(
+            AppLogRealm.admin,
+            LogKind.positive,
+            'Affiliation Tags',
+            f'Affiliation tag "{tag.name}" created',
+            session.user,
+        )
         return AffiliationTagSchema().jsonify(tag), 201
 
 
 class RHAffiliationTag(RHAdminBase):
     """CRUD operations on a single affiliation tag."""
 
-    @use_kwargs({'tag': ModelField(AffiliationTag, required=True, data_key='tag_id')},
-                location='view_args')
+    @use_kwargs({'tag': ModelField(AffiliationTag, required=True, data_key='tag_id')}, location='view_args')
     def _process_args(self, tag):
         RHAdminBase._process_args(self)
         self.tag = tag
@@ -243,14 +277,24 @@ class RHAffiliationTag(RHAdminBase):
             return '', 204
         changes = self.tag.populate_from_dict(data)
         log_fields = {'name': 'Name', 'code': 'Code', 'color': 'Color'}
-        self.tag.log(AppLogRealm.admin, LogKind.change, 'Affiliation Tags',
-                     f'Affiliation tag "{self.tag.name}" modified', session.user,
-                     data={'Changes': make_diff_log(changes, log_fields)})
+        self.tag.log(
+            AppLogRealm.admin,
+            LogKind.change,
+            'Affiliation Tags',
+            f'Affiliation tag "{self.tag.name}" modified',
+            session.user,
+            data={'Changes': make_diff_log(changes, log_fields)},
+        )
         return '', 204
 
     def _process_DELETE(self):
-        self.tag.log(AppLogRealm.admin, LogKind.negative, 'Affiliation Tags',
-                     f'Affiliation tag "{self.tag.name}" deleted', session.user)
+        self.tag.log(
+            AppLogRealm.admin,
+            LogKind.negative,
+            'Affiliation Tags',
+            f'Affiliation tag "{self.tag.name}" deleted',
+            session.user,
+        )
         db.session.delete(self.tag)
         return '', 204
 

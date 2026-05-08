@@ -42,8 +42,9 @@ class AffiliationGroupArgs(mm.Schema):
 
     @validates('code')
     def _check_for_unique_group_code(self, code, **kwargs):
-        query = AffiliationGroup.query.filter(~AffiliationGroup.is_deleted,
-                                              db.func.lower(AffiliationGroup.code) == code.lower())
+        query = AffiliationGroup.query.filter(
+            ~AffiliationGroup.is_deleted, db.func.lower(AffiliationGroup.code) == code.lower()
+        )
         if group := self.context['group']:
             query = query.filter(AffiliationGroup.id != group.id)
         if query.has_rows():
@@ -99,12 +100,7 @@ class AffiliationExtraAttrsSchema(mm.SQLAlchemyAutoSchema):
     group_tags = fields.Method('_get_group_tags')
 
     def _get_group_tags(self, affiliation):
-        group_tags = {
-            tag
-            for group in affiliation.groups
-            for tag in group.tags
-            if tag not in affiliation.tags
-        }
+        group_tags = {tag for group in affiliation.groups for tag in group.tags if tag not in affiliation.tags}
         group_tags = sorted(group_tags, key=attrgetter('code'))
         return AffiliationTagSchema(many=True).dump(group_tags)
 
