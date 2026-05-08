@@ -33,52 +33,49 @@ class AffiliationExtrasPlugin(IndicoPlugin):
         super().init()
         self.inject_bundle('main.js', WPAffiliationsDashboard)
         self.inject_bundle('main.css', WPAffiliationsDashboard)
+        self.connect(signals.plugin.schema_post_dump, self._extend_affiliation_schema, sender=AffiliationSchema)
+        self.connect(signals.plugin.schema_pre_load, self._capture_affiliation_extra_attrs, sender=AffiliationArgs)
+        self.connect(signals.affiliations.affiliation_created, self._set_affiliation_extra_attrs)
+        self.connect(signals.affiliations.affiliation_updated, self._set_affiliation_extra_attrs)
+        self.connect(signals.core.get_placeholders, self._get_email_placeholders,
+                     sender='affiliation-representation-email')
 
     def get_blueprints(self):
         return blueprint
 
+    def _extend_affiliation_schema(self, sender, data, orig, **kwargs):
+        if not has_request_context() or request.endpoint != 'users.api_admin_affiliations':
+            return
+        for dump_data, affiliation in zip(data, orig, strict=True):
+            dump_data.update(AffiliationExtraAttrsSchema().dump(affiliation))
 
-@signals.plugin.schema_post_dump.connect_via(AffiliationSchema)
-def _extend_affiliation_schema(sender, data, orig, **kwargs):
-    if not has_request_context() or request.endpoint != 'users.api_admin_affiliations':
-        return
-    for dump_data, affiliation in zip(data, orig, strict=True):
-        dump_data.update(AffiliationExtraAttrsSchema().dump(affiliation))
+    def _capture_affiliation_extra_attrs(self, sender, data, **kwargs):
+        g.affiliations_extra_attrs = AffiliationExtraAttrsArgs().load(data)
 
+    def _set_affiliation_extra_attrs(self, affiliation, **kwargs):
+        pending = g.pop('affiliations_extra_attrs', {})
+        log_fields = dict(AFFILIATION_EXTRA_FIELDS)
+        if 'contact_lists' in pending:
+            changes, extra_log_fields = populate_contacts(affiliation, pending.pop('contact_lists'))
+            log_fields.update(extra_log_fields)
+        else:
+            changes = {}
+        if changes := populate_memberships(affiliation, pending, changes=changes):
+            affiliation.log(
+                AppLogRealm.admin,
+                LogKind.change,
+                'Affiliations',
+                f'Extended attributes of affiliation "{affiliation.name}" modified',
+                session.user,
+                data={'Changes': make_diff_log(changes, log_fields)},
+            )
 
-@signals.plugin.schema_pre_load.connect_via(AffiliationArgs)
-def _capture_affiliation_extra_attrs(sender, data, **kwargs):
-    g.affiliations_extra_attrs = AffiliationExtraAttrsArgs().load(data)
+    def _get_email_placeholders(self, sender, affiliation=None, **kwargs):
+        from indico_affiliation_extras import placeholders as p
 
-
-@signals.affiliations.affiliation_created.connect
-@signals.affiliations.affiliation_updated.connect
-def _set_affiliation_extra_attrs(affiliation, **kwargs):
-    pending = g.pop('affiliations_extra_attrs', {})
-    log_fields = dict(AFFILIATION_EXTRA_FIELDS)
-    if 'contact_lists' in pending:
-        changes, extra_log_fields = populate_contacts(affiliation, pending.pop('contact_lists'))
-        log_fields.update(extra_log_fields)
-    else:
-        changes = {}
-    if changes := populate_memberships(affiliation, pending, changes=changes):
-        affiliation.log(
-            AppLogRealm.admin,
-            LogKind.change,
-            'Affiliations',
-            f'Extended attributes of affiliation "{affiliation.name}" modified',
-            session.user,
-            data={'Changes': make_diff_log(changes, log_fields)},
-        )
-
-
-@signals.core.get_placeholders.connect_via('affiliation-representation-email')
-def _get_email_placeholders(sender, affiliation=None, **kwargs):
-    from indico_affiliation_extras import placeholders as p
-
-    yield p.AffiliationNamePlaceholder
-    yield p.AffiliationStreetPlaceholder
-    yield p.AffiliationCityPlaceholder
-    yield p.AffiliationPostcodePlaceholder
-    yield p.AffiliationCountryPlaceholder
-    yield p.AffiliationMetadataPlaceholder
+        yield p.AffiliationNamePlaceholder
+        yield p.AffiliationStreetPlaceholder
+        yield p.AffiliationCityPlaceholder
+        yield p.AffiliationPostcodePlaceholder
+        yield p.AffiliationCountryPlaceholder
+        yield p.AffiliationMetadataPlaceholder
