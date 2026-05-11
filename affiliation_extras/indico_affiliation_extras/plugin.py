@@ -37,8 +37,9 @@ class AffiliationExtrasPlugin(IndicoPlugin):
         self.connect(signals.plugin.schema_pre_load, self._capture_affiliation_extra_attrs, sender=AffiliationArgs)
         self.connect(signals.affiliations.affiliation_created, self._set_affiliation_extra_attrs)
         self.connect(signals.affiliations.affiliation_updated, self._set_affiliation_extra_attrs)
-        self.connect(signals.core.get_placeholders, self._get_email_placeholders,
-                     sender='affiliation-representation-email')
+        self.connect(
+            signals.core.get_placeholders, self._get_email_placeholders, sender='affiliation-representation-email'
+        )
 
     def get_blueprints(self):
         return blueprint
