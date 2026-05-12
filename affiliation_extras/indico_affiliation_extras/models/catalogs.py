@@ -12,7 +12,10 @@ from indico.util.string import format_repr
 
 class AffiliationCatalog(db.Model):
     __tablename__ = 'affiliation_catalogs'
-    __table_args__ = {'schema': 'plugin_affiliation_extras'}
+    __table_args__ = (
+        db.CheckConstraint('(event_id IS NULL) != (category_id IS NULL)', 'event_xor_category_id_null'),
+        {'schema': 'plugin_affiliation_extras'},
+    )
 
     id = db.Column(db.Integer, primary_key=True)
     event_id = db.Column(
@@ -24,12 +27,6 @@ class AffiliationCatalog(db.Model):
     category_id = db.Column(
         db.Integer,
         db.ForeignKey('categories.categories.id', ondelete='CASCADE'),
-        index=True,
-        nullable=True
-    )
-    parent_id = db.Column(
-        db.Integer,
-        db.ForeignKey('plugin_affiliation_extras.affiliation_catalogs.id'),
         index=True,
         nullable=True
     )
@@ -56,17 +53,6 @@ class AffiliationCatalog(db.Model):
             lazy=True,
         ),
     )
-    parent = db.relationship(
-        'AffiliationCatalog',
-        lazy=True,
-        remote_side=id,
-        backref=db.backref(
-            'children',
-            primaryjoin='(AffiliationCatalog.parent_id == AffiliationCatalog.id) & ~AffiliationCatalog.is_deleted',
-            lazy=True,
-        ),
-    )
-
     # relationship backrefs:
     # - lists (AffiliationList.catalog)
 

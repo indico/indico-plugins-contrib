@@ -6,6 +6,7 @@
 # MIT License see the LICENSE file for more details.
 
 import pytest
+from sqlalchemy.exc import IntegrityError
 
 from indico.modules.users.models.affiliations import Affiliation
 
@@ -52,6 +53,22 @@ def _create_catalog(db, affiliation, *, category=None, event=None, name='Catalog
     db.session.add(list_obj)
     db.session.flush()
     return catalog
+
+
+def test_affiliation_catalog_requires_an_owner(db):
+    db.session.add(AffiliationCatalog(name='Orphaned catalog'))
+    with pytest.raises(IntegrityError):
+        db.session.flush()
+    db.session.rollback()
+
+
+def test_affiliation_catalog_rejects_multiple_owners(db, create_category, create_event):
+    category = create_category(title='Category')
+    event = create_event(category=category)
+    db.session.add(AffiliationCatalog(name='Ambiguous catalog', category=category, event=event))
+    with pytest.raises(IntegrityError):
+        db.session.flush()
+    db.session.rollback()
 
 
 def test_event_management_page_includes_own_and_inherited_catalogs(

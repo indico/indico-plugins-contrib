@@ -11,6 +11,7 @@ import pytest
 from sqlalchemy.exc import IntegrityError
 
 from indico.core.errors import UserValueError
+from indico.modules.categories.models.categories import Category
 from indico.modules.users.models.affiliations import Affiliation
 
 from indico_affiliation_extras import util
@@ -147,6 +148,8 @@ def _create_tag(db, name, code=None, color='red'):
 
 
 def _create_catalog(db, *, category=None, event=None, name='Catalog'):
+    if category is None and event is None:
+        category = Category.get_root()
     catalog = AffiliationCatalog(name=name, category=category, event=event)
     db.session.add(catalog)
     db.session.flush()

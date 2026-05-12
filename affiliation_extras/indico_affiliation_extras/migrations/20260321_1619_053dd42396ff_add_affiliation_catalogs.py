@@ -22,18 +22,16 @@ def upgrade():
         sa.Column('id', sa.Integer(), nullable=False),
         sa.Column('event_id', sa.Integer(), nullable=True),
         sa.Column('category_id', sa.Integer(), nullable=True),
-        sa.Column('parent_id', sa.Integer(), nullable=True),
         sa.Column('name', sa.String(), nullable=False),
         sa.Column('is_deleted', sa.Boolean(), nullable=False),
+        sa.CheckConstraint('(event_id IS NULL) != (category_id IS NULL)', name='event_xor_category_id_null'),
         sa.ForeignKeyConstraint(['category_id'], ['categories.categories.id'], ondelete='CASCADE'),
         sa.ForeignKeyConstraint(['event_id'], ['events.events.id'], ondelete='CASCADE'),
-        sa.ForeignKeyConstraint(['parent_id'], ['plugin_affiliation_extras.affiliation_catalogs.id']),
         sa.PrimaryKeyConstraint('id'),
         schema='plugin_affiliation_extras',
     )
     op.create_index(None, 'affiliation_catalogs', ['category_id'], unique=False, schema='plugin_affiliation_extras')
     op.create_index(None, 'affiliation_catalogs', ['event_id'], unique=False, schema='plugin_affiliation_extras')
-    op.create_index(None, 'affiliation_catalogs', ['parent_id'], unique=False, schema='plugin_affiliation_extras')
     op.create_table(
         'affiliation_lists',
         sa.Column('id', sa.Integer(), nullable=False),
