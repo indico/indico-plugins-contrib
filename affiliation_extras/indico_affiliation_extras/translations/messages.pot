@@ -1,0 +1,48 @@
+# Translations template for indico-plugin-affiliation-extras.
+# Copyright (C) 2026 ORGANIZATION
+# This file is distributed under the same license as the indico-plugin-affiliation-extras project.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2026.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: indico-plugin-affiliation-extras 3.3-dev\n"
+"Report-Msgid-Bugs-To: EMAIL@ADDRESS\n"
+"POT-Creation-Date: 2026-05-12 19:43+0100\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Generated-By: Babel 2.18.0\n"
+
+#: indico_affiliation_extras/placeholders.py
+msgid "Name of the affiliation"
+msgstr ""
+
+#: indico_affiliation_extras/placeholders.py
+msgid "Street of the affiliation"
+msgstr ""
+
+#: indico_affiliation_extras/placeholders.py
+msgid "City of the affiliation"
+msgstr ""
+
+#: indico_affiliation_extras/placeholders.py
+msgid "Postcode of the affiliation"
+msgstr ""
+
+#: indico_affiliation_extras/placeholders.py
+msgid "Country of the affiliation"
+msgstr ""
+
+#: indico_affiliation_extras/placeholders.py
+msgid "Value in the affiliation's metadata. Supports nested keys like \"foo.bar\" and list indices like \"items.0\"."
+msgstr ""
+
+#: indico_affiliation_extras/schemas.py
+#, python-brace-format
+msgid "Invalid email address: {email}"
+msgstr ""
+
