@@ -16,12 +16,15 @@ import {useSelector} from 'react-redux';
 import {AffiliationField} from 'indico/react/components';
 import {FinalField} from 'indico/react/forms';
 import {Param, Translate} from 'indico/react/i18n';
-
 import {getStaticData} from 'indico/modules/events/registration/form/selectors';
 
 import './RepresentationInput.module.scss';
 
-type RepresentationType = {id: number; name: string; affiliations?: Array<{id: number; name: string}>};
+type RepresentationType = {
+  id: number;
+  name: string;
+  affiliations?: Array<{id: number; name: string}>;
+};
 type AffiliationValue = {id: number | null; text: string};
 type StaticData = {
   eventId: number;
@@ -64,17 +67,35 @@ function RepresentationInputComponent({
   const representationId = normalizedValue.representationId;
   const selectedRepresentation =
     representationTypes.find(item => item.id === representationId) ?? null;
-  const representationOptions = representationTypes.map(item => ({value: item.id, text: item.name}));
-  const preloadedAffiliationOptions = (selectedRepresentation?.affiliations || []).map(affiliation => ({
-    key: affiliation.id,
-    value: affiliation.id,
-    text: affiliation.name,
+  const representationOptions = representationTypes.map(item => ({
+    value: item.id,
+    text: item.name,
   }));
+  const preloadedAffiliationOptions = (selectedRepresentation?.affiliations || []).map(
+    affiliation => ({
+      key: affiliation.id,
+      value: affiliation.id,
+      text: affiliation.name,
+    })
+  );
+  if (
+    normalizedValue.affiliation.id !== null &&
+    normalizedValue.affiliation.text &&
+    !preloadedAffiliationOptions.some(option => option.value === normalizedValue.affiliation.id)
+  ) {
+    preloadedAffiliationOptions.unshift({
+      key: normalizedValue.affiliation.id,
+      value: normalizedValue.affiliation.id,
+      text: normalizedValue.affiliation.text,
+    });
+  }
   const usePreloadedAffiliations = preloadedAffiliationOptions.length > 0;
 
   const handleRepresentationChange = (_: unknown, {value: selectedValue}: {value?: unknown}) => {
     const nextRepresentationId = typeof selectedValue === 'number' ? selectedValue : null;
-    const selectedRepresentation = representationTypes.find(item => item.id === nextRepresentationId);
+    const selectedRepresentation = representationTypes.find(
+      item => item.id === nextRepresentationId
+    );
     onChange({
       representationId: nextRepresentationId,
       representationName: selectedRepresentation?.name ?? '',
