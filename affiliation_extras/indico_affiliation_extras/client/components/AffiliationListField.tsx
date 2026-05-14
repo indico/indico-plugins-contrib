@@ -7,27 +7,28 @@
 
 import groupsURL from 'indico-url:plugin_affiliation_extras.api_affiliation_groups';
 import tagsURL from 'indico-url:plugin_affiliation_extras.api_affiliation_tags';
-import searchAffiliationsURL from 'indico-url:users.api_affiliations';
+import extraInfoURL from 'indico-url:plugin_affiliation_extras.api_affiliation_user_count';
 
 import _ from 'lodash';
-import React, {useMemo, useState} from 'react';
-import {Button, Dropdown, Header, Icon, Label, List, Message, Segment} from 'semantic-ui-react';
+import React, {useEffect, useMemo, useState} from 'react';
+import {Button, Dropdown, Icon, Label, List, Segment} from 'semantic-ui-react';
 
 import {FinalField, validators} from 'indico/react/forms';
 import {useIndicoAxios} from 'indico/react/hooks';
 import {Translate} from 'indico/react/i18n';
-import {makeAsyncDebounce} from 'indico/utils/debounce';
 import {Affiliation} from 'indico/modules/users/affiliations/types';
 
 import {GroupInfo, TagInfo} from '../types';
 import {getAffiliationSubheader} from '../util';
+import AddAffiliationsModal from './AddAffiliationsModal';
 
-const debounce = makeAsyncDebounce(250);
+import './AffiliationListField.module.scss';
 
 export interface AffiliationListValue {
   groups: GroupInfo[];
   tags: TagInfo[];
   affiliations: Affiliation[];
+  _extraInfo?: number | null;
 }
 
 function AffiliationListField({
@@ -36,27 +37,24 @@ function AffiliationListField({
   onFocus,
   onBlur,
   disabled = false,
+  showExtraInfo = false,
+  modalExtraInfoURL,
+  renderItemExtra,
 }: {
   value: AffiliationListValue;
   onChange: (value: AffiliationListValue) => void;
   onFocus?: () => void;
   onBlur?: () => void;
   disabled?: boolean;
+  showExtraInfo?: boolean;
+  modalExtraInfoURL?: string;
+  renderItemExtra?: (item: Affiliation) => React.ReactNode;
 }) {
   const {data: groups} = useIndicoAxios(groupsURL({}));
   const {data: tags} = useIndicoAxios(tagsURL({}));
-  const [searchQuery, setSearchQuery] = useState('');
-  const {data: fetchedAffiliationResults, loading: loadingAffiliations} = useIndicoAxios(
-    searchAffiliationsURL({q: searchQuery}),
-    {
-      manual: !searchQuery,
-    }
-  );
-  const affiliationResults = useMemo(
-    () => fetchedAffiliationResults || [],
-    [fetchedAffiliationResults]
-  );
+  const [affiliationModalOpen, setAffiliationModalOpen] = useState(false);
 
+  /** Notify React Final Form that this field has been interacted with. */
   const markTouched = () => {
     onFocus?.();
     onBlur?.();
@@ -64,27 +62,73 @@ function AffiliationListField({
 
   const usedGroupIds = useMemo(() => new Set(value.groups.map(g => g.id)), [value.groups]);
   const usedTagIds = useMemo(() => new Set(value.tags.map(t => t.id)), [value.tags]);
-  const usedAffiliationIds = useMemo(
-    () => new Set(value.affiliations.map(a => a.id)),
-    [value.affiliations]
+
+  const groupOptions = useMemo(
+    () =>
+      (groups || [])
+        .filter(g => !usedGroupIds.has(g.id))
+        .map(g => ({value: g.id, text: `${g.code}: ${g.name}`})),
+    [groups, usedGroupIds]
+  );
+  const tagOptions = useMemo(
+    () =>
+      (tags || [])
+        .filter(t => !usedTagIds.has(t.id))
+        .map(t => ({
+          value: t.id,
+          text: `${t.code}: ${t.name}`,
+          content: (
+            <span>
+              <Label color={t.color} /> <span style={{marginLeft: 10}}></span>
+              {` ${t.name}`}
+            </span>
+          ),
+        })),
+    [tags, usedTagIds]
   );
 
-  const groupOptions = (groups || [])
-    .filter(g => !usedGroupIds.has(g.id))
-    .map(g => ({value: g.id, text: `${g.code}: ${g.name}`}));
-  const tagOptions = (tags || [])
-    .filter(t => !usedTagIds.has(t.id))
-    .map(t => ({value: t.id, text: `${t.code}: ${t.name}`, color: t.color}));
-  const affiliationData = searchQuery ? affiliationResults : [];
-  const affiliationOptions = affiliationData
-    .filter(a => !usedAffiliationIds.has(a.id))
-    .map(a => ({
-      value: a.id,
-      text: a.name,
-      content: (
-        <Header style={{fontSize: 14}} content={a.name} subheader={getAffiliationSubheader(a)} />
-      ),
-    }));
+  // Stable string keys so the POST only re-fires when the actual selection changes,
+  const affiliationKey = value.affiliations
+    .map(a => a.id)
+    .sort()
+    .join(',');
+  const groupKey = value.groups
+    .map(g => g.id)
+    .sort()
+    .join(',');
+  const tagKey = value.tags
+    .map(t => t.id)
+    .sort()
+    .join(',');
+
+  /**
+   * When `showExtraInfo` is true, fetch the deduplicated user count from the
+   * backend whenever the selection changes, and store the result in `_extraInfo`
+   * so that the parent's synchronous `getCount` callback can read it.
+   */
+  const extraInfoConfig = useMemo(
+    () =>
+      showExtraInfo && (affiliationKey || groupKey || tagKey)
+        ? {
+            url: extraInfoURL({}),
+            method: 'POST',
+            data: {
+              affiliation_ids: value.affiliations.map(a => a.id),
+              group_ids: value.groups.map(g => g.id),
+              tag_ids: value.tags.map(t => t.id),
+            },
+          }
+        : null,
+    [affiliationKey, groupKey, tagKey, showExtraInfo] // eslint-disable-line react-hooks/exhaustive-deps
+  );
+
+  const {data: extraInfoData} = useIndicoAxios(extraInfoConfig ?? '', {manual: !extraInfoConfig});
+
+  useEffect(() => {
+    if (extraInfoData !== null && extraInfoData !== undefined) {
+      onChange({...value, _extraInfo: extraInfoData.count});
+    }
+  }, [extraInfoData]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleAddGroup = (groupId: number) => {
     const group = (groups || []).find(g => g.id === groupId);
@@ -102,14 +146,6 @@ function AffiliationListField({
     onChange({...value, tags: [...value.tags, tag]});
     markTouched();
   };
-  const handleAddAffiliation = (affiliationId: number) => {
-    const affiliation = affiliationData.find(a => a.id === affiliationId);
-    if (!affiliation) {
-      return;
-    }
-    onChange({...value, affiliations: [...value.affiliations, affiliation]});
-    markTouched();
-  };
 
   const handleDeleteGroup = (groupId: number) => {
     onChange({...value, groups: value.groups.filter(g => g.id !== groupId)});
@@ -122,14 +158,6 @@ function AffiliationListField({
   const handleDeleteAffiliation = (affiliationId: number) => {
     onChange({...value, affiliations: value.affiliations.filter(a => a.id !== affiliationId)});
     markTouched();
-  };
-
-  const handleAffiliationSearchChange = (_, {searchQuery: query}) => {
-    if (!query) {
-      setSearchQuery('');
-      return;
-    }
-    debounce(() => setSearchQuery(query));
   };
 
   const entries = [
@@ -180,7 +208,7 @@ function AffiliationListField({
           <Translate>This list is currently empty</Translate>
         )}
       </Segment>
-      <Button.Group attached="bottom">
+      <Button.Group attached="bottom" styleName="add-button-group">
         <Button icon="add" as="div" disabled />
         <AddDropdown
           text={Translate.string('Group')}
@@ -194,25 +222,27 @@ function AffiliationListField({
           disabled={disabled || tagOptions.length === 0}
           onChange={handleAddTag}
         />
-        <Dropdown
-          text={Translate.string('Affiliation')}
-          button
-          upward
-          floating
-          scrolling
-          search
-          loading={loadingAffiliations}
+        <Button
+          type="button"
           disabled={disabled}
-          options={affiliationOptions}
-          openOnFocus={false}
-          selectOnBlur={false}
-          selectOnNavigation={false}
-          value={null}
-          onSearchChange={handleAffiliationSearchChange}
-          onChange={(e, data) => handleAddAffiliation(data.value as number)}
-          noResultsMessage={Translate.string('Search an affiliation')}
+          onClick={() => setAffiliationModalOpen(true)}
+          content={Translate.string('Affiliation')}
         />
       </Button.Group>
+      {affiliationModalOpen && (
+        <AddAffiliationsModal
+          onClose={() => setAffiliationModalOpen(false)}
+          onConfirm={(list: Affiliation[]) => {
+            onChange({...value, affiliations: list});
+            markTouched();
+          }}
+          initialValues={value.affiliations}
+          groups={groups ?? null}
+          tags={tags ?? null}
+          extraInfoURL={modalExtraInfoURL}
+          renderItemExtra={renderItemExtra}
+        />
+      )}
     </>
   );
 }
@@ -236,6 +266,7 @@ function AddDropdown({text, options, disabled, onChange}) {
   );
 }
 
+/** Wraps `AffiliationListField` as a React Final Form field with optional required validation. */
 export default function FinalAffiliationList({name, ...rest}) {
   const {required, validate, ...otherProps} = rest;
   const validateMembers = (value: AffiliationListValue) => {

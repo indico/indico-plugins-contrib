@@ -13,6 +13,7 @@ import formSection from './dashboard/formSection';
 import affiliationFilters from './dashboard/filters';
 import AffiliationRowActions from './dashboard/AffiliationRowActions';
 import representationField from './regform/fields';
+import affiliationInvitations from './inviteDialog/affiliationInvitations';
 
 const PLUGIN_NAME = 'affiliation_extras';
 
@@ -27,6 +28,7 @@ registerPluginComponent(
   AffiliationDashboardActions
 );
 registerPluginComponent(PLUGIN_NAME, 'affiliation-dashboard-row-actions', AffiliationRowActions);
+registerPluginObject(PLUGIN_NAME, 'invite-dialog-extra-modes', affiliationInvitations);
 
 // Category management
 import setupAffiliationCatalogs from './catalogs';
