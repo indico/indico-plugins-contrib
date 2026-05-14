@@ -18,3 +18,9 @@
   font-style: italic;
   color: $dark-gray;
 }
+
+.add-button-group :global(.ui.button.dropdown) {
+  display: flex !important;
+  justify-content: space-between;
+  align-items: center;
+}

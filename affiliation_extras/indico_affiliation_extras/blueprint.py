@@ -19,6 +19,7 @@ from indico_affiliation_extras.controllers.admin import (
     RHEmailRepresentativesMetadata,
     RHEmailRepresentativesPreview,
     RHEmailRepresentativesSend,
+    RHSearchAffiliationsExtended,
 )
 from indico_affiliation_extras.controllers.catalogs import (
     RHCloneAffiliationCatalog,
@@ -31,7 +32,13 @@ from indico_affiliation_extras.controllers.catalogs import (
     RHToggleDefaultCatalog,
 )
 from indico_affiliation_extras.controllers.regform import (
+    RHAffiliationUserCount,
+    RHAffiliationUserCountByIds,
+    RHInviteByAffiliation,
     RHManageSearchRepresentationAffiliation,
+    RHRegFormAffiliationGroups,
+    RHRegFormAffiliations,
+    RHRegFormAffiliationTags,
     RHSearchRepresentationAffiliation,
 )
 
@@ -91,6 +98,51 @@ blueprint.add_url_rule(
     f'{_admin_prefix}/tags/<int:tag_id>', 'api_affiliation_tag', RHAffiliationTag, methods=('GET', 'PATCH', 'DELETE')
 )
 blueprint.add_url_rule(f'{_admin_prefix}/contact-lists/names', 'api_contact_list_names', RHContactListNames)
+blueprint.add_url_rule(
+    f'{_admin_prefix}/affiliations/search',
+    'api_search_affiliations_extended',
+    RHSearchAffiliationsExtended,
+    methods=('GET',),
+)
+blueprint.add_url_rule(
+    f'{_admin_prefix}/affiliation-user-count',
+    'api_affiliation_user_count',
+    RHAffiliationUserCount,
+    methods=('POST',),
+)
+
+_regform_prefix = f'{_admin_prefix}/events/<int:event_id>/regforms/<int:reg_form_id>'
+
+blueprint.add_url_rule(
+    f'{_regform_prefix}/affiliations',
+    'api_reg_form_affiliations',
+    RHRegFormAffiliations,
+    methods=('GET',),
+)
+blueprint.add_url_rule(
+    f'{_regform_prefix}/affiliation-groups',
+    'api_reg_form_affiliation_groups',
+    RHRegFormAffiliationGroups,
+    methods=('GET',),
+)
+blueprint.add_url_rule(
+    f'{_regform_prefix}/affiliation-tags',
+    'api_reg_form_affiliation_tags',
+    RHRegFormAffiliationTags,
+    methods=('GET',),
+)
+blueprint.add_url_rule(
+    f'{_regform_prefix}/affiliations/user-count',
+    'api_affiliation_user_count_by_ids',
+    RHAffiliationUserCountByIds,
+    methods=('POST',),
+)
+blueprint.add_url_rule(
+    f'{_regform_prefix}/invite',
+    'api_invite_by_affiliation',
+    RHInviteByAffiliation,
+    methods=('POST',),
+)
 blueprint.add_url_rule(
     '/event/<int:event_id>/affiliation-extras/registration/<int:reg_form_id>/affiliations/'
     '<int:field_id>/list/<int:affiliation_list_id>',
