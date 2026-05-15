@@ -12,7 +12,11 @@ from indico.modules.events.registration.models.form_fields import RegistrationFo
 from indico.modules.events.registration.models.registrations import RegistrationData
 from indico.modules.users.models.affiliations import Affiliation
 
-from indico_affiliation_extras.fields import REPRESENTATION_AFFILIATION_PRELOAD_LIMIT, RepresentationField
+from indico_affiliation_extras.fields import (
+    REPRESENTATION_AFFILIATION_PRELOAD_LIMIT,
+    RepresentationField,
+    iter_representation_reglist_items,
+)
 from indico_affiliation_extras.models.catalogs import AffiliationCatalog
 from indico_affiliation_extras.models.lists import AffiliationList
 from indico_affiliation_extras.settings import event_settings
@@ -38,10 +42,10 @@ def _create_affiliation_list(db, event, *, name='Representatives', is_enabled=Tr
     return affiliation_list
 
 
-def _create_representation_field(db, regform):
+def _create_representation_field(db, regform, *, title='Representation'):
     field = RegistrationFormField(
         input_type=RepresentationField.name,
-        title='Representation',
+        title=title,
         parent=regform.sections[0],
         registration_form=regform,
     )
@@ -148,6 +152,39 @@ def test_representation_field_renders_summary_and_reglist_data(representation_fi
     assert summary == 'Delegates - CERN'
     assert reglist_column.content == 'Delegates - CERN'
     assert reglist_column.text_value == 'Delegates - CERN'
+
+
+def test_representation_field_adds_split_reglist_columns(db, dummy_regform, dummy_reg):
+    field = _create_representation_field(db, dummy_regform)
+    other_field = _create_representation_field(db, dummy_regform, title='Alternate representation')
+    dummy_reg.data.append(RegistrationData(
+        field_data=field.current_data,
+        data={
+            'representation_id': 1,
+            'representation_name': 'Delegates',
+            'affiliation': {'id': 2, 'text': 'CERN'},
+        },
+    ))
+    db.session.flush()
+
+    item_classes = {item.name: item for item in iter_representation_reglist_items(dummy_regform)}
+    type_item = item_classes[f'affiliation_extras_representation_{field.id}_type'](
+        dummy_regform.event, dummy_regform
+    )
+    affiliation_item = item_classes[f'affiliation_extras_representation_{field.id}_affiliation'](
+        dummy_regform.event, dummy_regform
+    )
+
+    assert list(item_classes) == [
+        f'affiliation_extras_representation_{field.id}_type',
+        f'affiliation_extras_representation_{field.id}_affiliation',
+        f'affiliation_extras_representation_{other_field.id}_type',
+        f'affiliation_extras_representation_{other_field.id}_affiliation',
+    ]
+    assert type_item.title == 'Representation: Type'
+    assert affiliation_item.title == 'Representation: Affiliation'
+    assert type_item.load_data([dummy_reg])[dummy_reg].content == 'Delegates'
+    assert affiliation_item.load_data([dummy_reg])[dummy_reg].content == 'CERN'
 
 
 def test_representation_field_view_data_preloads_small_affiliation_list(db, dummy_regform):
