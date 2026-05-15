@@ -18,17 +18,9 @@ class AffiliationCatalog(db.Model):
     )
 
     id = db.Column(db.Integer, primary_key=True)
-    event_id = db.Column(
-        db.Integer,
-        db.ForeignKey('events.events.id', ondelete='CASCADE'),
-        index=True,
-        nullable=True
-    )
+    event_id = db.Column(db.Integer, db.ForeignKey('events.events.id', ondelete='CASCADE'), index=True, nullable=True)
     category_id = db.Column(
-        db.Integer,
-        db.ForeignKey('categories.categories.id', ondelete='CASCADE'),
-        index=True,
-        nullable=True
+        db.Integer, db.ForeignKey('categories.categories.id', ondelete='CASCADE'), index=True, nullable=True
     )
     name = db.Column(db.String, nullable=False, default='')
     is_deleted = db.Column(db.Boolean, nullable=False, default=False)

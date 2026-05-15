@@ -91,7 +91,8 @@ class RHRegFormAffiliations(RHManageRegFormBase):
 
     def _process_GET(self):
         affiliations = (
-            Affiliation.query.filter(~Affiliation.is_deleted)
+            Affiliation.query
+            .filter(~Affiliation.is_deleted)
             .order_by(db.func.indico.indico_unaccent(db.func.lower(Affiliation.name)))
             .all()
         )
@@ -103,7 +104,8 @@ class RHRegFormAffiliationGroups(RHManageRegFormBase):
 
     def _process_GET(self):
         groups = (
-            AffiliationGroup.query.filter(~AffiliationGroup.is_deleted)
+            AffiliationGroup.query
+            .filter(~AffiliationGroup.is_deleted)
             .options(subqueryload('affiliations'))
             .order_by(db.func.indico.indico_unaccent(db.func.lower(AffiliationGroup.name)))
             .all()
@@ -116,7 +118,8 @@ class RHRegFormAffiliationTags(RHManageRegFormBase):
 
     def _process_GET(self):
         tags = (
-            AffiliationTag.query.options(subqueryload('affiliations'))
+            AffiliationTag.query
+            .options(subqueryload('affiliations'))
             .order_by(db.func.indico.indico_unaccent(db.func.lower(AffiliationTag.name)))
             .all()
         )
@@ -130,7 +133,8 @@ class RHAffiliationUserCountByIds(RHManageRegFormBase):
     def _process(self, affiliation_ids):
         counts = dict(
             db.session.execute(
-                db.select(User.affiliation_id, db.func.count(User.id))
+                db
+                .select(User.affiliation_id, db.func.count(User.id))
                 .where(User.affiliation_id.in_(affiliation_ids))
                 .group_by(User.affiliation_id)
             ).all()
@@ -153,8 +157,9 @@ class RHAffiliationUserCount(RHAdminBase):
         all_affiliations = resolve_affiliations(groups, tags, affiliations)
         aff_ids = [aff.id for aff in all_affiliations]
         count = (
-            db.session.execute(db.select(db.func.count(db.distinct(User.id))).where(User.affiliation_id.in_(aff_ids)))
-            .scalar()
+            db.session.execute(
+                db.select(db.func.count(db.distinct(User.id))).where(User.affiliation_id.in_(aff_ids))
+            ).scalar()
             if aff_ids
             else 0
         )
@@ -164,8 +169,9 @@ class RHAffiliationUserCount(RHAdminBase):
 class RHInviteByAffiliation(RHAdminBase):
     """Invite users by affiliation, group, or tag membership."""
 
-    @use_kwargs({'event_id': fields.Integer(required=True), 'reg_form_id': fields.Integer(required=True)},
-                location='view_args')
+    @use_kwargs(
+        {'event_id': fields.Integer(required=True), 'reg_form_id': fields.Integer(required=True)}, location='view_args'
+    )
     def _process_args(self, event_id, reg_form_id):
         RHAdminBase._process_args(self)
         self.regform = RegistrationForm.get_or_404(reg_form_id)
@@ -238,7 +244,8 @@ class RHInviteByAffiliation(RHAdminBase):
             )
 
         invitations = (
-            RegistrationInvitation.query.with_parent(self.regform)
+            RegistrationInvitation.query
+            .with_parent(self.regform)
             .options(joinedload('registration'))
             .order_by(db.func.lower(RegistrationInvitation.first_name))
             .all()
