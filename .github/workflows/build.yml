@@ -30,6 +30,7 @@ on:
         options:
           - ''  # all plugins
           - registration_prefill
+          - affiliation_extras
 
 permissions:
   contents: read

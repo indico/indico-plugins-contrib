@@ -1,0 +1,19 @@
+{% extends 'categories/management/base.html' if category|default(none) else 'events/management/base.html' %}
+
+{% block title %}
+    {% trans %}Affiliations{% endtrans %}
+{% endblock %}
+
+{% block content %}
+    <div id="affiliation-catalogs"></div>
+    <script>
+        setupAffiliationCatalogs(
+            document.querySelector('#affiliation-catalogs'),
+            {{ own_catalogs | tojson }},
+            {{ inherited_catalogs | tojson }},
+            {{ default_catalog_id | tojson }},
+            {{ explicit_default_catalog_id | tojson }},
+            {{ target_locator | tojson }}
+        );
+    </script>
+{% endblock %}

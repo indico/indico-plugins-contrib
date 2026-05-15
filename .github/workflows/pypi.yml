@@ -27,6 +27,7 @@ on:
         options:
           - ''  # this is invalid for a `required` dropdown so we force a choice instead of preselecting the first one
           - registration_prefill
+          - affiliation_extras
 
 permissions:
   contents: read
