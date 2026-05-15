@@ -10,10 +10,12 @@ from marshmallow import ValidationError, fields
 from indico.core import signals
 from indico.core.db import db
 from indico.core.marshmallow import mm
+from indico.modules.events.registration.custom import CustomRegistrationListItem, RegistrationListColumn
 from indico.modules.events.registration.fields.affiliation import AffiliationValueSchema
 from indico.modules.events.registration.fields.base import RegistrationFormFieldBase
 from indico.modules.events.registration.models.registrations import RegistrationData
 from indico.modules.users.models.affiliations import Affiliation
+from indico.util.i18n import _
 from indico.util.signals import values_from_signal
 
 from indico_affiliation_extras.util import (
@@ -122,4 +124,61 @@ class RepresentationField(RegistrationFormFieldBase):
             representation_name.in_(data_list),
             affiliation_name.in_(data_list),
             db.func.concat(representation_name, ' - ', affiliation_name).in_(data_list),
+        )
+
+
+class RepresentationRegistrationListItem(CustomRegistrationListItem):
+    field_id = None
+    value_name = None
+
+    def _get_value(self, registration_data):
+        data = registration_data.data or {}
+        if self.value_name == 'representation_type':
+            return data.get('representation_name', '')
+        elif self.value_name == 'affiliation':
+            return data.get('affiliation', {}).get('text', '')
+        else:
+            raise ValueError(f'Unexpected representation list item: {self.value_name}')
+
+    def load_data(self, registrations):
+        rv = {}
+        for registration in registrations:
+            registration_data = registration.data_by_field.get(self.field_id)
+            if registration_data is None:
+                continue
+            value = self._get_value(registration_data)
+            if value:
+                rv[registration] = RegistrationListColumn(value, value)
+        return rv
+
+
+def iter_representation_reglist_items(regform):
+    for field in regform.form_items:
+        if (
+            not field.is_field or
+            field.is_deleted or
+            (field.parent is not None and field.parent.is_deleted) or
+            field.input_type != RepresentationField.name
+        ):
+            continue
+
+        yield type(
+            f'RepresentationTypeRegistrationListItem{field.id}',
+            (RepresentationRegistrationListItem,),
+            {
+                'field_id': field.id,
+                'name': f'affiliation_extras_representation_{field.id}_type',
+                'title': _('{field}: Type').format(field=field.title),
+                'value_name': 'representation_type',
+            },
+        )
+        yield type(
+            f'RepresentationAffiliationRegistrationListItem{field.id}',
+            (RepresentationRegistrationListItem,),
+            {
+                'field_id': field.id,
+                'name': f'affiliation_extras_representation_{field.id}_affiliation',
+                'title': _('{field}: Affiliation').format(field=field.title),
+                'value_name': 'affiliation',
+            },
         )
