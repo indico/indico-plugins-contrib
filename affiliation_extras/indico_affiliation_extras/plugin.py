@@ -65,7 +65,9 @@ class AffiliationExtrasPlugin(IndicoPlugin):
         self.connect(signals.menu.items, self._category_sidemenu_items, sender='category-management-sidemenu')
         self.connect(signals.menu.items, self._event_sidemenu_items, sender='event-management-sidemenu')
         self.connect(
-            signals.core.get_placeholders, self._get_email_placeholders, sender='affiliation-representation-email',
+            signals.core.get_placeholders,
+            self._get_email_placeholders,
+            sender='affiliation-representation-email',
         )
 
     def get_blueprints(self):

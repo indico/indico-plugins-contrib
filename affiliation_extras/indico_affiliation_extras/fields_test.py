@@ -157,20 +157,20 @@ def test_representation_field_renders_summary_and_reglist_data(representation_fi
 def test_representation_field_adds_split_reglist_columns(db, dummy_regform, dummy_reg):
     field = _create_representation_field(db, dummy_regform)
     other_field = _create_representation_field(db, dummy_regform, title='Alternate representation')
-    dummy_reg.data.append(RegistrationData(
-        field_data=field.current_data,
-        data={
-            'representation_id': 1,
-            'representation_name': 'Delegates',
-            'affiliation': {'id': 2, 'text': 'CERN'},
-        },
-    ))
+    dummy_reg.data.append(
+        RegistrationData(
+            field_data=field.current_data,
+            data={
+                'representation_id': 1,
+                'representation_name': 'Delegates',
+                'affiliation': {'id': 2, 'text': 'CERN'},
+            },
+        )
+    )
     db.session.flush()
 
     item_classes = {item.name: item for item in iter_representation_reglist_items(dummy_regform)}
-    type_item = item_classes[f'affiliation_extras_representation_{field.id}_type'](
-        dummy_regform.event, dummy_regform
-    )
+    type_item = item_classes[f'affiliation_extras_representation_{field.id}_type'](dummy_regform.event, dummy_regform)
     affiliation_item = item_classes[f'affiliation_extras_representation_{field.id}_affiliation'](
         dummy_regform.event, dummy_regform
     )

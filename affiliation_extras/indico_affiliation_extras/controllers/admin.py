@@ -316,12 +316,15 @@ class RHContactListNames(RHAdminBase):
 class RHSearchAffiliationsExtended(RHAdminBase):
     """Extended affiliation search with optional group/tag/country filters."""
 
-    @use_kwargs({
-        'q': fields.String(load_default=''),
-        'group_ids': fields.List(fields.Integer(), load_default=list),
-        'tag_ids': fields.List(fields.Integer(), load_default=list),
-        'country_code': fields.String(load_default=''),
-    }, location='query')
+    @use_kwargs(
+        {
+            'q': fields.String(load_default=''),
+            'group_ids': fields.List(fields.Integer(), load_default=list),
+            'tag_ids': fields.List(fields.Integer(), load_default=list),
+            'country_code': fields.String(load_default=''),
+        },
+        location='query',
+    )
     def _process(self, q, group_ids, tag_ids, country_code):
         basic_fields = ('id', 'name', 'street', 'postcode', 'city', 'country_code', 'meta')
         if not any([q, group_ids, tag_ids, country_code]):

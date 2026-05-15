@@ -318,8 +318,9 @@ def populate_catalog_lists(catalog: AffiliationCatalog, catalog_lists: list[dict
     return _get_catalog_list_changes(old_lists, new_lists)
 
 
-def resolve_affiliations(groups: set[AffiliationGroup], tags: set[AffiliationTag],
-                         affiliations: set[Affiliation]) -> list[Affiliation]:
+def resolve_affiliations(
+    groups: set[AffiliationGroup], tags: set[AffiliationTag], affiliations: set[Affiliation]
+) -> list[Affiliation]:
     all_affiliations = set(affiliations)
     all_groups = set(groups)
     for tag in tags:
@@ -442,13 +443,20 @@ def get_representation_affiliation_lists(event: Event, *, enabled_only: bool = T
     return sorted(lists, key=lambda item: (item.position, item.name.lower(), item.id))
 
 
-def get_representation_affiliation_list(event: Event, affiliation_list_id: int | None, *,
-                                        enabled_only: bool = True) -> AffiliationList | None:
+def get_representation_affiliation_list(
+    event: Event, affiliation_list_id: int | None, *, enabled_only: bool = True
+) -> AffiliationList | None:
     """Return a single affiliation list if it exists in the event's default catalog."""
     if affiliation_list_id is None:
         return None
-    return next((item for item in get_representation_affiliation_lists(event, enabled_only=enabled_only)
-                 if item.id == affiliation_list_id), None)
+    return next(
+        (
+            item
+            for item in get_representation_affiliation_lists(event, enabled_only=enabled_only)
+            if item.id == affiliation_list_id
+        ),
+        None,
+    )
 
 
 def get_representation_affiliations(affiliation_list: AffiliationList) -> list[Affiliation]:

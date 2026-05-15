@@ -155,10 +155,10 @@ class RepresentationRegistrationListItem(CustomRegistrationListItem):
 def iter_representation_reglist_items(regform):
     for field in regform.form_items:
         if (
-            not field.is_field or
-            field.is_deleted or
-            (field.parent is not None and field.parent.is_deleted) or
-            field.input_type != RepresentationField.name
+            not field.is_field
+            or field.is_deleted
+            or (field.parent is not None and field.parent.is_deleted)
+            or field.input_type != RepresentationField.name
         ):
             continue
 
