@@ -192,23 +192,28 @@ def _catalog_list_payload(
     }
 
 
-def _catalog_list_log_lines(
-    *,
-    name='List',
-    position=1,
-    is_enabled=True,
-    groups='',
-    tags='',
-    affiliations='',
-):
-    return [
-        f'Name: {name}',
-        f'Enabled: {"Yes" if is_enabled else "No"}',
-        f'Position: {position}',
-        f'Groups: {groups}',
-        f'Tags: {tags}',
-        f'Affiliations: {affiliations}',
-    ]
+_CATALOG_LIST_LOG_FIELD_META = {
+    'name': ('Name', 'string'),
+    'is_enabled': ('Enabled', 'bool'),
+    'position': ('Position', 'number'),
+    'groups': ('Groups', 'list'),
+    'tags': ('Tags', 'list'),
+    'affiliations': ('Affiliations', 'list'),
+}
+
+
+def _catalog_list_key(list_id, attr):
+    return f'lists_item_{list_id}_{attr}'
+
+
+def _catalog_list_log_fields(list_id, list_name, *attrs):
+    return {
+        _catalog_list_key(list_id, attr): {
+            'title': f'List: {list_name} - {_CATALOG_LIST_LOG_FIELD_META[attr][0]}',
+            'type': _CATALOG_LIST_LOG_FIELD_META[attr][1],
+        }
+        for attr in attrs
+    }
 
 
 def test_resolve_affiliations_includes_groups_and_tags(db):
@@ -515,18 +520,16 @@ def test_populate_catalog_lists_adds_new_list_and_logs_details(db):
     list_id = catalog.lists[0].id
     assert changes == {
         'lists': ([], ['Representatives']),
-        f'lists_item_{list_id}': (
-            [],
-            _catalog_list_log_lines(
-                name='Representatives',
-                position=2,
-                groups='group-a',
-                tags='tag-a',
-                affiliations='CERN',
-            ),
-        ),
+        _catalog_list_key(list_id, 'name'): ('', 'Representatives'),
+        _catalog_list_key(list_id, 'is_enabled'): (None, True),
+        _catalog_list_key(list_id, 'position'): (None, 2),
+        _catalog_list_key(list_id, 'groups'): ([], ['group-a']),
+        _catalog_list_key(list_id, 'tags'): ([], ['tag-a']),
+        _catalog_list_key(list_id, 'affiliations'): ([], ['CERN']),
     }
-    assert log_fields == {f'lists_item_{list_id}': {'title': 'List: Representatives', 'type': 'list'}}
+    assert log_fields == _catalog_list_log_fields(
+        list_id, 'Representatives', 'name', 'is_enabled', 'position', 'groups', 'tags', 'affiliations'
+    )
 
 
 def test_populate_catalog_lists_updates_existing_list_and_logs_details(db):
@@ -566,24 +569,15 @@ def test_populate_catalog_lists_updates_existing_list_and_logs_details(db):
     assert list_obj.position == 2
     assert not list_obj.is_enabled
     assert changes == {
-        f'lists_item_{list_obj.id}': (
-            _catalog_list_log_lines(
-                name='Representatives',
-                groups='group-a',
-                tags='tag-a',
-                affiliations='Alpha',
-            ),
-            _catalog_list_log_lines(
-                name='Representatives',
-                position=2,
-                is_enabled=False,
-                groups='group-b',
-                tags='tag-b',
-                affiliations='Beta',
-            ),
-        ),
+        _catalog_list_key(list_obj.id, 'is_enabled'): (True, False),
+        _catalog_list_key(list_obj.id, 'position'): (1, 2),
+        _catalog_list_key(list_obj.id, 'groups'): (['group-a'], ['group-b']),
+        _catalog_list_key(list_obj.id, 'tags'): (['tag-a'], ['tag-b']),
+        _catalog_list_key(list_obj.id, 'affiliations'): (['Alpha'], ['Beta']),
     }
-    assert log_fields == {f'lists_item_{list_obj.id}': {'title': 'List: Representatives', 'type': 'list'}}
+    assert log_fields == _catalog_list_log_fields(
+        list_obj.id, 'Representatives', 'is_enabled', 'position', 'groups', 'tags', 'affiliations'
+    )
 
 
 def test_populate_catalog_lists_noop(db):
@@ -631,12 +625,14 @@ def test_populate_catalog_lists_deletes_omitted_list(db):
     assert db.session.get(AffiliationList, list_obj.id) is None
     assert changes == {
         'lists': (['Representatives'], []),
-        f'lists_item_{list_obj.id}': (
-            _catalog_list_log_lines(name='Representatives', affiliations='CERN'),
-            [],
-        ),
+        _catalog_list_key(list_obj.id, 'name'): ('Representatives', ''),
+        _catalog_list_key(list_obj.id, 'is_enabled'): (True, None),
+        _catalog_list_key(list_obj.id, 'position'): (1, None),
+        _catalog_list_key(list_obj.id, 'affiliations'): (['CERN'], []),
     }
-    assert log_fields == {f'lists_item_{list_obj.id}': {'title': 'List: Representatives', 'type': 'list'}}
+    assert log_fields == _catalog_list_log_fields(
+        list_obj.id, 'Representatives', 'name', 'is_enabled', 'position', 'affiliations'
+    )
 
 
 def test_populate_catalog_lists_rejects_list_from_other_catalog(db):

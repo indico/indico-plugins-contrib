@@ -240,22 +240,28 @@ def serialize_catalog_lists(catalog_lists: list[AffiliationList]) -> dict[int, d
     }
 
 
-def _format_catalog_list_log_lines(data: dict) -> list[str]:
-    if not data:
-        return []
-    enabled = data.get('is_enabled')
-    enabled_label = 'Yes' if enabled else 'No'
-    groups = ', '.join(data.get('groups', []))
-    tags = ', '.join(data.get('tags', []))
-    affiliations = ', '.join(data.get('affiliations', []))
-    return [
-        f'Name: {data.get("name", "")}',
-        f'Enabled: {enabled_label if enabled is not None else ""}',
-        f'Position: {data.get("position", "")}',
-        f'Groups: {groups}',
-        f'Tags: {tags}',
-        f'Affiliations: {affiliations}',
-    ]
+_CATALOG_LIST_LOG_FIELDS = (
+    ('name', 'Name', 'string'),
+    ('is_enabled', 'Enabled', 'bool'),
+    ('position', 'Position', 'number'),
+    ('groups', 'Groups', 'list'),
+    ('tags', 'Tags', 'list'),
+    ('affiliations', 'Affiliations', 'list'),
+)
+
+
+def _get_catalog_list_log_value(data: dict, attr: str) -> object:
+    if attr in {'groups', 'tags', 'affiliations'}:
+        return data.get(attr, [])
+    if attr == 'name':
+        return data.get(attr, '')
+    return data.get(attr)
+
+
+def _has_catalog_list_log_value(value: object) -> bool:
+    if isinstance(value, (list, tuple, set)):
+        return bool(value)
+    return value not in (None, '')
 
 
 def _apply_catalog_lists(catalog: AffiliationCatalog, catalog_lists: list[dict]) -> None:
@@ -299,14 +305,19 @@ def _get_catalog_list_changes(old_lists: dict[int, dict], new_lists: dict[int, d
     for id_ in old_lists.keys() | new_lists.keys():
         old_data = old_lists.get(id_, {})
         new_data = new_lists.get(id_, {})
-        old_lines = _format_catalog_list_log_lines(old_data)
-        new_lines = _format_catalog_list_log_lines(new_data)
-        if old_lines == new_lines:
-            continue
         name = new_data.get('name') or old_data.get('name') or '(unnamed list)'
-        key = f'lists_item_{id_}'
-        changes[key] = (old_lines, new_lines)
-        log_fields[key] = {'title': f'List: {name}', 'type': 'list'}
+        for attr, title, type_ in _CATALOG_LIST_LOG_FIELDS:
+            old_value = _get_catalog_list_log_value(old_data, attr)
+            new_value = _get_catalog_list_log_value(new_data, attr)
+            if old_value == new_value:
+                continue
+            if not old_data and not _has_catalog_list_log_value(new_value):
+                continue
+            if not new_data and not _has_catalog_list_log_value(old_value):
+                continue
+            key = f'lists_item_{id_}_{attr}'
+            changes[key] = (old_value, new_value)
+            log_fields[key] = {'title': f'List: {name} - {title}', 'type': type_}
     return changes, log_fields
 
 
