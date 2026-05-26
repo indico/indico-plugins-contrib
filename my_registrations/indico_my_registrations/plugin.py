@@ -13,6 +13,7 @@ from indico.web.menu import SideMenuItem
 
 from indico_my_registrations import _
 from indico_my_registrations.blueprint import blueprint
+from indico_my_registrations.views import WPMyRegistrations
 
 
 class MyRegistrationsPlugin(IndicoPlugin):
@@ -27,6 +28,7 @@ class MyRegistrationsPlugin(IndicoPlugin):
     def init(self):
         super().init()
         self.connect(signals.menu.items, self._extend_sidemenu, sender='user-profile-sidemenu')
+        self.inject_bundle('main.css', WPMyRegistrations)
 
     def get_blueprints(self):
         return blueprint

@@ -5,4 +5,4 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-pytest_plugins = ('indico.modules.events.registration.testing.fixtures',)
+pytest_plugins = ['indico.modules.events.registration.testing.fixtures']

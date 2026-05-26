@@ -21,7 +21,8 @@
                             <a href="{{ url_for_plugin(
                                   'my_registrations.list',
                                   user_id=user.id,
-                                  **{page_arg: page, other_page_arg: other_pagination.page}
+                                  page_arg=page,
+                                  other_page_arg=other_pagination.page
                                ) }}"
                                class="i-button">{{ page }}</a>
                         {% endif %}
@@ -64,44 +65,6 @@
 {% endmacro %}
 
 {% block user_content %}
-    <style>
-        .my-registrations { display: flex; flex-direction: column; gap: 1.5em; }
-        .my-registrations__box .i-box-header { display: flex; align-items: center; justify-content: space-between; }
-        .my-registrations__box .i-box-title i { margin-right: 0.4em; color: #888; }
-        .my-registrations__list { margin: 0; padding: 0; list-style: none; }
-        .my-registrations__row {
-            display: flex; align-items: center; justify-content: space-between;
-            gap: 1em; padding: 0.9em 1em;
-            border-bottom: 1px solid #ececec;
-        }
-        .my-registrations__list .my-registrations__row:last-child { border-bottom: 0; }
-        .my-registrations__row:hover { background: #fafafa; }
-        .my-registrations__row-main { min-width: 0; flex: 1; }
-        .my-registrations__row-side {
-            display: flex; align-items: center; gap: 0.6em; flex-shrink: 0;
-        }
-        .my-registrations__title {
-            font-size: 1.05em; font-weight: 600;
-            color: #1d4374; text-decoration: none;
-            display: block; margin-bottom: 0.25em;
-            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-        }
-        .my-registrations__title:hover { color: #0a73aa; text-decoration: underline; }
-        .my-registrations__meta {
-            color: #666; font-size: 0.88em;
-            display: flex; gap: 1.2em; flex-wrap: wrap;
-        }
-        .my-registrations__meta i { margin-right: 0.3em; color: #999; }
-        .my-registrations__empty {
-            text-align: center; padding: 2.5em 1em; color: #888;
-        }
-        .my-registrations__empty i { font-size: 2.4em; opacity: 0.35; display: block; margin-bottom: 0.4em; }
-        .my-registrations__empty p { margin: 0; }
-        .my-registrations__box .pagination {
-            display: flex; justify-content: flex-end;
-            margin-top: 0.8em; gap: 0.25em;
-        }
-    </style>
     <div class="my-registrations">
         {{ _section(
             _('Upcoming'), 'calendar',

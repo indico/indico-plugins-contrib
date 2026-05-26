@@ -1,16 +1,8 @@
 # Indico My Registrations Plugin
 
-Adds a **My Registrations** entry to the user profile sidebar that lists every
-event the user is registered for, split into **Upcoming** and **Past** sections
-and paginated independently.
-
-## Features
-
-- Single page with two paginated sections (upcoming + past)
-- Shows registration state badge (`complete`, `pending`, `unpaid`, `rejected`,
-  `withdrawn`)
-- Server-side rendering, CSP-safe
-- No JavaScript framework dependency
+An [Indico](https://github.com/indico/indico) plugin that adds a **My Registrations** entry to the user
+profile sidebar, listing the user's event registrations split into upcoming and past sections, paginated
+independently.
 
 ## Changelog
 
