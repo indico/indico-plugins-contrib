@@ -1,0 +1,26 @@
+{% set event = reg.event %}
+<li class="my-registrations__row">
+    <div class="my-registrations__row-main">
+        <a class="my-registrations__title" href="{{ event.url }}" title="{{ event.title }}">
+            {{ event.title }}
+        </a>
+        <div class="my-registrations__meta">
+            <span>
+                <i class="icon-calendar"></i>
+                {{ event.start_dt | format_datetime(timezone=event.timezone) }}
+                {%- if event.end_dt != event.start_dt %}
+                    {{ '–' }} {{ event.end_dt | format_datetime(timezone=event.timezone) }}
+                {%- endif %}
+            </span>
+            <span>
+                <i class="icon-clipboard"></i>
+                {{ reg.registration_form.title }}
+            </span>
+        </div>
+    </div>
+    <div class="my-registrations__row-side">
+        <span class="i-tag {{ _state_class.get(reg.state.name, 'strong') }}">
+            {{ reg.state.title }}
+        </span>
+    </div>
+</li>

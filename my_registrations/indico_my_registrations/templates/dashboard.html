@@ -1,0 +1,117 @@
+{% extends 'users/base.html' %}
+{% from 'pagination.html' import render_pagination_entries_fragment %}
+
+{% set _state_class = {
+    'complete': 'success',
+    'pending': 'warning',
+    'rejected': 'error',
+    'withdrawn': 'strong',
+    'unpaid': 'highlight',
+} %}
+
+{% macro _pagination(pagination, page_arg, other_page_arg, other_pagination, user) %}
+    {% if pagination.pages > 1 %}
+        <div class="pagination">
+            {%- for page in pagination.iter_pages() %}
+                {% if page %}
+                    <span class="page-number">
+                        {% if page == pagination.page %}
+                            <a href="#" class="i-button highlight">{{ page }}</a>
+                        {% else %}
+                            <a href="{{ url_for_plugin(
+                                  'my_registrations.list',
+                                  user_id=user.id,
+                                  **{page_arg: page, other_page_arg: other_pagination.page}
+                               ) }}"
+                               class="i-button">{{ page }}</a>
+                        {% endif %}
+                    </span>
+                {% else %}
+                    <span>…</span>
+                {% endif %}
+            {%- endfor %}
+        </div>
+    {% endif %}
+{% endmacro %}
+
+{% macro _section(title, icon, empty_msg, pagination, page_arg, other_page_arg, other_pagination, user) %}
+    <div class="i-box my-registrations__box">
+        <div class="i-box-header">
+            <div class="i-box-title">
+                <i class="icon-{{ icon }}"></i>
+                {{ title }}
+            </div>
+            <div class="i-box-metadata">
+                {{ render_pagination_entries_fragment(pagination) }}
+            </div>
+        </div>
+        <div class="i-box-content">
+            {% if pagination.items %}
+                <ul class="group-list with-buttons content-after my-registrations__list">
+                    {% for reg in pagination.items %}
+                        {% include 'my_registrations:_registration_row.html' %}
+                    {% endfor %}
+                </ul>
+                {{ _pagination(pagination, page_arg, other_page_arg, other_pagination, user) }}
+            {% else %}
+                <div class="my-registrations__empty">
+                    <i class="icon-{{ icon }}"></i>
+                    <p>{{ empty_msg }}</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+{% endmacro %}
+
+{% block user_content %}
+    <style>
+        .my-registrations { display: flex; flex-direction: column; gap: 1.5em; }
+        .my-registrations__box .i-box-header { display: flex; align-items: center; justify-content: space-between; }
+        .my-registrations__box .i-box-title i { margin-right: 0.4em; color: #888; }
+        .my-registrations__list { margin: 0; padding: 0; list-style: none; }
+        .my-registrations__row {
+            display: flex; align-items: center; justify-content: space-between;
+            gap: 1em; padding: 0.9em 1em;
+            border-bottom: 1px solid #ececec;
+        }
+        .my-registrations__list .my-registrations__row:last-child { border-bottom: 0; }
+        .my-registrations__row:hover { background: #fafafa; }
+        .my-registrations__row-main { min-width: 0; flex: 1; }
+        .my-registrations__row-side {
+            display: flex; align-items: center; gap: 0.6em; flex-shrink: 0;
+        }
+        .my-registrations__title {
+            font-size: 1.05em; font-weight: 600;
+            color: #1d4374; text-decoration: none;
+            display: block; margin-bottom: 0.25em;
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+        .my-registrations__title:hover { color: #0a73aa; text-decoration: underline; }
+        .my-registrations__meta {
+            color: #666; font-size: 0.88em;
+            display: flex; gap: 1.2em; flex-wrap: wrap;
+        }
+        .my-registrations__meta i { margin-right: 0.3em; color: #999; }
+        .my-registrations__empty {
+            text-align: center; padding: 2.5em 1em; color: #888;
+        }
+        .my-registrations__empty i { font-size: 2.4em; opacity: 0.35; display: block; margin-bottom: 0.4em; }
+        .my-registrations__empty p { margin: 0; }
+        .my-registrations__box .pagination {
+            display: flex; justify-content: flex-end;
+            margin-top: 0.8em; gap: 0.25em;
+        }
+    </style>
+    <div class="my-registrations">
+        {{ _section(
+            _('Upcoming'), 'calendar',
+            _('You have no upcoming registrations.'),
+            upcoming, 'upcoming_page', 'past_page', past, user,
+        ) }}
+        {{ _section(
+            _('Past'), 'time',
+            _('You have no past registrations.'),
+            past, 'past_page', 'upcoming_page', upcoming, user,
+        ) }}
+    </div>
+{% endblock %}
