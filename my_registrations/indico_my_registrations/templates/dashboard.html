@@ -21,8 +21,7 @@
                             <a href="{{ url_for_plugin(
                                   'my_registrations.list',
                                   user_id=user.id,
-                                  page_arg=page,
-                                  other_page_arg=other_pagination.page
+                                  **{page_arg: page, other_page_arg: other_pagination.page}
                                ) }}"
                                class="i-button">{{ page }}</a>
                         {% endif %}
