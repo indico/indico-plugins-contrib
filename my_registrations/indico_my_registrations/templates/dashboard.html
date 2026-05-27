@@ -36,7 +36,7 @@
 {% endmacro %}
 
 {% macro _section(title, icon, empty_msg, pagination, page_arg, other_page_arg, other_pagination, user) %}
-    <div class="i-box my-registrations__box">
+    <div class="i-box my-registrations-box">
         <div class="i-box-header">
             <div class="i-box-title">
                 <i class="icon-{{ icon }}"></i>
@@ -48,14 +48,14 @@
         </div>
         <div class="i-box-content">
             {% if pagination.items %}
-                <ul class="group-list with-buttons content-after my-registrations__list">
+                <ul class="group-list with-buttons content-after my-registrations-list">
                     {% for reg in pagination.items %}
                         {% include 'my_registrations:_registration_row.html' %}
                     {% endfor %}
                 </ul>
                 {{ _pagination(pagination, page_arg, other_page_arg, other_pagination, user) }}
             {% else %}
-                <div class="my-registrations__empty">
+                <div class="my-registrations-empty">
                     <i class="icon-{{ icon }}"></i>
                     <p>{{ empty_msg }}</p>
                 </div>

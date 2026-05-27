@@ -1,10 +1,10 @@
 {% set event = reg.event %}
-<li class="my-registrations__row">
-    <div class="my-registrations__row-main">
-        <a class="my-registrations__title" href="{{ event.url }}" title="{{ event.title }}">
+<li class="my-registrations-row">
+    <div class="my-registrations-row-main">
+        <a class="my-registrations-title" href="{{ event.url }}" title="{{ event.title }}">
             {{ event.title }}
         </a>
-        <div class="my-registrations__meta">
+        <div class="my-registrations-meta">
             <span>
                 <i class="icon-calendar"></i>
                 {{ event.start_dt | format_datetime(timezone=event.timezone) }}
@@ -18,7 +18,7 @@
             </span>
         </div>
     </div>
-    <div class="my-registrations__row-side">
+    <div class="my-registrations-row-side">
         <span class="i-tag {{ _state_class.get(reg.state.name, 'strong') }}">
             {{ reg.state.title }}
         </span>
