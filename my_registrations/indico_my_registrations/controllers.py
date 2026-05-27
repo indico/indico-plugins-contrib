@@ -15,10 +15,7 @@ from indico_my_registrations.views import WPMyRegistrations
 
 def _paginate(query, page_arg):
     page = max(1, request.args.get(page_arg, 1, type=int))
-    pagination = query.paginate(page=page)
-    if pagination.pages and page > pagination.pages:
-        pagination = query.paginate(page=pagination.pages)
-    return pagination
+    return query.paginate(page=page)
 
 
 class RHMyRegistrations(RHUserBase):
