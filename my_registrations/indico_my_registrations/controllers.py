@@ -5,8 +5,6 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-import math
-
 from flask import request
 
 from indico.modules.users.controllers import RHUserBase
@@ -16,12 +14,11 @@ from indico_my_registrations.views import WPMyRegistrations
 
 
 def _paginate(query, page_arg):
-    page = request.args.get(page_arg, 1, type=int)
-    page = max(1, page)
-    total = query.count()
-    last_page = max(1, math.ceil(total / 25))
-    page = min(page, last_page)
-    return query.paginate(page=page)
+    page = max(1, request.args.get(page_arg, 1, type=int))
+    pagination = query.paginate(page=page)
+    if pagination.pages and page > pagination.pages:
+        pagination = query.paginate(page=pagination.pages)
+    return pagination
 
 
 class RHMyRegistrations(RHUserBase):
