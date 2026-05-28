@@ -11,7 +11,7 @@
 
 {% macro _pagination(pagination, page_arg, other_page_arg, other_pagination, user) %}
     {% if pagination.pages > 1 %}
-        <div class="pagination">
+        <div class="my-registrations-pagination">
             {%- for page in pagination.iter_pages() %}
                 {% if page %}
                     <span class="page-number">
