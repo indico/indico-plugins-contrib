@@ -5,7 +5,7 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import contains_eager, joinedload
 
 from indico.modules.events import Event
 from indico.modules.events.registration.models.registrations import Registration
@@ -19,7 +19,7 @@ def _base_query(user):
         .join(Registration.event)
         .filter(~Event.is_deleted)
         .options(
-            joinedload(Registration.event).load_only(
+            contains_eager(Registration.event).load_only(
                 'id',
                 'title',
                 'start_dt',
