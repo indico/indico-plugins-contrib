@@ -19,8 +19,12 @@
         </div>
     </div>
     <div class="my-registrations-row-side">
-        <span class="i-tag {{ _state_class.get(reg.state.name, 'strong') }}">
-            {{ reg.state.title }}
-        </span>
+        {% if reg.checked_in %}
+            <span class="i-tag {{ _state_class['attended'] }}">{% trans %}Attended{% endtrans %}</span>
+        {% else %}
+            <span class="i-tag {{ _state_class.get(reg.state.name, 'strong') }}">
+                {{ reg.state.title }}
+            </span>
+        {% endif %}
     </div>
 </li>
