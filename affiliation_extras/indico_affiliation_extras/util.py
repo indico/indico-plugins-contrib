@@ -24,6 +24,7 @@ from indico.modules.categories.models.categories import Category
 from indico.modules.events.models.events import Event
 from indico.modules.files.models.files import File
 from indico.modules.users.models.affiliations import Affiliation
+from indico.util.i18n import _
 from indico.util.signing import secure_serializer
 
 from indico_affiliation_extras.models.catalogs import AffiliationCatalog
@@ -186,9 +187,9 @@ def populate_contacts(affiliation: Affiliation, contact_lists: list[dict]) -> tu
         else:
             contact_id = contact.id
             if contact_id in used_ids:
-                raise UserValueError('Contact list IDs must be unique')
+                raise UserValueError(_('Contact list IDs must be unique'))
             if contact_id not in existing_by_id:
-                raise UserValueError('Contact list does not belong to this affiliation')
+                raise UserValueError(_('Contact list does not belong to this affiliation'))
             touched_ids.add(contact_id)
             used_ids.add(contact_id)
         contact.name = contact_data['name']
@@ -275,7 +276,7 @@ def _apply_catalog_lists(catalog: AffiliationCatalog, catalog_lists: list[dict])
             db.session.add(list_obj)
         else:
             if list_obj.id not in existing_by_id:
-                raise UserValueError('List does not belong to this catalog')
+                raise UserValueError(_('List does not belong to this catalog'))
             touched_ids.add(list_obj.id)
         list_obj.name = list_data['name'].strip()
         list_obj.is_enabled = list_data['is_enabled']
@@ -376,14 +377,24 @@ def _get_catalog_setting(target: Category | Event):
 
 
 def _get_default_catalog_on_category(category: Category, *, only_inherited: bool = False):
-    if not only_inherited:
-        catalog = _get_catalog_setting(category)
-        if catalog:
-            return catalog
-    parent_chain = category.parent_chain_query.all()
-    for parent in reversed(parent_chain):
-        catalog = _get_catalog_setting(parent)
-        if catalog:
+    # Fetch every catalog usable anywhere in this category's chain in a single query, then
+    # resolve the default per category without re-querying get_all_catalogs for each ancestor.
+    chain_catalogs = get_all_catalogs(category)
+
+    def _resolve(target: Category):
+        catalog_id = category_settings.get(target, 'default_catalog_id')
+        if not catalog_id:
+            return None
+        target_chain_ids = {categ['id'] for categ in target.chain}
+        return next(
+            (c for c in chain_catalogs if c.id == catalog_id and c.category_id in target_chain_ids),
+            None,
+        )
+
+    if not only_inherited and (catalog := _resolve(category)):
+        return catalog
+    for parent in reversed(category.parent_chain_query.all()):
+        if catalog := _resolve(parent):
             return catalog
     return None
 

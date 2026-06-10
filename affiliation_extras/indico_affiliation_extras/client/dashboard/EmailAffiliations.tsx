@@ -137,7 +137,7 @@ function RecipientsWarning({
         />
       )}
       {affiliations.some(a =>
-        getAffiliationEmails(a, contactLists, includeUnnamedLists).filter(e => invalidEmails.has(e))
+        getAffiliationEmails(a, contactLists, includeUnnamedLists).some(e => invalidEmails.has(e))
       ) && (
         <Message
           visible

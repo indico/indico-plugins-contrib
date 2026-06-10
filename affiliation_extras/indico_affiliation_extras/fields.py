@@ -69,21 +69,29 @@ class RepresentationField(RegistrationFormFieldBase):
             affiliation_text = affiliation['text']
             affiliation_id = affiliation['id']
             if self.form_item.is_required and representation_id is None:
-                raise ValidationError('Please select a representation type')
+                raise ValidationError(_('Please select a representation type'))
             if representation_id is None and affiliation_id is not None:
-                raise ValidationError('Please select a representation type')
+                raise ValidationError(_('Please select a representation type'))
             if affiliation_id is None:
                 if affiliation_text or representation_id is not None or self.form_item.is_required:
-                    raise ValidationError('Please select an affiliation from the list')
+                    raise ValidationError(_('Please select an affiliation from the list'))
 
         return _validate_representation
 
     def process_form_data(self, registration, value, old_data=None, billable_items_locked=False):
+        # Skip re-validation when the stored value is unchanged: the catalog/list config
+        # may have changed since submission (list disabled/removed, default catalog
+        # switched), and unrelated edits to the registration must still succeed.
+        if old_data is not None and value == old_data.data:
+            return RegistrationFormFieldBase.process_form_data(
+                self, registration, value, old_data, billable_items_locked
+            )
+
         event = self.form_item.registration_form.event
         representation_id = value['representation_id']
         affiliation_list = get_representation_affiliation_list(event, representation_id)
         if representation_id is not None and affiliation_list is None:
-            raise ValidationError('Invalid representation type')
+            raise ValidationError(_('Invalid representation type'))
 
         affiliation = value['affiliation']
         if affiliation['id'] is not None:
@@ -103,7 +111,7 @@ class RepresentationField(RegistrationFormFieldBase):
             if filters:
                 query = query.filter(*filters)
             if not (matched_affiliation := query.one_or_none()):
-                raise ValidationError('Invalid affiliation')
+                raise ValidationError(_('Invalid affiliation'))
             affiliation['text'] = matched_affiliation.name
 
         value['representation_name'] = affiliation_list.name if affiliation_list else ''

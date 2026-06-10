@@ -47,7 +47,7 @@ export function AffiliationList({
   tagIds: number[];
   affiliationIds: number[];
 }) {
-  const {data, loading} = useIndicoAxios({
+  const {data, loading, error} = useIndicoAxios({
     url: resolveAffiliationsURL,
     method: 'POST',
     data: {groups, tags, affiliations},
@@ -59,12 +59,17 @@ export function AffiliationList({
         groups: a.groups.filter(g => groups.includes(g.id)),
         tags: a.tags.filter(t => tags.includes(t.id)),
         group_tags: a.group_tags.filter(t => tags.includes(t.id)),
-      })),
+      })) ?? [],
     [data]
   );
 
   if (loading) {
     return <Loader active inline="centered" />;
+  }
+  if (error) {
+    return (
+      <Message error content={Translate.string('Could not load the affiliations for this list')} />
+    );
   }
   if (!resolvedAffiliations.length) {
     return <Message content={Translate.string('This list is currently empty')} info />;

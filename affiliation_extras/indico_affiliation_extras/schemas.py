@@ -153,6 +153,9 @@ class AffiliationListSchema(mm.SQLAlchemyAutoSchema):
 
 
 class AffiliationCatalogListArgs(mm.Schema):
+    class Meta:
+        unknown = EXCLUDE
+
     list_link = ModelField(AffiliationList, data_key='id', load_default=None, allow_none=True, load_only=True)
     name = fields.String(required=True, validate=not_empty)
     position = fields.Integer(required=True)
@@ -173,6 +176,12 @@ class AffiliationCatalogArgs(mm.Schema):
 
     name = fields.String(required=True, validate=not_empty)
     lists = fields.List(fields.Nested(AffiliationCatalogListArgs), required=True, validate=not_empty)
+
+    @validates('lists')
+    def _validate_unique_list_names(self, lists, **kwargs):
+        names = [lst['name'].strip().lower() for lst in lists]
+        if len(names) != len(set(names)):
+            raise ValidationError(_('List names must be unique.'))
 
 
 class OwnerDataSchema(mm.Schema):

@@ -8,7 +8,7 @@
 import resolveAffiliationsURL from 'indico-url:plugin_affiliation_extras.api_resolve_affiliations';
 
 import _ from 'lodash';
-import React, {useState} from 'react';
+import React, {useMemo, useState} from 'react';
 import {Button, Confirm, Icon, Input, Loader, Modal, Popup} from 'semantic-ui-react';
 
 import {FinalField} from 'indico/react/forms';
@@ -26,19 +26,12 @@ import {AffiliationList} from './AffiliationList';
 
 import './CatalogListField.module.scss';
 
-const DEFAULT_LIST_VALUE = {
-  id: null,
-  name: '',
-  position: null,
-  is_enabled: true,
-  groups: [],
-  tags: [],
-  affiliations: [],
-};
 const DRAG_TYPE = 'affiliations-catalog-list';
 
 export interface CatalogItem {
   id?: number | null;
+  // client-only stable id for unsaved rows (used as React key / drag id; dropped server-side)
+  _frontendId?: string;
   name: string;
   position?: number | null;
   is_enabled?: boolean;
@@ -46,6 +39,17 @@ export interface CatalogItem {
   tags: TagInfo[];
   affiliations: Affiliation[];
 }
+
+const makeDefaultList = (): CatalogItem => ({
+  id: null,
+  _frontendId: _.uniqueId('list-'),
+  name: '',
+  position: null,
+  is_enabled: true,
+  groups: [],
+  tags: [],
+  affiliations: [],
+});
 
 interface CatalogListRowProps {
   value: CatalogItem;
@@ -71,7 +75,7 @@ function CatalogListRow({
   const closeModal = () => setModalOpen(null);
   const [handleRef, itemRef, style] = useSortableItem({
     type: DRAG_TYPE,
-    id: value.id ?? `new-${index}`,
+    id: value.id ?? value._frontendId ?? `new-${index}`,
     index,
     active: true,
     separateHandle: true,
@@ -164,7 +168,7 @@ function CatalogListRow({
         />
         {modalOpen === 'edit' && (
           <FinalModalForm
-            id={`catalog-list-${value.id ?? index}`}
+            id={`catalog-list-${value.id ?? value._frontendId}`}
             onClose={closeModal}
             onSubmit={({members}) => {
               onChange({...value, ...members});
@@ -227,7 +231,8 @@ function CatalogListField({
   onBlur: () => void;
   targetLocator: Record<string, number>;
 }) {
-  const values = _value?.length ? _value : [DEFAULT_LIST_VALUE];
+  const emptyDefault = useMemo(makeDefaultList, []);
+  const values = _value?.length ? _value : [emptyDefault];
   const normalizePositions = (items: CatalogItem[]) =>
     items.map((item, idx) => ({
       ...item,
@@ -276,7 +281,7 @@ function CatalogListField({
             <tbody>
               {normalizedValues.map((value, idx) => (
                 <CatalogListRow
-                  key={value.id ?? `new-${idx}`}
+                  key={value.id ?? value._frontendId ?? `new-${idx}`}
                   index={idx}
                   value={value}
                   targetLocator={targetLocator}
@@ -300,7 +305,7 @@ function CatalogListField({
         type="button"
         icon="add"
         content={Translate.string('Add list')}
-        onClick={() => handleChange([...normalizedValues, DEFAULT_LIST_VALUE], false)}
+        onClick={() => handleChange([...normalizedValues, makeDefaultList()], false)}
         disabled={normalizedValues.some(v => !v.name.trim())}
         style={{marginTop: '0.5em'}}
         compact
@@ -313,6 +318,10 @@ function CatalogListField({
 const validateCatalogLists = (value: CatalogItem[]) => {
   if (value.some(({name}) => !name.trim())) {
     return Translate.string('List names must not be empty.');
+  }
+  const names = value.map(({name}) => name.trim().toLowerCase());
+  if (new Set(names).size !== names.length) {
+    return Translate.string('List names must be unique.');
   }
   if (
     value.some(

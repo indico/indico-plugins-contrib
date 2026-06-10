@@ -136,6 +136,30 @@ def test_representation_field_canonicalizes_and_snapshots_value(db, representati
     }
 
 
+def test_representation_field_keeps_unchanged_value_when_list_disabled(db, representation_field, dummy_reg):
+    affiliation = Affiliation(name='CERN')
+    db.session.add(affiliation)
+    db.session.flush()
+    affiliation_list = _create_affiliation_list(
+        db, representation_field.registration_form.event, name='Delegates', affiliations={affiliation}
+    )
+    stored = {
+        'representation_id': affiliation_list.id,
+        'representation_name': 'Delegates',
+        'affiliation': {'id': affiliation.id, 'text': 'CERN'},
+    }
+    old_data = RegistrationData(registration=dummy_reg, field_data=representation_field.current_data, data=stored)
+    db.session.flush()
+    # The list is disabled after submission; re-saving the registration (e.g. editing an
+    # unrelated field) must not re-validate the unchanged value against the live config.
+    affiliation_list.is_enabled = False
+    db.session.flush()
+
+    rv = representation_field.field_impl.process_form_data(dummy_reg, dict(stored), old_data=old_data)
+
+    assert rv == {}
+
+
 def test_representation_field_renders_summary_and_reglist_data(representation_field):
     registration_data = RegistrationData(
         field_data=representation_field.current_data,

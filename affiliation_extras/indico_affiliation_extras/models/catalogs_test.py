@@ -149,6 +149,45 @@ def test_event_catalog_api_crud_clone_and_toggle_default(test_client, db, dummy_
 
 
 @pytest.mark.usefixtures('no_csrf_check')
+def test_event_catalog_api_rejects_duplicate_list_names(test_client, db, dummy_user, create_category, create_event):
+    category = create_category(title='Category')
+    category.update_principal(dummy_user, full_access=True)
+    event = create_event(category=category)
+    event.update_principal(dummy_user, full_access=True)
+    affiliation = _create_affiliation(db)
+    _login(test_client, dummy_user)
+
+    payload = {
+        'name': 'Catalog',
+        'lists': [
+            {
+                'id': None,
+                'name': 'Members',
+                'position': 1,
+                'is_enabled': True,
+                'groups': [],
+                'tags': [],
+                'affiliations': [affiliation.id],
+            },
+            {
+                'id': None,
+                'name': 'members',
+                'position': 2,
+                'is_enabled': True,
+                'groups': [],
+                'tags': [],
+                'affiliations': [affiliation.id],
+            },
+        ],
+    }
+    resp = test_client.post(
+        f'/event/{event.id}/manage/affiliations/api/affiliations/catalogs',
+        json=payload,
+    )
+    assert resp.status_code == 422
+
+
+@pytest.mark.usefixtures('no_csrf_check')
 def test_event_catalog_api_forbids_cross_scope_catalog(test_client, db, dummy_user, create_category, create_event):
     category = create_category(title='Category')
     category.update_principal(dummy_user, full_access=True)
