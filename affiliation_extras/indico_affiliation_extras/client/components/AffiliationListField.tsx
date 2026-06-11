@@ -7,7 +7,7 @@
 
 import groupsURL from 'indico-url:plugin_affiliation_extras.api_affiliation_groups';
 import tagsURL from 'indico-url:plugin_affiliation_extras.api_affiliation_tags';
-import extraInfoURL from 'indico-url:plugin_affiliation_extras.api_affiliation_user_count';
+import aggregateExtraInfoURL from 'indico-url:plugin_affiliation_extras.api_affiliation_user_count';
 
 import _ from 'lodash';
 import React, {useEffect, useMemo, useState} from 'react';
@@ -38,7 +38,7 @@ function AffiliationListField({
   onBlur,
   disabled = false,
   showExtraInfo = false,
-  modalExtraInfoURL,
+  extraInfoURL,
   renderItemExtra,
 }: {
   value: AffiliationListValue;
@@ -47,7 +47,7 @@ function AffiliationListField({
   onBlur?: () => void;
   disabled?: boolean;
   showExtraInfo?: boolean;
-  modalExtraInfoURL?: string;
+  extraInfoURL?: string;
   renderItemExtra?: (item: Affiliation) => React.ReactNode;
 }) {
   const {data: groups} = useIndicoAxios(groupsURL({}));
@@ -110,7 +110,7 @@ function AffiliationListField({
     () =>
       showExtraInfo && (affiliationKey || groupKey || tagKey)
         ? {
-            url: extraInfoURL({}),
+            url: aggregateExtraInfoURL({}),
             method: 'POST',
             data: {
               affiliation_ids: value.affiliations.map(a => a.id),
@@ -239,7 +239,7 @@ function AffiliationListField({
           initialValues={value.affiliations}
           groups={groups ?? null}
           tags={tags ?? null}
-          extraInfoURL={modalExtraInfoURL}
+          extraInfoURL={extraInfoURL}
           renderItemExtra={renderItemExtra}
         />
       )}
