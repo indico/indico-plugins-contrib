@@ -13,6 +13,7 @@ import PropTypes from 'prop-types';
 import React, {useEffect, useState} from 'react';
 import {Dropdown} from 'semantic-ui-react';
 
+import {FinalField} from 'indico/react/forms';
 import {Translate} from 'indico/react/i18n';
 import {handleAxiosError, indicoAxios} from 'indico/utils/axios';
 
@@ -37,6 +38,14 @@ function useCountries() {
   }, []);
   return countries;
 }
+
+export function FinalCountryDropdown({name, ...rest}) {
+  return <FinalField name={name} component={CountryDropdown} {...rest} />;
+}
+
+FinalCountryDropdown.propTypes = {
+  name: PropTypes.string.isRequired,
+};
 
 export default function CountryDropdown({value, onChange, fluid}) {
   const countries = useCountries();

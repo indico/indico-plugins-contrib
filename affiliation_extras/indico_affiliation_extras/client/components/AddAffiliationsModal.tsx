@@ -6,27 +6,19 @@
 // MIT License see the LICENSE file for more details.
 
 import React, {useState} from 'react';
-import {
-  Button,
-  Dropdown,
-  Form,
-  Grid,
-  Icon,
-  Input,
-  Label,
-  List,
-  Loader,
-  Modal,
-} from 'semantic-ui-react';
+import {Form as FinalForm} from 'react-final-form';
+import {Button, Form, Grid, Icon, Label, List, Loader, Modal} from 'semantic-ui-react';
 
 import {Affiliation} from 'indico/modules/users/affiliations/types';
+import {FinalDropdown, FinalInput, validators} from 'indico/react/forms';
 import {PluralTranslate, Singular, Plural, Param, Translate} from 'indico/react/i18n';
 import {indicoAxios} from 'indico/utils/axios';
+import {snakifyKeys} from 'indico/utils/case';
 
 import {GroupInfo, TagInfo} from '../types';
 
 // XXX: import from 'indico/react/components' when https://github.com/indico/indico/pull/7429 is merged.
-import CountryDropdown from './CountryDropdown';
+import {FinalCountryDropdown} from './CountryDropdown';
 
 import './AddAffiliationsModal.module.scss';
 
@@ -40,6 +32,13 @@ interface SearchFilters {
   tagIds: number[];
   countryCode: string;
 }
+
+const initialSearchFilters: SearchFilters = {
+  q: '',
+  groupIds: [],
+  tagIds: [],
+  countryCode: '',
+};
 
 interface ResultSectionProps {
   items: AffiliationWithExtraInfo[];
@@ -97,25 +96,10 @@ export default function AddAffiliationsModal({
   extraInfoURL = null,
   renderItemExtra = null,
 }: AddAffiliationsModalProps) {
-  const [searchInput, setSearchInput] = useState('');
-  const [groupIds, setGroupIds] = useState<number[]>([]);
-  const [tagIds, setTagIds] = useState<number[]>([]);
-  const [countryCode, setCountryCode] = useState('');
-  const [activeFilters, setActiveFilters] = useState<SearchFilters | null>(null);
+  const [hasSearched, setHasSearched] = useState(false);
   const [affiliations, setAffiliations] = useState<AffiliationWithExtraInfo[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [values, setValues] = useState<AffiliationWithExtraInfo[]>(initialValues);
-
-  const hasSearched = activeFilters !== null;
-  const canSearch = !!searchInput.trim();
-  const filtersUnchanged =
-    activeFilters !== null &&
-    activeFilters.q === searchInput &&
-    activeFilters.countryCode === countryCode &&
-    activeFilters.groupIds.length === groupIds.length &&
-    activeFilters.groupIds.every((id, i) => id === groupIds[i]) &&
-    activeFilters.tagIds.length === tagIds.length &&
-    activeFilters.tagIds.every((id, i) => id === tagIds[i]);
 
   const toggle = (item: AffiliationWithExtraInfo) => {
     setValues(prev =>
@@ -132,23 +116,14 @@ export default function AddAffiliationsModal({
     values.some(i => !initialIds.has(i.id)) ||
     initialValues.some(i => !values.some(s => s.id === i.id));
 
-  const applySearch = async () => {
-    const newFilters = {q: searchInput, groupIds, tagIds, countryCode};
-    setActiveFilters(newFilters);
+  const applySearch = async (filters: SearchFilters) => {
+    setHasSearched(true);
     setIsLoading(true);
     setAffiliations([]);
     try {
-      const {data} = await indicoAxios.get<AffiliationWithExtraInfo[]>(
-        searchURL,
-        {
-          params: {
-            q: newFilters.q,
-            group_ids: newFilters.groupIds,
-            tag_ids: newFilters.tagIds,
-            country_code: newFilters.countryCode,
-          },
-        }
-      );
+      const {data} = await indicoAxios.get<AffiliationWithExtraInfo[]>(searchURL, {
+        params: snakifyKeys(filters),
+      });
       if (extraInfoURL && data.length) {
         const {data: extraInfoData} = await indicoAxios
           .post<Record<string, number>>(extraInfoURL, {affiliation_ids: data.map(a => a.id)})
@@ -161,15 +136,6 @@ export default function AddAffiliationsModal({
       setAffiliations([]);
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      if (canSearch && !filtersUnchanged) {
-        applySearch();
-      }
     }
   };
 
@@ -186,87 +152,87 @@ export default function AddAffiliationsModal({
       <Modal.Content scrolling>
         <Grid>
           <Grid.Column width={4}>
-            <Form>
-              <Form.Field required>
-                <label>
-                  <Translate>Affiliation name</Translate>
-                </label>
-                <Input
-                  value={searchInput}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                    setSearchInput(e.target.value)
-                  }
-                  onKeyDown={handleKeyDown}
-                  placeholder={Translate.string('Affiliation name')}
-                  autoFocus
-                />
-              </Form.Field>
-              <Form.Field>
-                <label>
-                  <Translate>Groups</Translate>
-                </label>
-                <Dropdown
-                  fluid
-                  multiple
-                  search
-                  selection
-                  value={groupIds}
-                  options={(groups ?? []).map(group => ({
-                    key: group.id,
-                    value: group.id,
-                    text: `${group.code}: ${group.name}`,
-                  }))}
-                  onChange={(_, {value}) => setGroupIds(value as number[])}
-                  placeholder={Translate.string('Select groups...')}
-                  loading={!groups}
-                  disabled={!groups}
-                />
-              </Form.Field>
-              <Form.Field>
-                <label>
-                  <Translate>Tags</Translate>
-                </label>
-                <Dropdown
-                  fluid
-                  multiple
-                  search
-                  selection
-                  value={tagIds}
-                  options={(tags ?? []).map(tag => ({
-                    key: tag.id,
-                    value: tag.id,
-                    text: tag.name,
-                    color: tag.color,
-                    content: (
-                      <>
-                        <Label color={tag.color} /> <span style={{marginLeft: 10}}></span>{' '}
-                        {tag.name}
-                      </>
-                    ),
-                  }))}
-                  renderLabel={({color, text}) => ({color, content: text})}
-                  onChange={(_, {value}) => setTagIds(value as number[])}
-                  placeholder={Translate.string('Select tags...')}
-                  loading={!tags}
-                  disabled={!tags}
-                />
-              </Form.Field>
-              <Form.Field>
-                <label>
-                  <Translate>Country</Translate>
-                </label>
-                <CountryDropdown value={countryCode} onChange={setCountryCode} fluid />
-              </Form.Field>
-              <Button
-                type="button"
-                icon="search"
-                primary
-                content={Translate.string('Search')}
-                onClick={applySearch}
-                loading={hasSearched && isLoading}
-                disabled={!canSearch || filtersUnchanged}
-              />
-            </Form>
+            <FinalForm
+              onSubmit={applySearch}
+              initialValues={initialSearchFilters}
+              subscription={{
+                dirtySinceLastSubmit: true,
+                hasValidationErrors: true,
+                pristine: true,
+                submitting: true,
+                submitSucceeded: true,
+              }}
+            >
+              {fprops => (
+                <Form onSubmit={fprops.handleSubmit}>
+                  <FinalInput
+                    name="q"
+                    label={Translate.string('Affiliation name')}
+                    required
+                    validate={(value: string) => validators.required((value || '').trim())}
+                    placeholder={Translate.string('Affiliation name')}
+                    autoFocus
+                  />
+                  <FinalDropdown
+                    name="groupIds"
+                    label={Translate.string('Groups')}
+                    fluid
+                    multiple
+                    search
+                    selection
+                    options={(groups ?? []).map(group => ({
+                      key: group.id,
+                      value: group.id,
+                      text: `${group.code}: ${group.name}`,
+                    }))}
+                    placeholder={Translate.string('Select groups...')}
+                    loading={!groups}
+                    disabled={!groups}
+                  />
+                  <FinalDropdown
+                    name="tagIds"
+                    label={Translate.string('Tags')}
+                    fluid
+                    multiple
+                    search
+                    selection
+                    options={(tags ?? []).map(tag => ({
+                      key: tag.id,
+                      value: tag.id,
+                      text: tag.name,
+                      color: tag.color,
+                      content: (
+                        <>
+                          <Label color={tag.color} /> <span style={{marginLeft: 10}}></span>{' '}
+                          {tag.name}
+                        </>
+                      ),
+                    }))}
+                    renderLabel={({color, text}) => ({color, content: text})}
+                    placeholder={Translate.string('Select tags...')}
+                    loading={!tags}
+                    disabled={!tags}
+                  />
+                  <FinalCountryDropdown
+                    name="countryCode"
+                    label={Translate.string('Country')}
+                    fluid
+                  />
+                  <Button
+                    type="submit"
+                    icon="search"
+                    primary
+                    content={Translate.string('Search')}
+                    loading={fprops.submitting}
+                    disabled={
+                      fprops.hasValidationErrors ||
+                      fprops.submitting ||
+                      (fprops.submitSucceeded ? !fprops.dirtySinceLastSubmit : fprops.pristine)
+                    }
+                  />
+                </Form>
+              )}
+            </FinalForm>
           </Grid.Column>
 
           {!hasSearched ? (
