@@ -29,26 +29,3 @@ def test_email_image_upload_returns_url(test_client, db, create_user, no_csrf_ch
 
     assert resp.status_code == 200
     assert resp.json['url']
-
-
-def test_extended_search_requires_query_term(test_client, db, create_user):
-    # The extended search runs through the core affiliation search, which only matches a
-    # non-empty query. Selecting a tag with no query term must yield no results.
-    admin = create_user(1, admin=True)
-    _login(test_client, admin)
-    affiliation = Affiliation(name='CERN')
-    db.session.add(affiliation)
-    db.session.flush()
-    tag = AffiliationTag(name='Tag', code='tag', color='red')
-    db.session.add(tag)
-    db.session.flush()
-    tag.affiliations.add(affiliation)
-    db.session.flush()
-
-    resp = test_client.get(
-        '/admin/plugins/affiliation_extras/affiliations/search',
-        query_string={'tag_ids': tag.id},
-    )
-
-    assert resp.status_code == 200
-    assert resp.json == []

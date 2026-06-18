@@ -345,10 +345,6 @@ class _SearchAffiliationsExtendedMixin(SearchAffiliationsMixin):
         return {'group_ids': self.group_ids, 'tag_ids': self.tag_ids, 'country_code': self.country_code}
 
 
-class RHSearchAffiliationsExtended(_SearchAffiliationsExtendedMixin, RHAdminBase):
-    """Extended affiliation search with optional group/tag/country filters (admin-only)."""
-
-
 class RHScopedAffiliationReferenceBase(RHProtected):
     """Read affiliation reference data scoped to an event or category.
 

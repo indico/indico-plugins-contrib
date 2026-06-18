@@ -107,9 +107,7 @@ export default function AddAffiliationsModal({
   const [values, setValues] = useState<AffiliationWithExtraInfo[]>(initialValues);
 
   const hasSearched = activeFilters !== null;
-  // The search runs through the core affiliation search, which requires a query term;
-  // groups, tags and country only refine it.
-  const canSearch = Boolean(searchInput.trim());
+  const canSearch = !!searchInput.trim();
   const filtersUnchanged =
     activeFilters !== null &&
     activeFilters.q === searchInput &&
@@ -189,7 +187,7 @@ export default function AddAffiliationsModal({
         <Grid>
           <Grid.Column width={4}>
             <Form>
-              <Form.Field>
+              <Form.Field required>
                 <label>
                   <Translate>Affiliation name</Translate>
                 </label>

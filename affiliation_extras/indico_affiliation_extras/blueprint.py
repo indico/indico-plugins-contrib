@@ -22,7 +22,6 @@ from indico_affiliation_extras.controllers.admin import (
     RHScopedAffiliationGroups,
     RHScopedAffiliationTags,
     RHScopedSearchAffiliationsExtended,
-    RHSearchAffiliationsExtended,
 )
 from indico_affiliation_extras.controllers.catalogs import (
     RHCloneAffiliationCatalog,
@@ -101,31 +100,22 @@ blueprint.add_url_rule(
     f'{_admin_prefix}/tags/<int:tag_id>', 'api_affiliation_tag', RHAffiliationTag, methods=('GET', 'PATCH', 'DELETE')
 )
 blueprint.add_url_rule(f'{_admin_prefix}/contact-lists/names', 'api_contact_list_names', RHContactListNames)
-blueprint.add_url_rule(
-    f'{_admin_prefix}/affiliations/search',
-    'api_search_affiliations_extended',
-    RHSearchAffiliationsExtended,
-    methods=('GET',),
-)
 _regform_prefix = f'{_admin_prefix}/events/<int:event_id>/regforms/<int:reg_form_id>'
 
 blueprint.add_url_rule(
     f'{_regform_prefix}/affiliations',
     'api_reg_form_affiliations',
     RHRegFormAffiliations,
-    methods=('GET',),
 )
 blueprint.add_url_rule(
     f'{_regform_prefix}/affiliation-groups',
     'api_reg_form_affiliation_groups',
     RHRegFormAffiliationGroups,
-    methods=('GET',),
 )
 blueprint.add_url_rule(
     f'{_regform_prefix}/affiliation-tags',
     'api_reg_form_affiliation_tags',
     RHRegFormAffiliationTags,
-    methods=('GET',),
 )
 blueprint.add_url_rule(
     f'{_regform_prefix}/affiliations/user-count',
@@ -224,19 +214,16 @@ for object_type in ('event', 'category'):
         'api_scoped_affiliation_groups',
         RHScopedAffiliationGroups,
         defaults=defaults,
-        methods=('GET',),
     )
     blueprint.add_url_rule(
         f'{prefix}/api/affiliations/tags',
         'api_scoped_affiliation_tags',
         RHScopedAffiliationTags,
         defaults=defaults,
-        methods=('GET',),
     )
     blueprint.add_url_rule(
         f'{prefix}/api/affiliations/search',
         'api_scoped_search_affiliations',
         RHScopedSearchAffiliationsExtended,
         defaults=defaults,
-        methods=('GET',),
     )

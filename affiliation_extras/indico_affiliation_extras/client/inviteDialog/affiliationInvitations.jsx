@@ -61,7 +61,8 @@ const affiliationInvitations = {
     if (!v || Array.isArray(v)) {
       return 0;
     }
-    const rowCount = (v.affiliations?.length ?? 0) + (v.groups?.length ?? 0) + (v.tags?.length ?? 0);
+    const rowCount =
+      (v.affiliations?.length ?? 0) + (v.groups?.length ?? 0) + (v.tags?.length ?? 0);
     if (rowCount === 0) {
       return 0;
     }
