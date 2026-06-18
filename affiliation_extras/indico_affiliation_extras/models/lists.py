@@ -64,6 +64,17 @@ list_tag_link_table = db.Table(
 db.Index(None, list_tag_link_table.c.tag_id)
 
 
+def _get_next_position(context):
+    catalog_id = context.current_parameters['catalog_id']
+    res = (
+        db.session
+        .query(db.func.max(AffiliationList.position))
+        .filter(AffiliationList.catalog_id == catalog_id)
+        .scalar()
+    )
+    return (res or 0) + 1
+
+
 class AffiliationList(db.Model):
     __tablename__ = 'affiliation_lists'
     __table_args__ = {'schema': 'plugin_affiliation_extras'}
@@ -75,7 +86,7 @@ class AffiliationList(db.Model):
         nullable=False,
         index=True,
     )
-    position = db.Column(db.Integer, nullable=False)
+    position = db.Column(db.Integer, nullable=False, default=_get_next_position)
     name = db.Column(db.String, nullable=False, default='')
     is_enabled = db.Column(db.Boolean, nullable=False, default=True)
 

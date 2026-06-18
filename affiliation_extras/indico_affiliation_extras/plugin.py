@@ -26,6 +26,7 @@ from indico_affiliation_extras.blueprint import blueprint
 from indico_affiliation_extras.fields import RepresentationField, iter_representation_reglist_items
 from indico_affiliation_extras.schemas import AffiliationExtraAttrsArgs, AffiliationExtraAttrsSchema
 from indico_affiliation_extras.util import (
+    get_extended_affiliation_filters,
     get_representation_affiliation_filters,
     populate_contacts,
     populate_memberships,
@@ -60,7 +61,7 @@ class AffiliationExtrasPlugin(IndicoPlugin):
         self.connect(signals.plugin.schema_pre_load, self._capture_affiliation_extra_attrs, sender=AffiliationArgs)
         self.connect(signals.affiliations.affiliation_created, self._set_affiliation_extra_attrs)
         self.connect(signals.affiliations.affiliation_updated, self._set_affiliation_extra_attrs)
-        self.connect(signals.affiliations.get_affiliation_filters, self._restrict_affiliations_for_representation)
+        self.connect(signals.affiliations.get_affiliation_filters, self._get_affiliation_filters)
         self.connect(signals.event.registrant_list_items, self._get_registrant_list_items)
         self.connect(signals.menu.items, self._category_sidemenu_items, sender='category-management-sidemenu')
         self.connect(signals.menu.items, self._event_sidemenu_items, sender='event-management-sidemenu')
@@ -135,5 +136,5 @@ class AffiliationExtrasPlugin(IndicoPlugin):
     def _get_registrant_list_items(self, sender, **kwargs):
         yield from iter_representation_reglist_items(sender)
 
-    def _restrict_affiliations_for_representation(self, sender, context, **kwargs):
-        return get_representation_affiliation_filters(context)
+    def _get_affiliation_filters(self, sender, context, **kwargs):
+        return get_representation_affiliation_filters(context) + get_extended_affiliation_filters(context)

@@ -10,25 +10,30 @@
 import mimetypes
 from uuid import UUID
 
-from flask import jsonify, session
+from flask import jsonify, request, session
 from marshmallow import fields, validate
 from webargs.flaskparser import abort
+from werkzeug.exceptions import Forbidden
 
 from indico.core.db import db
-from indico.core.db.sqlalchemy.searchable import fts_matches
 from indico.core.notifications import make_email, send_email
 from indico.core.plugins import get_plugin_template_module
 from indico.modules.admin import RHAdminBase
+from indico.modules.categories.models.categories import Category
+from indico.modules.events.models.events import Event
 from indico.modules.files.controllers import UploadFileMixin
 from indico.modules.files.models.files import File
+from indico.modules.files.util import validate_upload_file_size
 from indico.modules.logs.models.entries import AppLogEntry, AppLogRealm, LogKind
 from indico.modules.logs.util import make_diff_log
 from indico.modules.users.models.affiliations import Affiliation
-from indico.modules.users.schemas import AffiliationSchema
+from indico.modules.users.util import SearchAffiliationsMixin
+from indico.util.i18n import _
 from indico.util.marshmallow import LowercaseString, ModelField, ModelList, no_relative_urls, not_empty
 from indico.util.placeholders import get_sorted_placeholders, replace_placeholders
 from indico.util.string import validate_email
 from indico.web.args import use_kwargs, use_rh_args, use_rh_kwargs
+from indico.web.rh import RHProtected
 
 from indico_affiliation_extras.models.groups import AffiliationGroup
 from indico_affiliation_extras.models.tags import AffiliationTag
@@ -158,10 +163,11 @@ class RHEmailRepresentativesImageUpload(UploadFileMixin, RHAdminBase):
 
     @use_kwargs({'file': fields.Raw(required=True, data_key='upload')}, location='files')
     def _process(self, file):
-        response, __ = UploadFileMixin._process.__wrapped__(self, file)
-        file_uuid = response.get_json()['uuid']
-        file_obj = File.query.filter_by(uuid=UUID(file_uuid)).one()
-        db.session.refresh(file_obj)
+        if not validate_upload_file_size(file):
+            abort(422, messages={'file': [_('The uploaded file is too large')]})
+        response, __ = self._save_file(file, file.stream)
+        file_obj = File.query.filter_by(uuid=UUID(response.get_json()['uuid'])).one()
+        # TinyMCE expects the URL under `url`, not the default file schema
         return jsonify(url=file_obj.signed_download_url)
 
     def get_file_context(self):
@@ -313,32 +319,79 @@ class RHContactListNames(RHAdminBase):
         return jsonify(get_contact_list_names())
 
 
-class RHSearchAffiliationsExtended(RHAdminBase):
-    """Extended affiliation search with optional group/tag/country filters."""
+_extended_filter_args = {
+    'group_ids': fields.List(fields.Integer(), load_default=list),
+    'tag_ids': fields.List(fields.Integer(), load_default=list),
+    'country_code': fields.String(load_default=''),
+}
 
-    @use_kwargs(
-        {
-            'q': fields.String(load_default=''),
-            'group_ids': fields.List(fields.Integer(), load_default=list),
-            'tag_ids': fields.List(fields.Integer(), load_default=list),
-            'country_code': fields.String(load_default=''),
-        },
-        location='query',
-    )
-    def _process(self, q, group_ids, tag_ids, country_code):
-        basic_fields = ('id', 'name', 'street', 'postcode', 'city', 'country_code', 'meta')
-        if not any([q, group_ids, tag_ids, country_code]):
-            return AffiliationSchema(many=True, only=basic_fields).jsonify([])
 
-        query = Affiliation.query.filter(~Affiliation.is_deleted)
-        if country_code:
-            query = query.filter(Affiliation.country_code == country_code)
-        if tag_ids:
-            query = query.filter(Affiliation.tags.any(AffiliationTag.id.in_(tag_ids)))
-        if group_ids:
-            query = query.filter(Affiliation.groups.any(AffiliationGroup.id.in_(group_ids)))
-        if q:
-            query = query.filter(fts_matches(Affiliation.searchable_names, q))
-        query = query.order_by(db.func.indico.indico_unaccent(db.func.lower(Affiliation.name)))
+class _SearchAffiliationsExtendedMixin(SearchAffiliationsMixin):
+    """Affiliation search with optional group/tag/country filters.
 
-        return AffiliationSchema(many=True, only=basic_fields).jsonify(query.all())
+    Reuses the core search (ranking, result limit and serialization); the extra
+    filters reach it through the `get_affiliation_filters` signal via `context`.
+    """
+
+    @use_kwargs(_extended_filter_args, location='query')
+    def _process_args(self, group_ids, tag_ids, country_code):
+        super()._process_args()
+        self.group_ids = group_ids
+        self.tag_ids = tag_ids
+        self.country_code = country_code
+
+    @property
+    def context(self):
+        return {'group_ids': self.group_ids, 'tag_ids': self.tag_ids, 'country_code': self.country_code}
+
+
+class RHSearchAffiliationsExtended(_SearchAffiliationsExtendedMixin, RHAdminBase):
+    """Extended affiliation search with optional group/tag/country filters (admin-only)."""
+
+
+class RHScopedAffiliationReferenceBase(RHProtected):
+    """Read affiliation reference data scoped to an event or category.
+
+    The catalog editor (event/category managers) and the invite-by-affiliation dialog
+    (registration-form managers) read groups, tags and affiliations to build a selection.
+    Access is gated to the managers of the surrounding event or category so the data is
+    not exposed to arbitrary authenticated users. These are read-only lookups, so the
+    event-lock check is intentionally skipped.
+    """
+
+    def _check_access(self):
+        super()._check_access()
+        object_type = request.view_args['object_type']
+        if object_type == 'event':
+            event = Event.get_or_404(request.view_args['event_id'])
+            if not (
+                event.can_manage(session.user)
+                or event.can_manage(session.user, permission='registration')
+            ):
+                raise Forbidden
+        else:
+            category = Category.get_or_404(request.view_args['category_id'])
+            if not category.can_manage(session.user):
+                raise Forbidden
+
+
+class RHScopedAffiliationGroups(RHScopedAffiliationReferenceBase):
+    """Return all affiliation groups (scoped to an event or category)."""
+
+    def _process_GET(self):
+        groups = AffiliationGroup.query.filter(~AffiliationGroup.is_deleted).order_by(
+            db.func.indico.indico_unaccent(db.func.lower(AffiliationGroup.name))
+        )
+        return AffiliationGroupSchema(many=True).jsonify(groups)
+
+
+class RHScopedAffiliationTags(RHScopedAffiliationReferenceBase):
+    """Return all affiliation tags (scoped to an event or category)."""
+
+    def _process_GET(self):
+        tags = AffiliationTag.query.order_by(db.func.indico.indico_unaccent(db.func.lower(AffiliationTag.name)))
+        return AffiliationTagSchema(many=True).jsonify(tags)
+
+
+class RHScopedSearchAffiliationsExtended(_SearchAffiliationsExtendedMixin, RHScopedAffiliationReferenceBase):
+    """Extended affiliation search (scoped to an event or category)."""

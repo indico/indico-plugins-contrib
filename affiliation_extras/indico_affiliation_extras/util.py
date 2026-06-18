@@ -15,6 +15,7 @@ from uuid import UUID
 from flask import current_app, session
 from itsdangerous import BadSignature
 from lxml import html
+from sqlalchemy.orm import selectinload
 from werkzeug.exceptions import HTTPException
 
 from indico.core.config import config
@@ -24,6 +25,7 @@ from indico.modules.categories.models.categories import Category
 from indico.modules.events.models.events import Event
 from indico.modules.files.models.files import File
 from indico.modules.users.models.affiliations import Affiliation
+from indico.modules.users.models.users import User
 from indico.util.i18n import _
 from indico.util.signing import secure_serializer
 
@@ -173,6 +175,13 @@ def serialize_contact_lists(contact_lists: list[AffiliationContactList]) -> dict
     }
 
 
+def _diff_list_names(old: dict[int, dict], new: dict[int, dict]) -> tuple[list[str], list[str]] | None:
+    """Return the (old, new) sorted name summaries if they differ, else None."""
+    old_names = sorted((item['name'] for item in old.values()), key=str.lower)
+    new_names = sorted((item['name'] for item in new.values()), key=str.lower)
+    return (old_names, new_names) if old_names != new_names else None
+
+
 def populate_contacts(affiliation: Affiliation, contact_lists: list[dict]) -> tuple[_Changes, _LogFields]:
     existing_by_id = {item.id: item for item in affiliation.contact_lists}
     used_ids = set()
@@ -207,10 +216,8 @@ def populate_contacts(affiliation: Affiliation, contact_lists: list[dict]) -> tu
     log_fields: _LogFields = {}
 
     # List names changes
-    old_summary = sorted((lst['name'] for lst in old_contact_lists.values()), key=str.lower)
-    new_summary = sorted((lst['name'] for lst in new_contact_lists.values()), key=str.lower)
-    if old_summary != new_summary:
-        changes['contact_lists'] = (old_summary, new_summary)
+    if names := _diff_list_names(old_contact_lists, new_contact_lists):
+        changes['contact_lists'] = names
 
     # Individual list changes
     for id_ in old_contact_lists.keys() | new_contact_lists.keys():
@@ -298,10 +305,8 @@ def _get_catalog_list_changes(old_lists: dict[int, dict], new_lists: dict[int, d
     changes = {}
     log_fields: _LogFields = {}
 
-    old_summary = sorted((lst['name'] for lst in old_lists.values()), key=str.lower)
-    new_summary = sorted((lst['name'] for lst in new_lists.values()), key=str.lower)
-    if old_summary != new_summary:
-        changes['lists'] = (old_summary, new_summary)
+    if names := _diff_list_names(old_lists, new_lists):
+        changes['lists'] = names
 
     for id_ in old_lists.keys() | new_lists.keys():
         old_data = old_lists.get(id_, {})
@@ -335,12 +340,36 @@ def resolve_affiliations(
 ) -> list[Affiliation]:
     all_affiliations = set(affiliations)
     all_groups = set(groups)
-    for tag in tags:
-        all_affiliations.update(tag.affiliations)
-        all_groups.update(tag.groups)
-    for group in all_groups:
-        all_affiliations.update(group.affiliations)
+    if tags:
+        tags = (
+            AffiliationTag.query
+            .filter(AffiliationTag.id.in_(tag.id for tag in tags))
+            .options(selectinload(AffiliationTag.affiliations), selectinload(AffiliationTag.groups))
+            .all()
+        )
+        for tag in tags:
+            all_affiliations.update(tag.affiliations)
+            all_groups.update(tag.groups)
+    if all_groups:
+        groups = (
+            AffiliationGroup.query
+            .filter(AffiliationGroup.id.in_(group.id for group in all_groups))
+            .options(selectinload(AffiliationGroup.affiliations))
+            .all()
+        )
+        for group in groups:
+            all_affiliations.update(group.affiliations)
     return sorted(all_affiliations, key=lambda affiliation: affiliation.name.lower())
+
+
+def get_users_by_affiliation(affiliations) -> dict[int, list[User]]:
+    """Group users by their affiliation id in a single query."""
+    aff_ids = [affiliation.id for affiliation in affiliations]
+    users_by_affiliation: dict[int, list[User]] = {aff_id: [] for aff_id in aff_ids}
+    if aff_ids:
+        for user in User.query.filter(User.affiliation_id.in_(aff_ids)):
+            users_by_affiliation[user.affiliation_id].append(user)
+    return users_by_affiliation
 
 
 def resolve_object_path(obj: dict | list, path: str) -> str:
@@ -445,16 +474,6 @@ def get_default_catalog(target: Category | Event, *, only_inherited: bool = Fals
     raise TypeError(f'Unsupported target type: {type(target).__name__}')
 
 
-def get_explicit_default_catalog_on_category(category):
-    """Return the catalog explicitly set as default on a category, if any."""
-    return get_explicit_default_catalog(category)
-
-
-def get_default_catalog_on_category(category, *, only_inherited: bool = False):
-    """Return the effective default catalog for a category."""
-    return get_default_catalog(category, only_inherited=only_inherited)
-
-
 def get_representation_affiliation_lists(event: Event, *, enabled_only: bool = True) -> list[AffiliationList]:
     """Return affiliation lists configured as representation types for the event."""
     if not (catalog := get_default_catalog(event)):
@@ -495,6 +514,23 @@ def get_representation_affiliation_filters(context):
     if not affiliation_ids:
         return [db.false()]
     return [Affiliation.id.in_(affiliation_ids)]
+
+
+def get_extended_affiliation_filters(context):
+    """Build affiliation search filters from group/tag/country search params.
+
+    Returns the clauses ANDed into the affiliation search by the
+    `get_affiliation_filters` signal. The context only carries these keys for
+    the extended-search endpoints, so any other search gets no extra filters.
+    """
+    filters = []
+    if country_code := context.get('country_code'):
+        filters.append(Affiliation.country_code == country_code)
+    if tag_ids := context.get('tag_ids'):
+        filters.append(Affiliation.tags.any(AffiliationTag.id.in_(tag_ids)))
+    if group_ids := context.get('group_ids'):
+        filters.append(Affiliation.groups.any(AffiliationGroup.id.in_(group_ids)))
+    return filters
 
 
 def get_contact_list_names() -> list[str]:

@@ -5,10 +5,6 @@
 // redistribute them and/or modify them under the terms of the;
 // MIT License see the LICENSE file for more details.
 
-import groupsURL from 'indico-url:plugin_affiliation_extras.api_affiliation_groups';
-import tagsURL from 'indico-url:plugin_affiliation_extras.api_affiliation_tags';
-import aggregateExtraInfoURL from 'indico-url:plugin_affiliation_extras.api_affiliation_user_count';
-
 import _ from 'lodash';
 import React, {useEffect, useMemo, useState} from 'react';
 import {Button, Dropdown, Icon, Label, List, Segment} from 'semantic-ui-react';
@@ -38,7 +34,11 @@ function AffiliationListField({
   onBlur,
   disabled = false,
   showExtraInfo = false,
-  extraInfoURL,
+  groupsURL,
+  tagsURL,
+  searchURL,
+  userCountURL,
+  modalExtraInfoURL,
   renderItemExtra,
 }: {
   value: AffiliationListValue;
@@ -47,11 +47,15 @@ function AffiliationListField({
   onBlur?: () => void;
   disabled?: boolean;
   showExtraInfo?: boolean;
-  extraInfoURL?: string;
+  groupsURL: string;
+  tagsURL: string;
+  searchURL: string;
+  userCountURL?: string;
+  modalExtraInfoURL?: string;
   renderItemExtra?: (item: Affiliation) => React.ReactNode;
 }) {
-  const {data: groups} = useIndicoAxios(groupsURL({}));
-  const {data: tags} = useIndicoAxios(tagsURL({}));
+  const {data: groups} = useIndicoAxios(groupsURL);
+  const {data: tags} = useIndicoAxios(tagsURL);
   const [affiliationModalOpen, setAffiliationModalOpen] = useState(false);
 
   /** Notify React Final Form that this field has been interacted with. */
@@ -108,9 +112,9 @@ function AffiliationListField({
    */
   const extraInfoConfig = useMemo(
     () =>
-      showExtraInfo && (affiliationKey || groupKey || tagKey)
+      showExtraInfo && userCountURL && (affiliationKey || groupKey || tagKey)
         ? {
-            url: aggregateExtraInfoURL({}),
+            url: userCountURL,
             method: 'POST',
             data: {
               affiliation_ids: value.affiliations.map(a => a.id),
@@ -119,7 +123,7 @@ function AffiliationListField({
             },
           }
         : null,
-    [affiliationKey, groupKey, tagKey, showExtraInfo] // eslint-disable-line react-hooks/exhaustive-deps
+    [affiliationKey, groupKey, tagKey, showExtraInfo, userCountURL] // eslint-disable-line react-hooks/exhaustive-deps
   );
 
   const {data: extraInfoData} = useIndicoAxios(extraInfoConfig ?? '', {manual: !extraInfoConfig});
@@ -237,9 +241,10 @@ function AffiliationListField({
             markTouched();
           }}
           initialValues={value.affiliations}
+          searchURL={searchURL}
           groups={groups ?? null}
           tags={tags ?? null}
-          extraInfoURL={extraInfoURL}
+          extraInfoURL={modalExtraInfoURL}
           renderItemExtra={renderItemExtra}
         />
       )}

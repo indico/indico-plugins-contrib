@@ -19,6 +19,9 @@ from indico_affiliation_extras.controllers.admin import (
     RHEmailRepresentativesMetadata,
     RHEmailRepresentativesPreview,
     RHEmailRepresentativesSend,
+    RHScopedAffiliationGroups,
+    RHScopedAffiliationTags,
+    RHScopedSearchAffiliationsExtended,
     RHSearchAffiliationsExtended,
 )
 from indico_affiliation_extras.controllers.catalogs import (
@@ -45,7 +48,7 @@ from indico_affiliation_extras.controllers.regform import (
 
 blueprint = IndicoPluginBlueprint('affiliation_extras', __name__)
 
-_admin_prefix = '/api/admin/plugins/affiliation_extras'
+_admin_prefix = '/admin/plugins/affiliation_extras'
 
 
 @memoize
@@ -104,13 +107,6 @@ blueprint.add_url_rule(
     RHSearchAffiliationsExtended,
     methods=('GET',),
 )
-blueprint.add_url_rule(
-    f'{_admin_prefix}/affiliation-user-count',
-    'api_affiliation_user_count',
-    RHAffiliationUserCount,
-    methods=('POST',),
-)
-
 _regform_prefix = f'{_admin_prefix}/events/<int:event_id>/regforms/<int:reg_form_id>'
 
 blueprint.add_url_rule(
@@ -135,6 +131,12 @@ blueprint.add_url_rule(
     f'{_regform_prefix}/affiliations/user-count',
     'api_affiliation_user_count_by_ids',
     RHAffiliationUserCountByIds,
+    methods=('POST',),
+)
+blueprint.add_url_rule(
+    f'{_regform_prefix}/affiliation-user-count',
+    'api_affiliation_user_count',
+    RHAffiliationUserCount,
     methods=('POST',),
 )
 blueprint.add_url_rule(
@@ -214,4 +216,27 @@ for object_type in ('event', 'category'):
         RHResolveAffiliations,
         defaults=defaults,
         methods=('POST',),
+    )
+
+    # Scoped reference-data reads for the catalog editor and invite dialog pickers
+    blueprint.add_url_rule(
+        f'{prefix}/api/affiliations/groups',
+        'api_scoped_affiliation_groups',
+        RHScopedAffiliationGroups,
+        defaults=defaults,
+        methods=('GET',),
+    )
+    blueprint.add_url_rule(
+        f'{prefix}/api/affiliations/tags',
+        'api_scoped_affiliation_tags',
+        RHScopedAffiliationTags,
+        defaults=defaults,
+        methods=('GET',),
+    )
+    blueprint.add_url_rule(
+        f'{prefix}/api/affiliations/search',
+        'api_scoped_search_affiliations',
+        RHScopedSearchAffiliationsExtended,
+        defaults=defaults,
+        methods=('GET',),
     )

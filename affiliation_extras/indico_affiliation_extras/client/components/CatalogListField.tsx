@@ -5,15 +5,17 @@
 // redistribute them and/or modify them under the terms of the;
 // MIT License see the LICENSE file for more details.
 
+import affiliationGroupsURL from 'indico-url:plugin_affiliation_extras.api_scoped_affiliation_groups';
 import resolveAffiliationsURL from 'indico-url:plugin_affiliation_extras.api_resolve_affiliations';
+import searchAffiliationsURL from 'indico-url:plugin_affiliation_extras.api_scoped_search_affiliations';
+import affiliationTagsURL from 'indico-url:plugin_affiliation_extras.api_scoped_affiliation_tags';
 
 import _ from 'lodash';
 import React, {useMemo, useState} from 'react';
-import {Button, Confirm, Icon, Input, Loader, Modal, Popup} from 'semantic-ui-react';
+import {Button, Confirm, Icon, Input, Modal, Popup} from 'semantic-ui-react';
 
 import {FinalField} from 'indico/react/forms';
 import {FinalModalForm} from 'indico/react/forms/final-form';
-import {useIndicoAxios} from 'indico/react/hooks';
 import {Translate} from 'indico/react/i18n';
 import {SortableWrapper, useSortableItem} from 'indico/react/sortable';
 import {Affiliation} from 'indico/modules/users/affiliations/types';
@@ -55,6 +57,9 @@ interface CatalogListRowProps {
   value: CatalogItem;
   index: number;
   targetLocator: Record<string, number>;
+  groupsURL: string;
+  tagsURL: string;
+  searchURL: string;
   onChange: (value: CatalogItem) => void;
   onDelete: () => void;
   onMove: (sourceIndex: number, targetIndex: number) => void;
@@ -65,6 +70,9 @@ function CatalogListRow({
   value,
   index,
   targetLocator,
+  groupsURL,
+  tagsURL,
+  searchURL,
   onChange,
   onDelete,
   onMove,
@@ -91,7 +99,7 @@ function CatalogListRow({
 
   return (
     <tr ref={itemRef} style={{...style}} styleName={isEnabled ? null : 'row-disabled'}>
-      <td ref={handleRef} style={{width: '1.5em', cursor: 'grab'}}>
+      <td ref={handleRef} styleName="drag-handle">
         <Icon name="bars" color="grey" title={Translate.string('Drag to reorder')} />
       </td>
       <td>
@@ -103,11 +111,7 @@ function CatalogListRow({
         />
       </td>
       <td>
-        <MembersDisplay
-          groups={value.groups}
-          tags={value.tags}
-          affiliationCount={value.affiliations.length}
-        />
+        <MembersDisplay groups={value.groups} tags={value.tags} affiliations={value.affiliations} />
       </td>
       <td style={{whiteSpace: 'nowrap', width: '1px'}}>
         <Popup
@@ -188,7 +192,13 @@ function CatalogListRow({
             }
             submitLabel={Translate.string('Apply')}
           >
-            <FinalAffiliationList name="members" required />
+            <FinalAffiliationList
+              name="members"
+              groupsURL={groupsURL}
+              tagsURL={tagsURL}
+              searchURL={searchURL}
+              required
+            />
           </FinalModalForm>
         )}
         {modalOpen === 'affiliations' && (
@@ -232,6 +242,9 @@ function CatalogListField({
   targetLocator: Record<string, number>;
 }) {
   const emptyDefault = useMemo(makeDefaultList, []);
+  const groupsURL = affiliationGroupsURL(targetLocator);
+  const tagsURL = affiliationTagsURL(targetLocator);
+  const searchURL = searchAffiliationsURL(targetLocator);
   const values = _value?.length ? _value : [emptyDefault];
   const normalizePositions = (items: CatalogItem[]) =>
     items.map((item, idx) => ({
@@ -285,6 +298,9 @@ function CatalogListField({
                   index={idx}
                   value={value}
                   targetLocator={targetLocator}
+                  groupsURL={groupsURL}
+                  tagsURL={tagsURL}
+                  searchURL={searchURL}
                   canDelete={normalizedValues.length > 1}
                   onChange={newValue =>
                     handleChange(normalizedValues.map((v, i) => (i === idx ? newValue : v)))

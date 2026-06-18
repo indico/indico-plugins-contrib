@@ -207,7 +207,12 @@ class AffiliationWithUsersSchema(mm.Schema):
     def _get_users(self, obj):
         from indico.modules.users.schemas import BasicUserSchema
 
-        return BasicUserSchema(many=True).dump(obj.user_affiliations.all())
+        users_by_affiliation = self.context.get('users_by_affiliation')
+        if users_by_affiliation is not None:
+            users = users_by_affiliation.get(obj.id, [])
+        else:
+            users = obj.user_affiliations.all()
+        return BasicUserSchema(many=True).dump(users)
 
 
 class AffiliationGroupWithAffiliationsSchema(mm.Schema):

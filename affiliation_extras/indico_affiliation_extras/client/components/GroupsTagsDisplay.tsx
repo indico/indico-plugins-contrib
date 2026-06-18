@@ -6,13 +6,15 @@
 // MIT License see the LICENSE file for more details.
 
 import React from 'react';
-import {Icon, Label, Popup} from 'semantic-ui-react';
+import {Icon, Label, List, Popup} from 'semantic-ui-react';
 
-import {Translate} from 'indico/react/i18n';
+import {Param, Translate} from 'indico/react/i18n';
 
 import {GroupInfo, TagInfo} from '../types';
 
 import './GroupsTagsDisplay.module.scss';
+
+const AFFILIATION_POPUP_LIMIT = 10;
 
 function GroupsItems({groups}: {groups: GroupInfo[]}) {
   return (
@@ -82,28 +84,44 @@ export function MembersDisplay({
   groups = [],
   tags = [],
   groupTags = [],
-  affiliationCount = 0,
+  affiliations = [],
 }: {
   groups?: GroupInfo[];
   tags?: TagInfo[];
   groupTags?: TagInfo[];
-  affiliationCount?: number;
+  affiliations?: {id: number; name: string}[];
 }) {
-  if (!groups.length && !tags.length && !groupTags.length && affiliationCount === 0) {
+  if (!groups.length && !tags.length && !groupTags.length && !affiliations.length) {
     return '-';
   }
+
+  const shown = affiliations.slice(0, AFFILIATION_POPUP_LIMIT);
+  const remaining = affiliations.length - shown.length;
 
   return (
     <div styleName="items-column-container">
       <GroupsItems groups={groups} />
       <TagsItems tags={tags} groupTags={groupTags} />
-      {affiliationCount > 0 && (
+      {affiliations.length > 0 && (
         <Popup
-          content={Translate.string('Affiliations')}
+          content={
+            <List>
+              {shown.map(affiliation => (
+                <List.Item key={affiliation.id}>{affiliation.name}</List.Item>
+              ))}
+              {remaining > 0 && (
+                <List.Item>
+                  <Translate>
+                    and <Param name="count" value={remaining} /> more
+                  </Translate>
+                </List.Item>
+              )}
+            </List>
+          }
           trigger={
             <Label size="tiny" basic>
               <Icon name="university" />
-              {affiliationCount}
+              {affiliations.length}
             </Label>
           }
         />

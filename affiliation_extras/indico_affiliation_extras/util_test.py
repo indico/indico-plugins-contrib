@@ -268,6 +268,27 @@ def test_resolve_affiliations_includes_tag_groups(db):
     assert [affiliation.name for affiliation in resolved] == ['Group Only', 'Tag Only']
 
 
+def test_resolve_affiliations_uses_constant_number_of_queries(db, count_queries):
+    group_ids, tag_ids = [], []
+    for i in range(4):
+        group = _create_group(db, f'Group {i}', f'g{i}')
+        group.affiliations.add(_create_affiliation(db, f'GAff {i}'))
+        group_ids.append(group.id)
+        tag = _create_tag(db, f'Tag {i}', f't{i}')
+        tag.affiliations.add(_create_affiliation(db, f'TAff {i}'))
+        tag_ids.append(tag.id)
+    db.session.flush()
+    db.session.expire_all()
+    groups = set(AffiliationGroup.query.filter(AffiliationGroup.id.in_(group_ids)))
+    tags = set(AffiliationTag.query.filter(AffiliationTag.id.in_(tag_ids)))
+
+    with count_queries() as count:
+        util.resolve_affiliations(groups, tags, set())
+
+    # constant regardless of how many groups/tags are passed (no per-object lazy loads)
+    assert count() <= 6
+
+
 def test_populate_contacts_adds_new_contact_and_logs_summary(db):
     affiliation = _create_affiliation(db, 'CERN')
 
@@ -776,3 +797,65 @@ def test_get_representation_affiliation_filters_returns_no_matches_for_empty_aff
     results = Affiliation.query.filter(Affiliation.id == affiliation.id, *filters).all()
 
     assert results == []
+
+
+def _create_affiliation_in(db, name, country_code):
+    affiliation = _create_affiliation(db, name)
+    affiliation.country_code = country_code
+    db.session.flush()
+    return affiliation
+
+
+def test_get_extended_affiliation_filters_by_country(db):
+    de = _create_affiliation_in(db, 'Berlin Uni', 'DE')
+    fr = _create_affiliation_in(db, 'Paris Uni', 'FR')
+
+    filters = util.get_extended_affiliation_filters({'country_code': 'DE'})
+    results = Affiliation.query.filter(Affiliation.id.in_([de.id, fr.id]), *filters).all()
+
+    assert {item.id for item in results} == {de.id}
+
+
+def test_get_extended_affiliation_filters_by_tag(db):
+    tagged = _create_affiliation(db, 'Tagged')
+    other = _create_affiliation(db, 'Other')
+    tag = _create_tag(db, 'Tag', 'tag')
+    tag.affiliations.add(tagged)
+    db.session.flush()
+
+    filters = util.get_extended_affiliation_filters({'tag_ids': [tag.id]})
+    results = Affiliation.query.filter(Affiliation.id.in_([tagged.id, other.id]), *filters).all()
+
+    assert {item.id for item in results} == {tagged.id}
+
+
+def test_get_extended_affiliation_filters_by_group(db):
+    grouped = _create_affiliation(db, 'Grouped')
+    other = _create_affiliation(db, 'Other')
+    group = _create_group(db, 'Group', 'group')
+    group.affiliations.add(grouped)
+    db.session.flush()
+
+    filters = util.get_extended_affiliation_filters({'group_ids': [group.id]})
+    results = Affiliation.query.filter(Affiliation.id.in_([grouped.id, other.id]), *filters).all()
+
+    assert {item.id for item in results} == {grouped.id}
+
+
+def test_get_extended_affiliation_filters_combines_filters_with_and(db):
+    match = _create_affiliation_in(db, 'Match', 'DE')
+    wrong_country = _create_affiliation_in(db, 'Wrong country', 'FR')
+    untagged = _create_affiliation_in(db, 'Untagged', 'DE')
+    tag = _create_tag(db, 'Tag', 'tag')
+    tag.affiliations.update({match, wrong_country})
+    db.session.flush()
+
+    filters = util.get_extended_affiliation_filters({'country_code': 'DE', 'tag_ids': [tag.id]})
+    ids = [match.id, wrong_country.id, untagged.id]
+    results = Affiliation.query.filter(Affiliation.id.in_(ids), *filters).all()
+
+    assert {item.id for item in results} == {match.id}
+
+
+def test_get_extended_affiliation_filters_ignores_empty_context():
+    assert util.get_extended_affiliation_filters({}) == []
