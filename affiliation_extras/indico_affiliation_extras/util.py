@@ -187,9 +187,9 @@ def populate_contacts(affiliation: Affiliation, contact_lists: list[dict]) -> tu
         else:
             contact_id = contact.id
             if contact_id in used_ids:
-                raise UserValueError(_('Contact list IDs must be unique'))
+                raise UserValueError('Contact list IDs must be unique')
             if contact_id not in existing_by_id:
-                raise UserValueError(_('Contact list does not belong to this affiliation'))
+                raise UserValueError('Contact list does not belong to this affiliation')
             touched_ids.add(contact_id)
             used_ids.add(contact_id)
         contact.name = contact_data['name']
@@ -276,7 +276,7 @@ def _apply_catalog_lists(catalog: AffiliationCatalog, catalog_lists: list[dict])
             db.session.add(list_obj)
         else:
             if list_obj.id not in existing_by_id:
-                raise UserValueError(_('List does not belong to this catalog'))
+                raise UserValueError('List does not belong to this catalog')
             touched_ids.add(list_obj.id)
         list_obj.name = list_data['name'].strip()
         list_obj.is_enabled = list_data['is_enabled']
