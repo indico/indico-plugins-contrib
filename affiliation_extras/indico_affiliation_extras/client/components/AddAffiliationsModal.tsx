@@ -52,6 +52,7 @@ interface AddAffiliationsModalProps {
   onConfirm: (selection: AffiliationWithExtraInfo[]) => void;
   initialValues: AffiliationWithExtraInfo[];
   searchURL: string;
+  countriesURL: string;
   groups: GroupInfo[] | null;
   tags: TagInfo[] | null;
   extraInfoURL?: string | null;
@@ -91,6 +92,7 @@ export default function AddAffiliationsModal({
   onConfirm,
   initialValues,
   searchURL,
+  countriesURL,
   groups,
   tags,
   extraInfoURL = null,
@@ -216,6 +218,7 @@ export default function AddAffiliationsModal({
                   <FinalCountryDropdown
                     name="countryCode"
                     label={Translate.string('Country')}
+                    countriesURL={countriesURL}
                     fluid
                   />
                   <Button

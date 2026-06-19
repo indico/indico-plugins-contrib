@@ -51,10 +51,12 @@ def test_contact_list_emails_valid(schemas):
 
 def test_contact_lists_reject_duplicate_names(schemas):
     with pytest.raises(ValidationError, match='Contact list names must be unique'):
-        schemas.AffiliationExtraAttrsArgs().load({'contact_lists': [
-            {'id': None, 'name': 'Ops', 'emails': ['a@example.test']},
-            {'id': None, 'name': 'ops', 'emails': ['b@example.test']},
-        ]})
+        schemas.AffiliationExtraAttrsArgs().load({
+            'contact_lists': [
+                {'id': None, 'name': 'Ops', 'emails': ['a@example.test']},
+                {'id': None, 'name': 'ops', 'emails': ['b@example.test']},
+            ]
+        })
 
 
 def test_catalog_requires_at_least_one_list(schemas):
@@ -64,9 +66,10 @@ def test_catalog_requires_at_least_one_list(schemas):
 
 def test_catalog_list_requires_members(schemas):
     with pytest.raises(ValidationError, match='at least one group, tag, or affiliation'):
-        schemas.AffiliationCatalogArgs().load(
-            {'name': 'Catalog', 'lists': [{'id': None, 'name': 'Empty', 'position': 1}]}
-        )
+        schemas.AffiliationCatalogArgs().load({
+            'name': 'Catalog',
+            'lists': [{'id': None, 'name': 'Empty', 'position': 1}],
+        })
 
 
 def test_catalog_rejects_duplicate_list_names(schemas, db):

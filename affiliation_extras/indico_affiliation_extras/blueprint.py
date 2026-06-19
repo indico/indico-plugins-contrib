@@ -24,6 +24,7 @@ from indico_affiliation_extras.controllers.admin import (
     RHScopedSearchAffiliationsExtended,
 )
 from indico_affiliation_extras.controllers.catalogs import (
+    RHAffiliationCatalogCountries,
     RHCloneAffiliationCatalog,
     RHCreateAffiliationCatalog,
     RHDeleteAffiliationCatalog,
@@ -38,6 +39,7 @@ from indico_affiliation_extras.controllers.regform import (
     RHAffiliationUserCountByIds,
     RHInviteByAffiliation,
     RHManageSearchRepresentationAffiliation,
+    RHRegFormAffiliationCountries,
     RHRegFormAffiliationGroups,
     RHRegFormAffiliations,
     RHRegFormAffiliationTags,
@@ -116,6 +118,11 @@ blueprint.add_url_rule(
     f'{_regform_prefix}/affiliation-tags',
     'api_reg_form_affiliation_tags',
     RHRegFormAffiliationTags,
+)
+blueprint.add_url_rule(
+    f'{_regform_prefix}/countries',
+    'api_reg_form_countries',
+    RHRegFormAffiliationCountries,
 )
 blueprint.add_url_rule(
     f'{_regform_prefix}/affiliations/user-count',
@@ -219,6 +226,12 @@ for object_type in ('event', 'category'):
         f'{prefix}/api/affiliations/tags',
         'api_scoped_affiliation_tags',
         RHScopedAffiliationTags,
+        defaults=defaults,
+    )
+    blueprint.add_url_rule(
+        f'{prefix}/api/affiliations/countries',
+        'api_affiliation_catalog_countries',
+        RHAffiliationCatalogCountries,
         defaults=defaults,
     )
     blueprint.add_url_rule(

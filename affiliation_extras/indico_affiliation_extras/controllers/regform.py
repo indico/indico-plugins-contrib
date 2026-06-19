@@ -29,6 +29,7 @@ from indico.modules.users.util import SearchAffiliationsMixin
 from indico.util.marshmallow import LowercaseString, ModelField, no_relative_urls, not_empty
 from indico.web.args import use_kwargs
 
+from indico_affiliation_extras.controllers.compat import CountriesListMixin
 from indico_affiliation_extras.models.groups import AffiliationGroup
 from indico_affiliation_extras.models.lists import AffiliationList
 from indico_affiliation_extras.models.tags import AffiliationTag
@@ -80,6 +81,10 @@ class RHManageSearchRepresentationAffiliation(
     SearchRepresentationAffiliationsMixin, RHManageRegistrationFieldActionBase
 ):
     """Management representation affiliation search for registration managers."""
+
+
+class RHRegFormAffiliationCountries(CountriesListMixin, RHManageRegFormBase):
+    pass
 
 
 class RHRegFormAffiliations(RHManageRegFormBase):

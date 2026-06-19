@@ -26,7 +26,6 @@ from indico.modules.events.models.events import Event
 from indico.modules.files.models.files import File
 from indico.modules.users.models.affiliations import Affiliation
 from indico.modules.users.models.users import User
-from indico.util.i18n import _
 from indico.util.signing import secure_serializer
 
 from indico_affiliation_extras.models.catalogs import AffiliationCatalog

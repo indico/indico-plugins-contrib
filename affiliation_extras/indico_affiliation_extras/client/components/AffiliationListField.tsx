@@ -37,6 +37,7 @@ function AffiliationListField({
   groupsURL,
   tagsURL,
   searchURL,
+  countriesURL,
   userCountURL,
   modalExtraInfoURL,
   renderItemExtra,
@@ -50,6 +51,7 @@ function AffiliationListField({
   groupsURL: string;
   tagsURL: string;
   searchURL: string;
+  countriesURL: string;
   userCountURL?: string;
   modalExtraInfoURL?: string;
   renderItemExtra?: (item: Affiliation) => React.ReactNode;
@@ -242,6 +244,7 @@ function AffiliationListField({
           }}
           initialValues={value.affiliations}
           searchURL={searchURL}
+          countriesURL={countriesURL}
           groups={groups ?? null}
           tags={tags ?? null}
           extraInfoURL={modalExtraInfoURL}

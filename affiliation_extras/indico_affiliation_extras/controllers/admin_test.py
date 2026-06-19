@@ -7,10 +7,6 @@
 
 from io import BytesIO
 
-from indico.modules.users.models.affiliations import Affiliation
-
-from indico_affiliation_extras.models.tags import AffiliationTag
-
 
 def _login(test_client, user):
     with test_client.session_transaction() as sess:

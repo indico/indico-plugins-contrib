@@ -47,6 +47,19 @@ def test_regform_affiliations_allows_manager(test_client, db, dummy_user, dummy_
     assert resp.status_code == 200
 
 
+def test_regform_countries_denies_non_manager(test_client, db, create_user, dummy_regform):
+    _login(test_client, create_user(123))
+    resp = test_client.get(_regform_url(dummy_regform, 'countries'))
+    assert resp.status_code == 403
+
+
+def test_regform_countries_allows_manager(test_client, db, dummy_user, dummy_regform):
+    dummy_regform.event.update_principal(dummy_user, add_permissions={'registration'})
+    _login(test_client, dummy_user)
+    resp = test_client.get(_regform_url(dummy_regform, 'countries'))
+    assert resp.status_code == 200
+
+
 def test_user_count_denies_non_manager(test_client, db, create_user, dummy_regform, no_csrf_check):
     _login(test_client, create_user(123))
     resp = test_client.post(_regform_url(dummy_regform, 'affiliation-user-count'), json={})
@@ -98,6 +111,39 @@ def test_category_catalog_create_allows_manager(test_client, db, dummy_user, dum
     _login(test_client, dummy_user)
     resp = test_client.post(_catalog_create_url(f'/category/{dummy_category.id}'), json={})
     assert resp.status_code == 422
+
+
+def test_event_catalog_countries_denies_non_manager(test_client, db, create_user, dummy_event):
+    _login(test_client, create_user(123))
+    resp = test_client.get(_scoped_reference_url(f'/event/{dummy_event.id}', 'countries'))
+    assert resp.status_code == 403
+
+
+def test_event_catalog_countries_denies_regform_manager(test_client, db, dummy_user, dummy_regform):
+    dummy_regform.event.update_principal(dummy_user, add_permissions={'registration'})
+    _login(test_client, dummy_user)
+    resp = test_client.get(_scoped_reference_url(f'/event/{dummy_regform.event.id}', 'countries'))
+    assert resp.status_code == 403
+
+
+def test_event_catalog_countries_allows_manager(test_client, db, dummy_user, dummy_event):
+    dummy_event.update_principal(dummy_user, full_access=True)
+    _login(test_client, dummy_user)
+    resp = test_client.get(_scoped_reference_url(f'/event/{dummy_event.id}', 'countries'))
+    assert resp.status_code == 200
+
+
+def test_category_catalog_countries_denies_non_manager(test_client, db, create_user, dummy_category):
+    _login(test_client, create_user(123))
+    resp = test_client.get(_scoped_reference_url(f'/category/{dummy_category.id}', 'countries'))
+    assert resp.status_code == 403
+
+
+def test_category_catalog_countries_allows_manager(test_client, db, dummy_user, dummy_category):
+    dummy_category.update_principal(dummy_user, full_access=True)
+    _login(test_client, dummy_user)
+    resp = test_client.get(_scoped_reference_url(f'/category/{dummy_category.id}', 'countries'))
+    assert resp.status_code == 200
 
 
 # Reference-data reads (groups, tags, affiliation search) feed the pickers in the catalog

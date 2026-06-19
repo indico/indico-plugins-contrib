@@ -360,10 +360,7 @@ class RHScopedAffiliationReferenceBase(RHProtected):
         object_type = request.view_args['object_type']
         if object_type == 'event':
             event = Event.get_or_404(request.view_args['event_id'])
-            if not (
-                event.can_manage(session.user)
-                or event.can_manage(session.user, permission='registration')
-            ):
+            if not (event.can_manage(session.user) or event.can_manage(session.user, permission='registration')):
                 raise Forbidden
         else:
             category = Category.get_or_404(request.view_args['category_id'])
