@@ -527,7 +527,12 @@ def get_extended_affiliation_filters(context):
     if country_code := context.get('country_code'):
         filters.append(Affiliation.country_code == country_code)
     if tag_ids := context.get('tag_ids'):
-        filters.append(Affiliation.tags.any(AffiliationTag.id.in_(tag_ids)))
+        filters.append(
+            db.or_(
+                Affiliation.tags.any(AffiliationTag.id.in_(tag_ids)),
+                Affiliation.groups.any(AffiliationGroup.tags.any(AffiliationTag.id.in_(tag_ids))),
+            )
+        )
     if group_ids := context.get('group_ids'):
         filters.append(Affiliation.groups.any(AffiliationGroup.id.in_(group_ids)))
     return filters

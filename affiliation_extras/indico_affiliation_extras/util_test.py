@@ -829,6 +829,23 @@ def test_get_extended_affiliation_filters_by_tag(db):
     assert {item.id for item in results} == {tagged.id}
 
 
+def test_get_extended_affiliation_filters_by_group_tag(db):
+    grouped = _create_affiliation(db, 'Grouped')
+    tagged = _create_affiliation(db, 'Tagged')
+    other = _create_affiliation(db, 'Other')
+    group = _create_group(db, 'Group', 'group')
+    tag = _create_tag(db, 'Tag', 'tag')
+    group.affiliations.add(grouped)
+    group.tags.add(tag)
+    tag.affiliations.add(tagged)
+    db.session.flush()
+
+    filters = util.get_extended_affiliation_filters({'tag_ids': [tag.id]})
+    results = Affiliation.query.filter(Affiliation.id.in_([grouped.id, tagged.id, other.id]), *filters).all()
+
+    assert {item.id for item in results} == {grouped.id, tagged.id}
+
+
 def test_get_extended_affiliation_filters_by_group(db):
     grouped = _create_affiliation(db, 'Grouped')
     other = _create_affiliation(db, 'Other')
