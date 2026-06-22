@@ -216,7 +216,10 @@ def test_core_create_denies_plain_non_manager(test_client, db, dummy_regform, cr
 
 # -- core user search result filter (/user/search/) -------------------------------------------
 
-def test_user_search_returns_only_focal_affiliation_users(test_client, app, db, dummy_regform, create_user):
+def test_user_search_returns_only_focal_affiliation_users(test_client, app, db, dummy_regform, create_user,
+                                                          monkeypatch):
+    # The affiliation bound applies only on a restricted-search instance.
+    monkeypatch.setitem(app.config, 'INDICO', {**app.config['INDICO'], 'ALLOW_PUBLIC_USER_SEARCH': False})
     managed, other = _make_affiliations(db, dummy_regform.event)
     focal = create_user(1)
     managed.focal_points.add(focal)
@@ -233,7 +236,8 @@ def test_user_search_returns_only_focal_affiliation_users(test_client, app, db, 
     assert theirs.id not in returned_ids
 
 
-def test_user_search_drops_other_affiliation_users(test_client, app, db, dummy_regform, create_user):
+def test_user_search_drops_other_affiliation_users(test_client, app, db, dummy_regform, create_user, monkeypatch):
+    monkeypatch.setitem(app.config, 'INDICO', {**app.config['INDICO'], 'ALLOW_PUBLIC_USER_SEARCH': False})
     managed, other = _make_affiliations(db, dummy_regform.event)
     focal = create_user(1)
     managed.focal_points.add(focal)
@@ -247,6 +251,24 @@ def test_user_search_drops_other_affiliation_users(test_client, app, db, dummy_r
     assert resp.status_code == 200
     returned_affiliation_ids = {u['affiliation_id'] for u in resp.json['users']}
     assert returned_affiliation_ids <= {managed.id}
+
+
+def test_user_search_unbounded_when_public_search_allowed(test_client, app, db, dummy_regform, create_user):
+    # With public user search allowed (the Indico default), a focal point's search is not bounded:
+    # users from other affiliations come back too, so a dual-hat focal point/manager is not hindered.
+    managed, other = _make_affiliations(db, dummy_regform.event)
+    focal = create_user(1)
+    managed.focal_points.add(focal)
+    mine = _user_with_affiliation(create_user, db, 10, managed, first_name='Dan', last_name='Open')
+    theirs = _user_with_affiliation(create_user, db, 11, other, first_name='Dana', last_name='Open')
+    db.session.flush()
+    token = _search_token(app, focal)
+
+    _login(test_client, focal)
+    resp = test_client.get('/user/search/', query_string={'last_name': 'Open', 'token': token})
+    assert resp.status_code == 200
+    returned_ids = {u['id'] for u in resp.json['users']}
+    assert {mine.id, theirs.id} <= returned_ids
 
 
 # -- per-form toggle endpoint (set_focal_point_management) -------------------------------------
