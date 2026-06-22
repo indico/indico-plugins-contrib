@@ -5,7 +5,7 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-# Security invariant for focal-point registration management. On an event with an affiliation-bearing
+# Security invariant for focal-point registration management. On an event with a representation-bearing
 # registration form (focal-point management is enabled by default), a focal point is bounded to the
 # registrations of their own affiliation across EVERY registration_edit path: the per-registration
 # `Registration.can_manage` gate (which guards details, edit, delete and attachment download), the
@@ -15,17 +15,28 @@
 from flask import session
 
 from indico.modules.events.registration.lists import RegistrationListGenerator
-from indico.modules.events.registration.models.items import PersonalDataType
+from indico.modules.events.registration.models.form_fields import RegistrationFormField
 from indico.modules.events.registration.models.registrations import Registration, RegistrationData, RegistrationState
 from indico.modules.users.models.affiliations import Affiliation
+
+from indico_affiliation_extras.fields import RepresentationField
 
 
 pytest_plugins = 'indico.modules.events.registration.testing.fixtures'
 
 
-def _affiliation_field(regform):
-    return next(field for field in regform.sections[0].fields
-                if field.is_field and field.personal_data_type == PersonalDataType.affiliation)
+def _add_representation_field(db, regform):
+    field = RegistrationFormField(
+        input_type=RepresentationField.name,
+        title='Representation',
+        parent=regform.sections[0],
+        registration_form=regform,
+    )
+    field.data = {}
+    field.versioned_data = {}
+    db.session.add(field)
+    db.session.flush()
+    return field
 
 
 def _create_registration(db, regform, last_name, email):
@@ -36,9 +47,16 @@ def _create_registration(db, regform, last_name, email):
     return reg
 
 
-def _set_affiliation(db, registration, field, affiliation_id, text='CERN'):
-    db.session.add(RegistrationData(registration=registration, field_data=field.current_data,
-                                    data={'id': affiliation_id, 'text': text}))
+def _set_representation(db, registration, field, affiliation_id):
+    RegistrationData(
+        registration=registration,
+        field_data=field.current_data,
+        data={
+            'representation_id': 1,
+            'representation_name': 'Delegates',
+            'affiliation': {'id': affiliation_id, 'text': 'CERN'},
+        },
+    )
     db.session.flush()
 
 
@@ -57,11 +75,11 @@ def _setup(db, regform, create_user, *, user_id=1, full_manager=False):
     other = Affiliation(name='MIT')
     db.session.add_all([managed, other])
     db.session.flush()
-    field = _affiliation_field(regform)
+    field = _add_representation_field(db, regform)
     in_range = _create_registration(db, regform, 'Mine', 'mine@example.test')
     out_range = _create_registration(db, regform, 'Theirs', 'theirs@example.test')
-    _set_affiliation(db, in_range, field, managed.id)
-    _set_affiliation(db, out_range, field, other.id, text='MIT')
+    _set_representation(db, in_range, field, managed.id)
+    _set_representation(db, out_range, field, other.id)
     user = create_user(user_id)
     managed.focal_points.add(user)
     if full_manager:

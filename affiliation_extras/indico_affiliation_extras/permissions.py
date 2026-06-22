@@ -6,7 +6,7 @@
 # MIT License see the LICENSE file for more details.
 
 # Focal-point access model: focal-point management is enabled by default on every event that has a
-# registration form with an affiliation or representation field. While enabled, Indico grants every
+# registration form with a representation field. While enabled, Indico grants every
 # designated focal point the equivalent of `registration_edit` through the `acl.can_manage` signal,
 # so the native registration management UI lights up with no per-handler gates. The grant is then
 # *bounded* by blacklist signals (list, per-registration, search, create).
@@ -19,7 +19,6 @@
 # point is never restricted): every check here, and every blacklist restriction, is gated on
 # `is_scoped_focal_point`, which is False as soon as the user has a real grant.
 
-from indico.modules.events.registration.fields.affiliation import AffiliationField
 from indico.util.user import iter_acl
 
 from indico_affiliation_extras.fields import RepresentationField
@@ -32,14 +31,13 @@ def focal_point_management_enabled(event):
     return event_settings.get(event, 'focal_point_management_enabled')
 
 
-def _regform_has_affiliation_field(regform):
-    field_types = {AffiliationField.name, RepresentationField.name}
-    return any(field.input_type in field_types for field in regform.active_fields)
+def _regform_has_representation_field(regform):
+    return any(field.input_type == RepresentationField.name for field in regform.active_fields)
 
 
-def event_has_affiliation_regform(event):
-    """Whether the event has a non-deleted registration form with an affiliation or representation field."""
-    return any(_regform_has_affiliation_field(regform)
+def event_has_representation_regform(event):
+    """Whether the event has a non-deleted registration form with a representation field."""
+    return any(_regform_has_representation_field(regform)
                for regform in event.registration_forms if not regform.is_deleted)
 
 
@@ -63,7 +61,7 @@ def is_scoped_focal_point(event, user):
     """Whether ``user`` manages this event's registrations *only* as an affiliation focal point.
 
     True when the user is a designated focal point for at least one affiliation, focal-point
-    management is enabled on the event (the default), the event has an affiliation-bearing
+    management is enabled on the event (the default), the event has a representation-bearing
     registration form, and they do not already hold a genuine ``registration_edit`` (which would
     prevail). This single gate drives both the dynamic grant and every blacklist restriction.
     """
@@ -73,4 +71,4 @@ def is_scoped_focal_point(event, user):
         return False
     if not focal_point_management_enabled(event):
         return False
-    return event_has_affiliation_regform(event)
+    return event_has_representation_regform(event)

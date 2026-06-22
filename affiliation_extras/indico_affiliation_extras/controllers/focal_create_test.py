@@ -5,22 +5,22 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-# Tests for the focal-point create flow now built on core screens: the pre-create guardrail, core's
+# Tests for the focal-point create flow built on core screens: the pre-create guardrail, core's
 # `RHRegistrationCreate` admitting a scoped focal point, and the user-search result filter applied
-# to core's `/user/search/`. The guardrail is exercised by calling `create_registration` directly
-# in a request context (the cleanest way to assert both the raise and that nothing is persisted);
-# the rest is exercised over HTTP. Everything runs against real fixtures, no mocking.
+# to core's `/user/search/`. The guardrail is exercised by calling the plugin handler directly with
+# crafted submitted data (its representation-list validation belongs to the catalog setup tested
+# elsewhere); access and search run over HTTP. Everything runs against real fixtures, no mocking.
 
 import pytest
 from flask import session
 
 from indico.core.errors import UserValueError
 from indico.modules.events.features.util import set_feature_enabled
-from indico.modules.events.registration.models.items import PersonalDataType
-from indico.modules.events.registration.models.registrations import Registration
-from indico.modules.events.registration.util import create_registration
+from indico.modules.events.registration.models.form_fields import RegistrationFormField
 from indico.modules.users.models.affiliations import Affiliation
 from indico.util.user import make_user_search_token
+
+from indico_affiliation_extras.fields import RepresentationField
 
 
 pytest_plugins = 'indico.modules.events.registration.testing.fixtures'
@@ -35,9 +35,18 @@ def _create_url(regform):
     return f'/event/{regform.event.id}/manage/registration/{regform.id}/registrations/create'
 
 
-def _affiliation_field(regform):
-    return next(field for field in regform.sections[0].fields
-                if field.is_field and field.personal_data_type == PersonalDataType.affiliation)
+def _add_representation_field(db, regform):
+    field = RegistrationFormField(
+        input_type=RepresentationField.name,
+        title='Representation',
+        parent=regform.sections[0],
+        registration_form=regform,
+    )
+    field.data = {}
+    field.versioned_data = {}
+    db.session.add(field)
+    db.session.flush()
+    return field
 
 
 def _make_affiliations(db):
@@ -55,14 +64,20 @@ def _user_with_affiliation(create_user, db, id_, affiliation, **kwargs):
     return user
 
 
-def _registration_data(affiliation_id, email='new@example.test'):
-    """Submitted form data keyed by html_field_name, with the affiliation field populated."""
+def _registration_data(field, affiliation_id, email='new@example.test'):
+    """Submitted form data keyed by html_field_name, representing ``affiliation_id``."""
     return {
         'email': email,
         'first_name': 'New',
         'last_name': 'Person',
-        'affiliation': {'id': affiliation_id, 'text': 'CERN'},
+        field.html_field_name: {'affiliation': {'id': affiliation_id, 'text': 'CERN'}},
     }
+
+
+def _guardrail(regform, user, data, management):
+    from indico_affiliation_extras.plugin import AffiliationExtrasPlugin
+
+    AffiliationExtrasPlugin.instance._check_registration_pre_create(regform, user, data, management)
 
 
 def _search_token(app, user):
@@ -72,35 +87,30 @@ def _search_token(app, user):
         return make_user_search_token()
 
 
-# -- pre-create guardrail (direct `create_registration`) --------------------------------------
+# -- pre-create guardrail -----------------------------------------------------------------------
 
 @pytest.mark.usefixtures('request_context')
 def test_pre_create_allows_focal_with_managed_affiliation(db, dummy_regform, create_user):
     managed, __ = _make_affiliations(db)
+    field = _add_representation_field(db, dummy_regform)
     focal = create_user(1)
     managed.focal_points.add(focal)
     db.session.flush()
-    session.set_session_user(focal)
 
-    reg = create_registration(dummy_regform, _registration_data(managed.id),
-                              management=True, notify_user=False)
-    assert reg.id is not None
-    assert reg in dummy_regform.registrations
+    # representing an affiliation the focal point manages: the guardrail allows it (no raise)
+    _guardrail(dummy_regform, focal, _registration_data(field, managed.id), True)
 
 
 @pytest.mark.usefixtures('request_context')
 def test_pre_create_rejects_focal_without_managed_affiliation(db, dummy_regform, create_user):
     managed, other = _make_affiliations(db)
+    field = _add_representation_field(db, dummy_regform)
     focal = create_user(1)
     managed.focal_points.add(focal)
     db.session.flush()
-    session.set_session_user(focal)
 
     with pytest.raises(UserValueError):
-        create_registration(dummy_regform, _registration_data(other.id),
-                            management=True, notify_user=False)
-    # nothing persisted: the guardrail aborts before any DB work
-    assert Registration.query.with_parent(dummy_regform).count() == 0
+        _guardrail(dummy_regform, focal, _registration_data(field, other.id), True)
 
 
 @pytest.mark.usefixtures('request_context')
@@ -108,30 +118,25 @@ def test_pre_create_does_not_block_self_service(db, dummy_regform, create_user):
     # A focal point registering through the public form (management=False) must never be blocked,
     # even for an affiliation they do not manage.
     managed, other = _make_affiliations(db)
+    field = _add_representation_field(db, dummy_regform)
     focal = create_user(1)
     managed.focal_points.add(focal)
     db.session.flush()
-    session.set_session_user(focal)
 
-    reg = create_registration(dummy_regform, _registration_data(other.id),
-                              management=False, notify_user=False)
-    assert reg.id is not None
+    _guardrail(dummy_regform, focal, _registration_data(field, other.id), False)
 
 
 @pytest.mark.usefixtures('request_context')
 def test_pre_create_never_blocks_full_manager(db, dummy_regform, create_user):
     managed, other = _make_affiliations(db)
+    field = _add_representation_field(db, dummy_regform)
     manager = create_user(3)
     dummy_regform.event.update_principal(manager, full_access=True)
-    db.session.flush()
-    session.set_session_user(manager)
-
-    # A full manager who is also a focal point may register for any affiliation.
     managed.focal_points.add(manager)
     db.session.flush()
-    reg = create_registration(dummy_regform, _registration_data(other.id),
-                              management=True, notify_user=False)
-    assert reg.id is not None
+
+    # A full manager who is also a focal point may register for any affiliation.
+    _guardrail(dummy_regform, manager, _registration_data(field, other.id), True)
 
 
 # -- core create RH access (RHRegistrationCreate) ---------------------------------------------
@@ -139,6 +144,7 @@ def test_pre_create_never_blocks_full_manager(db, dummy_regform, create_user):
 def test_core_create_form_reachable_by_focal_point(test_client, db, dummy_regform, create_user):
     # A scoped focal point may open core's create form (GET): access passes -> not 403.
     set_feature_enabled(dummy_regform.event, 'registration', True)
+    _add_representation_field(db, dummy_regform)
     managed, __ = _make_affiliations(db)
     focal = create_user(1)
     managed.focal_points.add(focal)
@@ -152,6 +158,7 @@ def test_core_create_form_reachable_by_focal_point(test_client, db, dummy_regfor
 def test_core_create_post_reachable_by_focal_point(test_client, db, dummy_regform, create_user, no_csrf_check):
     # An invalid POST reaches the handler (access passes) and fails validation -> not 403.
     set_feature_enabled(dummy_regform.event, 'registration', True)
+    _add_representation_field(db, dummy_regform)
     managed, __ = _make_affiliations(db)
     focal = create_user(1)
     managed.focal_points.add(focal)
