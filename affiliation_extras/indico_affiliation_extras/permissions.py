@@ -13,7 +13,7 @@
 # affiliations the catalog exposes. The grant is then *bounded* by blacklist signals (list,
 # per-registration, search, create).
 #
-# A full event manager can turn focal-point management off per event from the event Affiliations
+# A registration manager can turn focal-point management off per form from the form's management
 # page. There is no per-user permission to grant: who is a focal point is resolved dynamically from
 # the affiliation focal-point assignments (managed centrally by admins on the affiliation dashboard).
 #
@@ -28,18 +28,33 @@ from indico_affiliation_extras.focal_points import focal_affiliations_for_event
 from indico_affiliation_extras.settings import event_settings
 
 
-def focal_point_management_enabled(event):
-    """Whether focal-point management is enabled on ``event`` (the default)."""
-    return event_settings.get(event, 'focal_point_management_enabled')
+def focal_point_management_enabled(regform):
+    """Whether focal-point management is enabled on ``regform`` (the default).
+
+    Enabled on every form unless a registration manager has explicitly turned it off for this one.
+    """
+    disabled = event_settings.get(regform.event, 'focal_point_disabled_regform_ids')
+    return regform.id not in disabled
 
 
-def _regform_has_representation_field(regform):
+def set_focal_point_management_enabled(regform, enabled):
+    """Turn focal-point management on or off for ``regform`` (persisted on its event)."""
+    disabled = set(event_settings.get(regform.event, 'focal_point_disabled_regform_ids'))
+    if enabled:
+        disabled.discard(regform.id)
+    else:
+        disabled.add(regform.id)
+    event_settings.set(regform.event, 'focal_point_disabled_regform_ids', sorted(disabled))
+
+
+def regform_has_representation_field(regform):
+    """Whether ``regform`` has an active representation field (the trigger for focal management)."""
     return any(field.input_type == RepresentationField.name for field in regform.active_fields)
 
 
-def event_has_representation_regform(event):
-    """Whether the event has a non-deleted registration form with a representation field."""
-    return any(_regform_has_representation_field(regform)
+def event_has_focal_managed_regform(event):
+    """Whether the event has a non-deleted representation form with focal-point management enabled."""
+    return any(regform_has_representation_field(regform) and focal_point_management_enabled(regform)
                for regform in event.registration_forms if not regform.is_deleted)
 
 
@@ -62,16 +77,14 @@ def has_genuine_registration_edit(event, user):
 def is_scoped_focal_point(event, user):
     """Whether ``user`` manages this event's registrations *only* as an affiliation focal point.
 
-    True when the user is a focal point for at least one affiliation in the event's catalog,
-    focal-point management is enabled on the event (the default), the event has a
-    representation-bearing registration form, and they do not already hold a genuine
-    ``registration_edit`` (which would prevail). This single gate drives both the dynamic grant and
-    every blacklist restriction.
+    True when the user is a focal point for at least one affiliation in the event's catalog, the
+    event has a representation-bearing form with focal-point management enabled, and they do not
+    already hold a genuine ``registration_edit`` (which would prevail). This event-level gate drives
+    the dynamic grant and dashboard discovery; the per-form toggle then bounds it (a focal point
+    holds the event-wide grant but is denied on the specific forms where it is turned off).
     """
     if not focal_affiliations_for_event(user, event):
         return False
     if has_genuine_registration_edit(event, user):
         return False
-    if not focal_point_management_enabled(event):
-        return False
-    return event_has_representation_regform(event)
+    return event_has_focal_managed_regform(event)

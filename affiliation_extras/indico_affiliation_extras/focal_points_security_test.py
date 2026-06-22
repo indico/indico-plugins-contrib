@@ -144,11 +144,46 @@ def test_non_focal_user_unaffected(db, dummy_regform, create_user, request_conte
 
 
 def test_focal_point_management_disabled_blocks_access(db, dummy_regform, create_user, request_context):
-    from indico_affiliation_extras.settings import event_settings
+    from indico_affiliation_extras.permissions import set_focal_point_management_enabled
 
     focal, in_range, __ = _setup(db, dummy_regform, create_user)
     # enabled by default: the focal point manages their in-range registration
     assert in_range.can_manage(focal, 'registration_edit') is True
-    # a full manager turns focal-point management off for this event -> the focal point loses access
-    event_settings.set(dummy_regform.event, 'focal_point_management_enabled', False)
+    # a registration manager turns focal-point management off for this form -> the focal point loses access
+    set_focal_point_management_enabled(dummy_regform, False)
     assert in_range.can_manage(focal, 'registration_edit') is False
+
+
+def test_per_form_toggle_isolates_forms(db, dummy_regform, create_regform, create_user, request_context):
+    # The toggle is per form: turning it off on one form must not affect another form on the same
+    # event. Because the grant is event-wide, the disabled form is actively denied (empty list,
+    # no per-registration access) while the still-enabled form keeps working.
+    from indico_affiliation_extras.permissions import set_focal_point_management_enabled
+
+    event = dummy_regform.event
+    managed = Affiliation(name='CERN')
+    db.session.add(managed)
+    db.session.flush()
+    _add_event_catalog(db, event, [managed])
+
+    form_a, form_b = dummy_regform, create_regform(event, title='Form B')
+    field_a = _add_representation_field(db, form_a)
+    field_b = _add_representation_field(db, form_b)
+    reg_a = _create_registration(db, form_a, 'Aye', 'a@example.test')
+    reg_b = _create_registration(db, form_b, 'Bee', 'b@example.test')
+    _set_representation(db, reg_a, field_a, managed.id)
+    _set_representation(db, reg_b, field_b, managed.id)
+    focal = create_user(1)
+    managed.focal_points.add(focal)
+    db.session.flush()
+
+    # enabled by default on both forms
+    assert reg_a.can_manage(focal, 'registration_edit') is True
+    assert reg_b.can_manage(focal, 'registration_edit') is True
+
+    # turning it off on form A denies that form only; form B stays manageable
+    set_focal_point_management_enabled(form_a, False)
+    assert reg_a.can_manage(focal, 'registration_edit') is False
+    assert reg_b.can_manage(focal, 'registration_edit') is True
+    assert _scoped_list(form_a, focal) == []
+    assert _scoped_list(form_b, focal) == [reg_b]

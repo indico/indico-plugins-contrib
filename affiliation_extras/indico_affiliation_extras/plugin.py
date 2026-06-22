@@ -8,8 +8,9 @@
 from flask import g, has_request_context, request, session
 
 from indico.core import signals
+from indico.core.db import db
 from indico.core.errors import UserValueError
-from indico.core.plugins import IndicoPlugin, url_for_plugin
+from indico.core.plugins import IndicoPlugin, render_plugin_template, url_for_plugin
 from indico.modules.events.models.events import Event
 from indico.modules.events.registration.fields.base import RegistrationFormFieldBase
 from indico.modules.events.registration.views import (
@@ -34,7 +35,11 @@ from indico_affiliation_extras.focal_points import (
     get_focal_affiliation_ids,
     get_submitted_affiliation_ids,
 )
-from indico_affiliation_extras.permissions import is_scoped_focal_point
+from indico_affiliation_extras.permissions import (
+    focal_point_management_enabled,
+    is_scoped_focal_point,
+    regform_has_representation_field,
+)
 from indico_affiliation_extras.schemas import AffiliationExtraAttrsArgs, AffiliationExtraAttrsSchema
 from indico_affiliation_extras.util import (
     get_extended_affiliation_filters,
@@ -86,6 +91,7 @@ class AffiliationExtrasPlugin(IndicoPlugin):
             self._get_email_placeholders,
             sender='affiliation-representation-email',
         )
+        self.template_hook('extra-regform-settings', self._render_regform_focal_point_setting)
 
     def get_blueprints(self):
         return blueprint
@@ -126,6 +132,17 @@ class AffiliationExtrasPlugin(IndicoPlugin):
         yield p.AffiliationPostcodePlaceholder
         yield p.AffiliationCountryPlaceholder
         yield p.AffiliationMetadataPlaceholder
+
+    def _render_regform_focal_point_setting(self, regform=None, **kwargs):
+        # Per-form toggle on the registration form's management page. Only shown for
+        # representation-bearing forms, where focal-point management is meaningful.
+        if regform is None or regform.is_deleted or not regform_has_representation_field(regform):
+            return ''
+        return render_plugin_template(
+            'regform_focal_point_setting.html',
+            regform=regform,
+            focal_point_management_enabled=focal_point_management_enabled(regform),
+        )
 
     def _category_sidemenu_items(self, sender, category, **kwargs):
         if category.can_manage(session.user):
@@ -170,9 +187,13 @@ class AffiliationExtrasPlugin(IndicoPlugin):
         # Scope a focal point's management view to the registrations of their own affiliations. This
         # criterion is what bounds the event-wide `registration_edit` grant: core applies it to the
         # list, the managed count and the per-registration `Registration.can_manage` check. Genuine
-        # managers and non-focal users are not scoped (None), so their access stays unrestricted.
+        # managers and non-focal users are not scoped (None), so their access stays unrestricted. The
+        # grant is event-wide, so on a form where focal management is turned off we actively deny
+        # (match nothing) rather than abstain, which would leave the grant unbounded there.
         if not is_scoped_focal_point(regform.event, user):
             return None
+        if not focal_point_management_enabled(regform):
+            return db.false()
         return focal_list_criterion(user, regform.event)
 
     def _check_registration_pre_create(self, regform, user, data, management, **kwargs):
@@ -183,6 +204,8 @@ class AffiliationExtrasPlugin(IndicoPlugin):
         # Genuine managers and non-focal users are not scoped, so stock Indico is unaffected.
         if not management or not is_scoped_focal_point(regform.event, user):
             return
+        if not focal_point_management_enabled(regform):
+            raise UserValueError(_('Focal-point registration management is turned off for this form.'))
         if not (get_submitted_affiliation_ids(regform, data) & focal_affiliations_for_event(user, regform.event)):
             raise UserValueError(_('As a focal point you may only register people for your own affiliations.'))
 
