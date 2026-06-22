@@ -6,10 +6,12 @@
 # MIT License see the LICENSE file for more details.
 
 # Focal-point access model: focal-point management is enabled by default on every event that has a
-# registration form with a representation field. While enabled, Indico grants every
-# designated focal point the equivalent of `registration_edit` through the `acl.can_manage` signal,
-# so the native registration management UI lights up with no per-handler gates. The grant is then
-# *bounded* by blacklist signals (list, per-registration, search, create).
+# registration form with a representation field. While enabled, Indico grants the equivalent of
+# `registration_edit` through the `acl.can_manage` signal to every focal point of an affiliation in
+# the event's catalog, so the native registration management UI lights up with no per-handler gates.
+# The catalog is what ties affiliations to an event: a focal point has reach only over the
+# affiliations the catalog exposes. The grant is then *bounded* by blacklist signals (list,
+# per-registration, search, create).
 #
 # A full event manager can turn focal-point management off per event from the event Affiliations
 # page. There is no per-user permission to grant: who is a focal point is resolved dynamically from
@@ -22,7 +24,7 @@
 from indico.util.user import iter_acl
 
 from indico_affiliation_extras.fields import RepresentationField
-from indico_affiliation_extras.focal_points import get_focal_affiliation_ids
+from indico_affiliation_extras.focal_points import focal_affiliations_for_event
 from indico_affiliation_extras.settings import event_settings
 
 
@@ -60,12 +62,13 @@ def has_genuine_registration_edit(event, user):
 def is_scoped_focal_point(event, user):
     """Whether ``user`` manages this event's registrations *only* as an affiliation focal point.
 
-    True when the user is a designated focal point for at least one affiliation, focal-point
-    management is enabled on the event (the default), the event has a representation-bearing
-    registration form, and they do not already hold a genuine ``registration_edit`` (which would
-    prevail). This single gate drives both the dynamic grant and every blacklist restriction.
+    True when the user is a focal point for at least one affiliation in the event's catalog,
+    focal-point management is enabled on the event (the default), the event has a
+    representation-bearing registration form, and they do not already hold a genuine
+    ``registration_edit`` (which would prevail). This single gate drives both the dynamic grant and
+    every blacklist restriction.
     """
-    if user is None or not get_focal_affiliation_ids(user):
+    if not focal_affiliations_for_event(user, event):
         return False
     if has_genuine_registration_edit(event, user):
         return False
