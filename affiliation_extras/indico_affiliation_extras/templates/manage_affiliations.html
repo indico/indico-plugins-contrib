@@ -1,11 +1,35 @@
 {% extends 'categories/management/base.html' if category|default(none) else 'events/management/base.html' %}
 
+{% from '_switch.html' import switch %}
+
 {% block title %}
     {% trans %}Affiliations{% endtrans %}
 {% endblock %}
 
 {% block content %}
-    <div id="affiliation-catalogs"></div>
+    {% if event|default(none) %}
+        <div class="i-box">
+            <div class="i-box-content">
+                <h3>{% trans %}Focal point management{% endtrans %}</h3>
+                <div class="flexrow f-a-center">
+                    {{ switch(id='focal_point_management_enabled', checked=focal_point_management_enabled) }}
+                    <span style="margin-left: .75em">
+                        {% trans %}Allow affiliation focal points to manage the registrations of their own affiliations on this event.{% endtrans %}
+                    </span>
+                </div>
+            </div>
+        </div>
+        <script>
+            $('#focal_point_management_enabled').ajaxCheckbox({
+                href: {{ url_for_plugin('affiliation_extras.set_focal_point_management', event) | tojson }}
+            });
+        </script>
+    {% endif %}
+    <div class="i-box">
+        <div class="i-box-content">
+            <div id="affiliation-catalogs"></div>
+        </div>
+    </div>
     <script>
         setupAffiliationCatalogs(
             document.querySelector('#affiliation-catalogs'),

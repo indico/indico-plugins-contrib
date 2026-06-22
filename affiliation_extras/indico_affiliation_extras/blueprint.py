@@ -10,6 +10,7 @@ from indico.util.caching import memoize
 from indico.web.flask.util import make_view_func
 
 from indico_affiliation_extras.controllers.admin import (
+    RHAffiliationFocalPoints,
     RHAffiliationGroup,
     RHAffiliationGroups,
     RHAffiliationTag,
@@ -32,6 +33,7 @@ from indico_affiliation_extras.controllers.catalogs import (
     RHManageCategoryAffiliations,
     RHManageEventAffiliations,
     RHResolveAffiliations,
+    RHSetFocalPointManagement,
     RHToggleDefaultCatalog,
 )
 from indico_affiliation_extras.controllers.regform import (
@@ -102,6 +104,12 @@ blueprint.add_url_rule(f'{_admin_prefix}/tags', 'api_affiliation_tags', RHAffili
 blueprint.add_url_rule(
     f'{_admin_prefix}/tags/<int:tag_id>', 'api_affiliation_tag', RHAffiliationTag, methods=('GET', 'PATCH', 'DELETE')
 )
+blueprint.add_url_rule(
+    f'{_admin_prefix}/affiliations/<int:affiliation_id>/focal-points',
+    'api_affiliation_focal_points',
+    RHAffiliationFocalPoints,
+    methods=('GET', 'PATCH'),
+)
 blueprint.add_url_rule(f'{_admin_prefix}/contact-lists/names', 'api_contact_list_names', RHContactListNames)
 _regform_prefix = f'{_admin_prefix}/events/<int:event_id>/regforms/<int:reg_form_id>'
 
@@ -163,6 +171,14 @@ blueprint.add_url_rule(
 
 # SPA page routes (React Router handles display)
 _management_page = _dispatch(RHManageEventAffiliations, RHManageCategoryAffiliations)
+
+# Event-only: toggle whether affiliation focal points may manage registrations on the event.
+blueprint.add_url_rule(
+    '/event/<int:event_id>/manage/affiliations/focal-point-management',
+    'set_focal_point_management',
+    RHSetFocalPointManagement,
+    methods=('POST',),
+)
 
 for object_type in ('event', 'category'):
     if object_type == 'category':

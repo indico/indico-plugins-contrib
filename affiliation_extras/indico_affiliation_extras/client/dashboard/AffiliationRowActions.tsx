@@ -13,6 +13,7 @@ import {Translate} from 'indico/react/i18n';
 import {ExtendedAffiliation} from '../types';
 
 import EmailAffiliations from './EmailAffiliations';
+import FocalPoints from './FocalPoints';
 
 export default function AffiliationRowActions({affiliation}: {affiliation: ExtendedAffiliation}) {
   const [modalOpen, setModalOpen] = useState<string | null>(null);
@@ -21,6 +22,7 @@ export default function AffiliationRowActions({affiliation}: {affiliation: Exten
 
   const modal = {
     email: <EmailAffiliations affiliations={[affiliation]} onClose={closeModal} />,
+    focalPoints: <FocalPoints affiliation={affiliation} onClose={closeModal} />,
   }[modalOpen];
 
   return (
@@ -32,6 +34,13 @@ export default function AffiliationRowActions({affiliation}: {affiliation: Exten
         color="grey"
         onClick={openModal('email')}
         disabled={affiliation.contact_lists.length === 0}
+      />
+      <Icon
+        name="user circle"
+        link
+        title={Translate.string('Manage focal points')}
+        color="grey"
+        onClick={openModal('focalPoints')}
       />
       {modal}
     </>
