@@ -260,8 +260,6 @@ function AddDropdown({text, options, disabled, onChange}) {
     <Dropdown
       text={text}
       button
-      upward
-      floating
       scrolling
       disabled={disabled}
       options={options}
