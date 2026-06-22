@@ -5,13 +5,12 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-# Focal-point matching: deciding which registrations a focal point may manage, based on
-# the affiliation(s) stored on the registration (not the user profile).
+# Focal-point matching: deciding which registrations a focal point may manage, based on the
+# representation field(s) on the registration, which carry the affiliation being represented.
 
 from indico.core.db import db
 from indico.modules.events import Event
 from indico.modules.events.registration.custom import CustomRegistrationListItem, RegistrationListColumn
-from indico.modules.events.registration.fields.affiliation import AffiliationField
 from indico.modules.events.registration.models.form_fields import RegistrationFormField, RegistrationFormFieldData
 from indico.modules.events.registration.models.forms import RegistrationForm
 from indico.modules.events.registration.models.registrations import Registration, RegistrationData
@@ -25,10 +24,10 @@ FOCAL_EVENT_LIMIT = 25
 
 
 def get_registration_affiliation_ids(registration):
-    """Return the affiliation ids a registration references.
+    """Return the affiliation ids a registration represents.
 
-    Scans every affiliation and representation field in the form; both store a reference
-    to a core ``Affiliation``. Free-text affiliations (``id`` is ``None``) are ignored.
+    Scans the representation field(s) in the form, the only ones that carry the semantic of
+    representing an affiliation. Free-text values (no affiliation ``id``) are ignored.
     """
     ids = set()
     for field in registration.registration_form.form_items:
@@ -41,12 +40,9 @@ def get_registration_affiliation_ids(registration):
         registration_data = registration.data_by_field.get(field.id)
         if registration_data is None or not registration_data.data:
             continue
-        if field.input_type == AffiliationField.name:
-            affiliation_id = registration_data.data.get('id')
-        elif field.input_type == RepresentationField.name:
-            affiliation_id = (registration_data.data.get('affiliation') or {}).get('id')
-        else:
+        if field.input_type != RepresentationField.name:
             continue
+        affiliation_id = (registration_data.data.get('affiliation') or {}).get('id')
         if affiliation_id is not None:
             ids.add(affiliation_id)
     return ids
@@ -57,19 +53,16 @@ def get_submitted_affiliation_ids(regform, data):
 
     Mirrors :func:`get_registration_affiliation_ids` but reads the unsaved ``data`` dict (keyed by
     each field's ``html_field_name``) instead of a stored registration. Used at create time, before
-    any registration exists. Free-text affiliations (``id`` is ``None``) are ignored.
+    any registration exists. Free-text values (no affiliation ``id``) are ignored.
     """
     ids = set()
     for field in regform.active_fields:
         value = data.get(field.html_field_name)
         if not isinstance(value, dict):
             continue
-        if field.input_type == AffiliationField.name:
-            affiliation_id = value.get('id')
-        elif field.input_type == RepresentationField.name:
-            affiliation_id = (value.get('affiliation') or {}).get('id')
-        else:
+        if field.input_type != RepresentationField.name:
             continue
+        affiliation_id = (value.get('affiliation') or {}).get('id')
         if affiliation_id is not None:
             ids.add(affiliation_id)
     return ids
@@ -97,24 +90,21 @@ def can_manage_registration(user, registration):
 def focal_list_criterion(user):
     """Build a filter that selects the registrations a user may manage as a focal point.
 
-    A registration matches when one of its affiliation or representation fields points to an
-    affiliation the user is a focal point for. The matching runs entirely in the database, so it
-    stays efficient on events with many registrations.
+    A registration matches when its representation field points to an affiliation the user is a
+    focal point for. The matching runs entirely in the database, so it stays efficient on events
+    with many registrations.
     """
     focal_ids = get_focal_affiliation_ids(user)
     if not focal_ids:
         return db.false()
-    affiliation_id = db.cast(RegistrationData.data['id'].astext, db.Integer)
     representation_id = db.cast(RegistrationData.data['affiliation']['id'].astext, db.Integer)
     return db.exists().where(db.and_(
         RegistrationData.registration_id == Registration.id,
         RegistrationData.field_data_id == RegistrationFormFieldData.id,
         RegistrationFormFieldData.field_id == RegistrationFormField.id,
         ~RegistrationFormField.is_deleted,
-        db.or_(
-            db.and_(RegistrationFormField.input_type == AffiliationField.name, affiliation_id.in_(focal_ids)),
-            db.and_(RegistrationFormField.input_type == RepresentationField.name, representation_id.in_(focal_ids)),
-        ),
+        RegistrationFormField.input_type == RepresentationField.name,
+        representation_id.in_(focal_ids),
     ))
 
 

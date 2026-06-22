@@ -5,10 +5,11 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-# Scoping tests for the management registration list: a focal point may open the reglist and
-# see only registrations of their affiliation(s). Exercises the core `filter_registration_list`
-# signal end to end (HTTP access) and the plugin's `focal_list_criterion` against a real DB,
-# covering both the core affiliation field and the plugin representation field.
+# Scoping tests for the management registration list: a focal point may open the reglist and see
+# only the registrations that represent their affiliation(s). Exercises the core
+# `filter_registration_list` signal end to end (HTTP access) and the plugin's `focal_list_criterion`
+# against a real DB. Matching keys off the representation field only; the plain affiliation field is
+# ignored.
 
 from flask import session
 
@@ -112,6 +113,7 @@ def _scoped_list(regform, user):
 
 def test_reglist_reachable_by_focal_point(test_client, db, dummy_regform, create_user):
     set_feature_enabled(dummy_regform.event, 'registration', True)
+    _add_representation_field(db, dummy_regform)
     managed, __ = _make_affiliations(db)
     focal = create_user(1)
     managed.focal_points.add(focal)
@@ -143,23 +145,6 @@ def test_reglist_reachable_by_manager(test_client, db, dummy_regform, dummy_user
 
 # -- criterion scoping ------------------------------------------------------------------------
 
-def test_criterion_matches_affiliation_field(db, dummy_regform, create_user):
-    managed, other = _make_affiliations(db)
-    field = _affiliation_field(dummy_regform)
-    mine = _create_registration(db, dummy_regform, 'Mine', 'mine@example.test')
-    theirs = _create_registration(db, dummy_regform, 'Theirs', 'theirs@example.test')
-    free_text = _create_registration(db, dummy_regform, 'Free', 'free@example.test')
-    _set_affiliation(db, mine, field, managed.id)
-    _set_affiliation(db, theirs, field, other.id, text='MIT')
-    _set_affiliation(db, free_text, field, None, text='Some University')
-
-    focal = create_user(1)
-    managed.focal_points.add(focal)
-    db.session.flush()
-
-    assert _focal_query(dummy_regform, focal) == [mine]
-
-
 def test_criterion_matches_representation_field(db, dummy_regform, create_user):
     managed, other = _make_affiliations(db)
     field = _add_representation_field(db, dummy_regform)
@@ -177,29 +162,43 @@ def test_criterion_matches_representation_field(db, dummy_regform, create_user):
     assert _focal_query(dummy_regform, focal) == [mine]
 
 
-def test_criterion_matches_both_field_types(db, dummy_regform, create_user):
-    managed, other = _make_affiliations(db)
-    affiliation_field = _affiliation_field(dummy_regform)
-    representation_field = _add_representation_field(db, dummy_regform)
-    via_affiliation = _create_registration(db, dummy_regform, 'Aff', 'aff@example.test')
-    via_representation = _create_registration(db, dummy_regform, 'Rep', 'rep@example.test')
-    excluded = _create_registration(db, dummy_regform, 'Out', 'out@example.test')
-    _set_affiliation(db, via_affiliation, affiliation_field, managed.id)
-    _set_representation(db, via_representation, representation_field, managed.id)
-    _set_affiliation(db, excluded, affiliation_field, other.id, text='MIT')
+def test_criterion_ignores_affiliation_field(db, dummy_regform, create_user):
+    # Only the representation field grants focal-point reach; the plain affiliation field is ignored.
+    managed, __ = _make_affiliations(db)
+    field = _affiliation_field(dummy_regform)
+    mine = _create_registration(db, dummy_regform, 'Mine', 'mine@example.test')
+    _set_affiliation(db, mine, field, managed.id)
 
     focal = create_user(1)
     managed.focal_points.add(focal)
     db.session.flush()
 
-    assert set(_focal_query(dummy_regform, focal)) == {via_affiliation, via_representation}
+    assert _focal_query(dummy_regform, focal) == []
+
+
+def test_criterion_matches_representation_only(db, dummy_regform, create_user):
+    # With both fields present, only the registration whose representation field points to the focal
+    # point's affiliation matches; carrying it on the plain affiliation field does not count.
+    managed, __ = _make_affiliations(db)
+    affiliation_field = _affiliation_field(dummy_regform)
+    representation_field = _add_representation_field(db, dummy_regform)
+    via_affiliation = _create_registration(db, dummy_regform, 'Aff', 'aff@example.test')
+    via_representation = _create_registration(db, dummy_regform, 'Rep', 'rep@example.test')
+    _set_affiliation(db, via_affiliation, affiliation_field, managed.id)
+    _set_representation(db, via_representation, representation_field, managed.id)
+
+    focal = create_user(1)
+    managed.focal_points.add(focal)
+    db.session.flush()
+
+    assert _focal_query(dummy_regform, focal) == [via_representation]
 
 
 def test_criterion_empty_for_non_focal(db, dummy_regform, create_user):
     managed, other = _make_affiliations(db)
-    field = _affiliation_field(dummy_regform)
+    field = _add_representation_field(db, dummy_regform)
     reg = _create_registration(db, dummy_regform, 'Mine', 'mine@example.test')
-    _set_affiliation(db, reg, field, managed.id)
+    _set_representation(db, reg, field, managed.id)
 
     non_focal = create_user(2)
     other.focal_points.add(non_focal)
@@ -226,9 +225,9 @@ def test_focal_handler_returns_criterion(db, dummy_regform, create_user):
     from indico_affiliation_extras.plugin import AffiliationExtrasPlugin
 
     managed, __ = _make_affiliations(db)
-    field = _affiliation_field(dummy_regform)
+    field = _add_representation_field(db, dummy_regform)
     mine = _create_registration(db, dummy_regform, 'Mine', 'mine@example.test')
-    _set_affiliation(db, mine, field, managed.id)
+    _set_representation(db, mine, field, managed.id)
 
     focal = create_user(1)
     managed.focal_points.add(focal)
@@ -240,14 +239,14 @@ def test_focal_handler_returns_criterion(db, dummy_regform, create_user):
 
 
 def test_generator_scopes_list_for_focal_point(db, dummy_regform, create_user, request_context):
-    # End-to-end through the real list generator: the focal point sees only their affiliation's
-    # registrations, proving the criterion reaches `_build_query`.
+    # End-to-end through the real list generator: the focal point sees only the registrations that
+    # represent their affiliation, proving the criterion reaches `_build_query`.
     managed, other = _make_affiliations(db)
-    field = _affiliation_field(dummy_regform)
+    field = _add_representation_field(db, dummy_regform)
     mine = _create_registration(db, dummy_regform, 'Mine', 'mine@example.test')
     theirs = _create_registration(db, dummy_regform, 'Theirs', 'theirs@example.test')
-    _set_affiliation(db, mine, field, managed.id)
-    _set_affiliation(db, theirs, field, other.id, text='MIT')
+    _set_representation(db, mine, field, managed.id)
+    _set_representation(db, theirs, field, other.id, text='MIT')
 
     focal = create_user(1)
     managed.focal_points.add(focal)
@@ -260,11 +259,11 @@ def test_generator_unrestricted_for_manager(db, dummy_regform, create_user, requ
     # End-to-end through the real list generator: a full manager (also a focal point) sees every
     # registration because the handler returns None and no scoping is applied.
     managed, other = _make_affiliations(db)
-    field = _affiliation_field(dummy_regform)
+    field = _add_representation_field(db, dummy_regform)
     mine = _create_registration(db, dummy_regform, 'Mine', 'mine@example.test')
     theirs = _create_registration(db, dummy_regform, 'Theirs', 'theirs@example.test')
-    _set_affiliation(db, mine, field, managed.id)
-    _set_affiliation(db, theirs, field, other.id, text='MIT')
+    _set_representation(db, mine, field, managed.id)
+    _set_representation(db, theirs, field, other.id, text='MIT')
 
     manager = create_user(3)
     managed.focal_points.add(manager)
@@ -278,9 +277,9 @@ def test_criterion_admin_override_intact(db, dummy_regform, create_user):
     # Admins reach the list through the regular ACL (allow_admin), never through this signal.
     # The criterion itself is identity-based, so an admin who is not a focal point matches nothing.
     managed, __ = _make_affiliations(db)
-    field = _affiliation_field(dummy_regform)
+    field = _add_representation_field(db, dummy_regform)
     reg = _create_registration(db, dummy_regform, 'Mine', 'mine@example.test')
-    _set_affiliation(db, reg, field, managed.id)
+    _set_representation(db, reg, field, managed.id)
 
     admin = create_user(7, admin=True)
     db.session.flush()
