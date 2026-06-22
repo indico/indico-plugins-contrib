@@ -8,6 +8,7 @@
 from flask import g, has_request_context, request, session
 
 from indico.core import signals
+from indico.core.config import config
 from indico.core.db import db
 from indico.core.errors import UserValueError
 from indico.core.plugins import IndicoPlugin, render_plugin_template, url_for_plugin
@@ -222,9 +223,12 @@ class AffiliationExtrasPlugin(IndicoPlugin):
         # pick registrants they are allowed to manage. Entries without a matching affiliation id
         # (including external users, whose id is None or -1) are dropped.
         #
-        # Dual-hat limitation: a user who is both a focal point and a full event manager gets even
-        # their generic user searches bounded here. That is acceptable for now; the focal-point role
-        # is the more restrictive one and we honor it.
+        # Only applied when the instance restricts user search (`ALLOW_PUBLIC_USER_SEARCH` off). On
+        # an open-directory instance the bound is pointless (any user can already search everyone)
+        # and would needlessly restrict a user who is both a focal point and a full manager, so we
+        # skip it there.
+        if config.ALLOW_PUBLIC_USER_SEARCH:
+            return None
         focal_ids = get_focal_affiliation_ids(user)
         if not focal_ids:
             return None
