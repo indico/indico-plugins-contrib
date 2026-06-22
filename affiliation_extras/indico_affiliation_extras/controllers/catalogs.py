@@ -65,6 +65,9 @@ class AffiliationCatalogListMixin:
         default_catalog = get_default_catalog(self.target)
         explicit_default = get_explicit_default_catalog(self.target)
         view_class = WPEventAffiliations if isinstance(self.target, Event) else WPCategoryAffiliations
+        focal_point_management_enabled = None
+        if isinstance(self.target, Event):
+            focal_point_management_enabled = event_settings.get(self.target, 'focal_point_management_enabled')
         return view_class.render_template(
             'manage_affiliations.html',
             self.target,
@@ -73,6 +76,7 @@ class AffiliationCatalogListMixin:
             inherited_catalogs=inherited_catalogs,
             default_catalog_id=default_catalog.id if default_catalog else None,
             explicit_default_catalog_id=explicit_default.id if explicit_default else None,
+            focal_point_management_enabled=focal_point_management_enabled,
             target_locator=self.target.locator,
         )
 
@@ -83,6 +87,15 @@ class RHManageCategoryAffiliations(AffiliationCatalogListMixin, RHManageCategory
 
 class RHManageEventAffiliations(AffiliationCatalogListMixin, RHManageEventBase):
     pass
+
+
+class RHSetFocalPointManagement(RHManageEventBase):
+    """Toggle whether affiliation focal points may manage registrations on this event."""
+
+    def _process(self):
+        enabled = request.form.get('enabled') == '1'
+        event_settings.set(self.event, 'focal_point_management_enabled', enabled)
+        return jsonify(enabled=enabled)
 
 
 class AffiliationAreaMixin:
