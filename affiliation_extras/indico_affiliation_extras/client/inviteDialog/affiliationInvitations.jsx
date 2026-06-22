@@ -5,10 +5,10 @@
 // redistribute them and/or modify them under the terms of the;
 // MIT License see the LICENSE file for more details.
 
-import affiliationGroupsURL from 'indico-url:plugin_affiliation_extras.api_scoped_affiliation_groups';
+import affiliationGroupsURL from 'indico-url:plugin_affiliation_extras.api_reg_form_affiliation_groups';
 import affiliationCountriesURL from 'indico-url:plugin_affiliation_extras.api_reg_form_countries';
-import searchAffiliationsURL from 'indico-url:plugin_affiliation_extras.api_scoped_search_affiliations';
-import affiliationTagsURL from 'indico-url:plugin_affiliation_extras.api_scoped_affiliation_tags';
+import searchAffiliationsURL from 'indico-url:plugin_affiliation_extras.api_reg_form_search_affiliations';
+import affiliationTagsURL from 'indico-url:plugin_affiliation_extras.api_reg_form_affiliation_tags';
 import affiliationUserCountURL from 'indico-url:plugin_affiliation_extras.api_affiliation_user_count';
 import inviteByAffiliationURL from 'indico-url:plugin_affiliation_extras.api_invite_by_affiliation';
 
@@ -19,11 +19,12 @@ import {Param, Plural, PluralTranslate, Singular} from 'indico/react/i18n';
 import FinalAffiliationList from '../components/AffiliationListField';
 
 const AffiliationField = ({eventId, regformId}) => {
+  const regformLocator = {event_id: eventId, reg_form_id: regformId};
   const countURL = affiliationUserCountURL({event_id: eventId, reg_form_id: regformId});
-  const groupsURL = affiliationGroupsURL({event_id: eventId});
-  const tagsURL = affiliationTagsURL({event_id: eventId});
-  const searchURL = searchAffiliationsURL({event_id: eventId});
-  const countriesURL = affiliationCountriesURL({event_id: eventId, reg_form_id: regformId});
+  const groupsURL = affiliationGroupsURL(regformLocator);
+  const tagsURL = affiliationTagsURL(regformLocator);
+  const searchURL = searchAffiliationsURL(regformLocator);
+  const countriesURL = affiliationCountriesURL(regformLocator);
   const renderItemExtra = item =>
     item.extraInfo !== undefined ? (
       <>

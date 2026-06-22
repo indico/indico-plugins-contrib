@@ -19,12 +19,12 @@ from indico_affiliation_extras.controllers.admin import (
     RHEmailRepresentativesMetadata,
     RHEmailRepresentativesPreview,
     RHEmailRepresentativesSend,
-    RHScopedAffiliationGroups,
-    RHScopedAffiliationTags,
-    RHScopedSearchAffiliationsExtended,
 )
 from indico_affiliation_extras.controllers.catalogs import (
     RHAffiliationCatalogCountries,
+    RHAffiliationCatalogGroups,
+    RHAffiliationCatalogSearch,
+    RHAffiliationCatalogTags,
     RHCloneAffiliationCatalog,
     RHCreateAffiliationCatalog,
     RHDeleteAffiliationCatalog,
@@ -43,6 +43,7 @@ from indico_affiliation_extras.controllers.regform import (
     RHRegFormAffiliationGroups,
     RHRegFormAffiliations,
     RHRegFormAffiliationTags,
+    RHRegFormSearchAffiliationsExtended,
     RHSearchRepresentationAffiliation,
 )
 
@@ -123,6 +124,11 @@ blueprint.add_url_rule(
     f'{_regform_prefix}/countries',
     'api_reg_form_countries',
     RHRegFormAffiliationCountries,
+)
+blueprint.add_url_rule(
+    f'{_regform_prefix}/affiliations/search',
+    'api_reg_form_search_affiliations',
+    RHRegFormSearchAffiliationsExtended,
 )
 blueprint.add_url_rule(
     f'{_regform_prefix}/affiliations/user-count',
@@ -218,14 +224,14 @@ for object_type in ('event', 'category'):
     # Scoped reference-data reads for the catalog editor and invite dialog pickers
     blueprint.add_url_rule(
         f'{prefix}/api/affiliations/groups',
-        'api_scoped_affiliation_groups',
-        RHScopedAffiliationGroups,
+        'api_affiliation_catalog_groups',
+        RHAffiliationCatalogGroups,
         defaults=defaults,
     )
     blueprint.add_url_rule(
         f'{prefix}/api/affiliations/tags',
-        'api_scoped_affiliation_tags',
-        RHScopedAffiliationTags,
+        'api_affiliation_catalog_tags',
+        RHAffiliationCatalogTags,
         defaults=defaults,
     )
     blueprint.add_url_rule(
@@ -236,7 +242,7 @@ for object_type in ('event', 'category'):
     )
     blueprint.add_url_rule(
         f'{prefix}/api/affiliations/search',
-        'api_scoped_search_affiliations',
-        RHScopedSearchAffiliationsExtended,
+        'api_affiliation_catalog_search',
+        RHAffiliationCatalogSearch,
         defaults=defaults,
     )

@@ -147,16 +147,17 @@ def test_category_catalog_countries_allows_manager(test_client, db, dummy_user, 
 
 
 # Reference-data reads (groups, tags, affiliation search) feed the pickers in the catalog
-# editor and the invite dialog. They are scoped to the surrounding event or category and
-# only its managers (or, for events, registration-form managers) may read them. The global
-# admin routes remain admin-only, and only admins write.
+# editor and the invite dialog. Catalog endpoints are scoped to the surrounding event or
+# category and only its managers may read them. Registration-form endpoints are scoped to
+# the surrounding regform and may be read by registration managers. The global admin
+# routes remain admin-only, and only admins write.
 
 SCOPED_ENDPOINTS = ('groups', 'tags', 'search')
+REGFORM_REFERENCE_ENDPOINTS = ('affiliation-groups', 'affiliation-tags', 'affiliations/search')
 
 GLOBAL_REFERENCE_URLS = (
     '/admin/plugins/affiliation_extras/groups',
     '/admin/plugins/affiliation_extras/tags',
-    '/admin/plugins/affiliation_extras/affiliations/search?q=cern',
 )
 
 
@@ -176,10 +177,25 @@ def test_scoped_reference_event_allows_manager(test_client, db, dummy_user, dumm
 
 
 @pytest.mark.parametrize('endpoint', SCOPED_ENDPOINTS)
-def test_scoped_reference_event_allows_regform_manager(test_client, db, dummy_user, dummy_regform, endpoint):
+def test_scoped_reference_event_denies_regform_manager(test_client, db, dummy_user, dummy_regform, endpoint):
     dummy_regform.event.update_principal(dummy_user, add_permissions={'registration'})
     _login(test_client, dummy_user)
     resp = test_client.get(_scoped_reference_url(f'/event/{dummy_regform.event.id}', endpoint))
+    assert resp.status_code == 403
+
+
+@pytest.mark.parametrize('endpoint', REGFORM_REFERENCE_ENDPOINTS)
+def test_regform_reference_denies_non_manager(test_client, db, create_user, dummy_regform, endpoint):
+    _login(test_client, create_user(123))
+    resp = test_client.get(_regform_url(dummy_regform, endpoint))
+    assert resp.status_code == 403
+
+
+@pytest.mark.parametrize('endpoint', REGFORM_REFERENCE_ENDPOINTS)
+def test_regform_reference_allows_regform_manager(test_client, db, dummy_user, dummy_regform, endpoint):
+    dummy_regform.event.update_principal(dummy_user, add_permissions={'registration'})
+    _login(test_client, dummy_user)
+    resp = test_client.get(_regform_url(dummy_regform, endpoint))
     assert resp.status_code == 200
 
 

@@ -23,6 +23,11 @@ from indico.util.marshmallow import ModelField, ModelList
 from indico.web.args import use_args, use_kwargs
 from indico.web.rh import RHProtected
 
+from indico_affiliation_extras.controllers.base import (
+    AffiliationGroupsMixin,
+    AffiliationTagsMixin,
+    SearchAffiliationsExtendedMixin,
+)
 from indico_affiliation_extras.controllers.compat import CountriesListMixin
 from indico_affiliation_extras.models.catalogs import AffiliationCatalog
 from indico_affiliation_extras.models.groups import AffiliationGroup
@@ -111,6 +116,20 @@ class RHAffiliationCatalogsManagementBase(RHProtected):
 
 
 class RHAffiliationCatalogCountries(CountriesListMixin, AffiliationAreaMixin, RHAffiliationCatalogsManagementBase):
+    pass
+
+
+class RHAffiliationCatalogGroups(AffiliationGroupsMixin, AffiliationAreaMixin, RHAffiliationCatalogsManagementBase):
+    pass
+
+
+class RHAffiliationCatalogTags(AffiliationTagsMixin, AffiliationAreaMixin, RHAffiliationCatalogsManagementBase):
+    pass
+
+
+class RHAffiliationCatalogSearch(
+    SearchAffiliationsExtendedMixin, AffiliationAreaMixin, RHAffiliationCatalogsManagementBase
+):
     pass
 
 

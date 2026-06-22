@@ -10,7 +10,7 @@
 
 from flask import jsonify
 from marshmallow import fields, validate
-from sqlalchemy.orm import joinedload, subqueryload
+from sqlalchemy.orm import joinedload
 from webargs.flaskparser import abort
 from werkzeug.exceptions import NotFound
 
@@ -29,13 +29,16 @@ from indico.modules.users.util import SearchAffiliationsMixin
 from indico.util.marshmallow import LowercaseString, ModelField, no_relative_urls, not_empty
 from indico.web.args import use_kwargs
 
+from indico_affiliation_extras.controllers.base import (
+    AffiliationGroupsWithUsersMixin,
+    AffiliationTagsWithUsersMixin,
+    SearchAffiliationsExtendedMixin,
+)
 from indico_affiliation_extras.controllers.compat import CountriesListMixin
 from indico_affiliation_extras.models.groups import AffiliationGroup
 from indico_affiliation_extras.models.lists import AffiliationList
 from indico_affiliation_extras.models.tags import AffiliationTag
 from indico_affiliation_extras.schemas import (
-    AffiliationGroupWithAffiliationsSchema,
-    AffiliationTagWithAffiliationsSchema,
     AffiliationWithUsersSchema,
 )
 from indico_affiliation_extras.util import get_default_catalog, get_users_by_affiliation, resolve_affiliations
@@ -87,6 +90,10 @@ class RHRegFormAffiliationCountries(CountriesListMixin, RHManageRegFormBase):
     pass
 
 
+class RHRegFormSearchAffiliationsExtended(SearchAffiliationsExtendedMixin, RHManageRegFormBase):
+    pass
+
+
 class RHRegFormAffiliations(RHManageRegFormBase):
     """Return all non-deleted affiliations with their associated users."""
 
@@ -101,35 +108,12 @@ class RHRegFormAffiliations(RHManageRegFormBase):
         return AffiliationWithUsersSchema(many=True, context=context).jsonify(affiliations)
 
 
-class RHRegFormAffiliationGroups(RHManageRegFormBase):
-    """Return all non-deleted affiliation groups with their affiliations and users."""
-
-    def _process_GET(self):
-        groups = (
-            AffiliationGroup.query
-            .filter(~AffiliationGroup.is_deleted)
-            .options(subqueryload('affiliations'))
-            .order_by(db.func.indico.indico_unaccent(db.func.lower(AffiliationGroup.name)))
-            .all()
-        )
-        affiliations = {aff for group in groups for aff in group.affiliations}
-        context = {'users_by_affiliation': get_users_by_affiliation(affiliations)}
-        return AffiliationGroupWithAffiliationsSchema(many=True, context=context).jsonify(groups)
+class RHRegFormAffiliationGroups(AffiliationGroupsWithUsersMixin, RHManageRegFormBase):
+    pass
 
 
-class RHRegFormAffiliationTags(RHManageRegFormBase):
-    """Return all affiliation tags with their affiliations and users."""
-
-    def _process_GET(self):
-        tags = (
-            AffiliationTag.query
-            .options(subqueryload('affiliations'))
-            .order_by(db.func.indico.indico_unaccent(db.func.lower(AffiliationTag.name)))
-            .all()
-        )
-        affiliations = {aff for tag in tags for aff in tag.affiliations}
-        context = {'users_by_affiliation': get_users_by_affiliation(affiliations)}
-        return AffiliationTagWithAffiliationsSchema(many=True, context=context).jsonify(tags)
+class RHRegFormAffiliationTags(AffiliationTagsWithUsersMixin, RHManageRegFormBase):
+    pass
 
 
 class RHAffiliationUserCountByIds(RHManageRegFormBase):

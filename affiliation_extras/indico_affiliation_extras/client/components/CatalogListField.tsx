@@ -5,11 +5,11 @@
 // redistribute them and/or modify them under the terms of the;
 // MIT License see the LICENSE file for more details.
 
-import affiliationGroupsURL from 'indico-url:plugin_affiliation_extras.api_scoped_affiliation_groups';
+import affiliationGroupsURL from 'indico-url:plugin_affiliation_extras.api_affiliation_catalog_groups';
 import affiliationCountriesURL from 'indico-url:plugin_affiliation_extras.api_affiliation_catalog_countries';
 import resolveAffiliationsURL from 'indico-url:plugin_affiliation_extras.api_resolve_affiliations';
-import searchAffiliationsURL from 'indico-url:plugin_affiliation_extras.api_scoped_search_affiliations';
-import affiliationTagsURL from 'indico-url:plugin_affiliation_extras.api_scoped_affiliation_tags';
+import searchAffiliationsURL from 'indico-url:plugin_affiliation_extras.api_affiliation_catalog_search';
+import affiliationTagsURL from 'indico-url:plugin_affiliation_extras.api_affiliation_catalog_tags';
 
 import _ from 'lodash';
 import React, {useMemo, useState} from 'react';
