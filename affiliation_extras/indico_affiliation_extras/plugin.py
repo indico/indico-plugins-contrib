@@ -28,6 +28,7 @@ from indico_affiliation_extras.blueprint import blueprint
 from indico_affiliation_extras.fields import RepresentationField, iter_representation_reglist_items
 from indico_affiliation_extras.focal_points import (
     RegisteredByListItem,
+    focal_affiliations_for_event,
     focal_event_ids,
     focal_list_criterion,
     get_focal_affiliation_ids,
@@ -172,7 +173,7 @@ class AffiliationExtrasPlugin(IndicoPlugin):
         # managers and non-focal users are not scoped (None), so their access stays unrestricted.
         if not is_scoped_focal_point(regform.event, user):
             return None
-        return focal_list_criterion(user)
+        return focal_list_criterion(user, regform.event)
 
     def _check_registration_pre_create(self, regform, user, data, management, **kwargs):
         # Guardrail: a scoped focal point may only create registrations for affiliations they
@@ -182,7 +183,7 @@ class AffiliationExtrasPlugin(IndicoPlugin):
         # Genuine managers and non-focal users are not scoped, so stock Indico is unaffected.
         if not management or not is_scoped_focal_point(regform.event, user):
             return
-        if not (get_submitted_affiliation_ids(regform, data) & get_focal_affiliation_ids(user)):
+        if not (get_submitted_affiliation_ids(regform, data) & focal_affiliations_for_event(user, regform.event)):
             raise UserValueError(_('As a focal point you may only register people for your own affiliations.'))
 
     def _grant_focal_point_registration_edit(self, sender, obj, user=None, permission=None, **kwargs):

@@ -16,9 +16,24 @@ from indico_affiliation_extras.focal_points import (
     get_focal_affiliation_ids,
     get_registration_affiliation_ids,
 )
+from indico_affiliation_extras.models.catalogs import AffiliationCatalog
+from indico_affiliation_extras.models.lists import AffiliationList
+from indico_affiliation_extras.settings import event_settings
 
 
 pytest_plugins = 'indico.modules.events.registration.testing.fixtures'
+
+
+def _add_event_catalog(db, event, affiliations):
+    """Make ``event``'s default catalog expose ``affiliations`` so focal points can reach them."""
+    catalog = AffiliationCatalog(name='Catalog', event=event)
+    db.session.add(catalog)
+    db.session.flush()
+    affiliation_list = AffiliationList(catalog=catalog, name='Representatives', position=1, is_enabled=True)
+    affiliation_list.affiliations.update(affiliations)
+    db.session.add(affiliation_list)
+    db.session.flush()
+    event_settings.set(event, 'default_catalog_id', catalog.id)
 
 
 def _add_representation_field(db, regform):
@@ -82,6 +97,7 @@ def test_can_manage_registration(db, dummy_regform, dummy_reg, create_user):
     other = Affiliation(name='MIT')
     db.session.add_all([managed, other])
     db.session.flush()
+    _add_event_catalog(db, dummy_regform.event, [managed, other])
     field = _add_representation_field(db, dummy_regform)
     _set_representation(db, dummy_reg, field, managed.id)
 
@@ -144,6 +160,7 @@ def test_registration_can_manage_grants_focal_point_edit(db, dummy_regform, dumm
     managed = Affiliation(name='CERN')
     db.session.add(managed)
     db.session.flush()
+    _add_event_catalog(db, dummy_regform.event, [managed])
     field = _add_representation_field(db, dummy_regform)
     _set_representation(db, dummy_reg, field, managed.id)
     focal = create_user(1)

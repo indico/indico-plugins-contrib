@@ -20,6 +20,9 @@ from indico.modules.events.registration.models.registrations import Registration
 from indico.modules.users.models.affiliations import Affiliation
 
 from indico_affiliation_extras.fields import RepresentationField
+from indico_affiliation_extras.models.catalogs import AffiliationCatalog
+from indico_affiliation_extras.models.lists import AffiliationList
+from indico_affiliation_extras.settings import event_settings
 
 
 pytest_plugins = 'indico.modules.events.registration.testing.fixtures'
@@ -66,15 +69,30 @@ def _scoped_list(regform, user):
     return RegistrationListGenerator(regform=regform).get_list_kwargs()['registrations']
 
 
+def _add_event_catalog(db, event, affiliations):
+    """Make ``event``'s default catalog expose ``affiliations`` so focal points can reach them."""
+    catalog = AffiliationCatalog(name='Catalog', event=event)
+    db.session.add(catalog)
+    db.session.flush()
+    affiliation_list = AffiliationList(catalog=catalog, name='Representatives', position=1, is_enabled=True)
+    affiliation_list.affiliations.update(affiliations)
+    db.session.add(affiliation_list)
+    db.session.flush()
+    event_settings.set(event, 'default_catalog_id', catalog.id)
+
+
 def _setup(db, regform, create_user, *, user_id=1, full_manager=False):
     """One in-range and one out-of-range registration; ``user`` is a focal point for the in-range org.
 
-    Focal-point management is enabled by default, so there is no opt-in step.
+    Focal-point management is enabled by default, so there is no opt-in step. Both affiliations are
+    exposed by the event's catalog, so the focal point's reach is bounded only by which of them they
+    are designated for.
     """
     managed = Affiliation(name='CERN')
     other = Affiliation(name='MIT')
     db.session.add_all([managed, other])
     db.session.flush()
+    _add_event_catalog(db, regform.event, [managed, other])
     field = _add_representation_field(db, regform)
     in_range = _create_registration(db, regform, 'Mine', 'mine@example.test')
     out_range = _create_registration(db, regform, 'Theirs', 'theirs@example.test')
