@@ -15,6 +15,7 @@ from indico.modules.categories.controllers.base import RHManageCategoryBase
 from indico.modules.categories.models.categories import Category
 from indico.modules.events.management.controllers import RHManageEventBase
 from indico.modules.events.models.events import Event
+from indico.modules.events.registration.controllers.management import RHManageRegFormBase
 from indico.modules.events.util import check_event_locked
 from indico.modules.logs.models.entries import LogKind
 from indico.modules.logs.util import make_diff_log
@@ -32,6 +33,7 @@ from indico_affiliation_extras.controllers.compat import CountriesListMixin
 from indico_affiliation_extras.models.catalogs import AffiliationCatalog
 from indico_affiliation_extras.models.groups import AffiliationGroup
 from indico_affiliation_extras.models.tags import AffiliationTag
+from indico_affiliation_extras.permissions import set_focal_point_management_enabled
 from indico_affiliation_extras.schemas import (
     AffiliationCatalogArgs,
     AffiliationCatalogSchema,
@@ -65,9 +67,6 @@ class AffiliationCatalogListMixin:
         default_catalog = get_default_catalog(self.target)
         explicit_default = get_explicit_default_catalog(self.target)
         view_class = WPEventAffiliations if isinstance(self.target, Event) else WPCategoryAffiliations
-        focal_point_management_enabled = None
-        if isinstance(self.target, Event):
-            focal_point_management_enabled = event_settings.get(self.target, 'focal_point_management_enabled')
         return view_class.render_template(
             'manage_affiliations.html',
             self.target,
@@ -76,7 +75,6 @@ class AffiliationCatalogListMixin:
             inherited_catalogs=inherited_catalogs,
             default_catalog_id=default_catalog.id if default_catalog else None,
             explicit_default_catalog_id=explicit_default.id if explicit_default else None,
-            focal_point_management_enabled=focal_point_management_enabled,
             target_locator=self.target.locator,
         )
 
@@ -89,12 +87,12 @@ class RHManageEventAffiliations(AffiliationCatalogListMixin, RHManageEventBase):
     pass
 
 
-class RHSetFocalPointManagement(RHManageEventBase):
-    """Toggle whether affiliation focal points may manage registrations on this event."""
+class RHSetFocalPointManagement(RHManageRegFormBase):
+    """Toggle whether affiliation focal points may manage registrations submitted through a form."""
 
     def _process(self):
         enabled = request.form.get('enabled') == '1'
-        event_settings.set(self.event, 'focal_point_management_enabled', enabled)
+        set_focal_point_management_enabled(self.regform, enabled)
         return jsonify(enabled=enabled)
 
 

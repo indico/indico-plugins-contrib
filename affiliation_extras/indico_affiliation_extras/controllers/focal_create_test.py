@@ -155,6 +155,26 @@ def test_pre_create_never_blocks_full_manager(db, dummy_regform, create_user):
     _guardrail(dummy_regform, manager, _registration_data(field, other.id), True)
 
 
+@pytest.mark.usefixtures('request_context')
+def test_pre_create_blocked_on_disabled_form(db, dummy_regform, create_regform, create_user):
+    # With management turned off on one form (but on for another, so the event-wide grant still
+    # applies), a focal point may create on the enabled form but is blocked on the disabled one.
+    from indico_affiliation_extras.permissions import set_focal_point_management_enabled
+
+    managed, __ = _make_affiliations(db, dummy_regform.event)
+    form_a, form_b = dummy_regform, create_regform(dummy_regform.event, title='Form B')
+    field_a = _add_representation_field(db, form_a)
+    field_b = _add_representation_field(db, form_b)
+    focal = create_user(1)
+    managed.focal_points.add(focal)
+    db.session.flush()
+    set_focal_point_management_enabled(form_a, False)
+
+    _guardrail(form_b, focal, _registration_data(field_b, managed.id), True)
+    with pytest.raises(UserValueError):
+        _guardrail(form_a, focal, _registration_data(field_a, managed.id), True)
+
+
 # -- core create RH access (RHRegistrationCreate) ---------------------------------------------
 
 def test_core_create_form_reachable_by_focal_point(test_client, db, dummy_regform, create_user):
@@ -227,3 +247,40 @@ def test_user_search_drops_other_affiliation_users(test_client, app, db, dummy_r
     assert resp.status_code == 200
     returned_affiliation_ids = {u['affiliation_id'] for u in resp.json['users']}
     assert returned_affiliation_ids <= {managed.id}
+
+
+# -- per-form toggle endpoint (set_focal_point_management) -------------------------------------
+
+def _toggle_url(regform):
+    return (f'/event/{regform.event.id}/manage/affiliation-extras/'
+            f'registration/{regform.id}/focal-point-management')
+
+
+def test_toggle_endpoint_denies_focal_point(test_client, db, dummy_regform, create_user, no_csrf_check):
+    # A focal point holds only the event-wide registration_edit grant, not 'registration'
+    # management, so they cannot reach the toggle and enable their own access.
+    set_feature_enabled(dummy_regform.event, 'registration', True)
+    _add_representation_field(db, dummy_regform)
+    managed, __ = _make_affiliations(db, dummy_regform.event)
+    focal = create_user(1)
+    managed.focal_points.add(focal)
+    db.session.flush()
+
+    _login(test_client, focal)
+    resp = test_client.post(_toggle_url(dummy_regform), data={'enabled': '0'})
+    assert resp.status_code == 403
+
+
+def test_toggle_endpoint_allows_manager_and_flips_flag(test_client, db, dummy_regform, dummy_user, no_csrf_check):
+    from indico_affiliation_extras.permissions import focal_point_management_enabled
+
+    set_feature_enabled(dummy_regform.event, 'registration', True)
+    _add_representation_field(db, dummy_regform)
+    dummy_regform.event.update_principal(dummy_user, full_access=True)
+    db.session.flush()
+
+    _login(test_client, dummy_user)
+    resp = test_client.post(_toggle_url(dummy_regform), data={'enabled': '0'})
+    assert resp.status_code == 200
+    assert resp.json['enabled'] is False
+    assert focal_point_management_enabled(dummy_regform) is False
