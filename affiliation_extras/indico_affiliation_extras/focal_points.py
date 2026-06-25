@@ -10,11 +10,9 @@
 
 from indico.core.db import db
 from indico.modules.events import Event
-from indico.modules.events.registration.custom import CustomRegistrationListItem, RegistrationListColumn
 from indico.modules.events.registration.models.form_fields import RegistrationFormField, RegistrationFormFieldData
 from indico.modules.events.registration.models.forms import RegistrationForm
 from indico.modules.events.registration.models.registrations import Registration, RegistrationData
-from indico.util.i18n import _
 
 from indico_affiliation_extras.fields import RepresentationField
 from indico_affiliation_extras.util import get_representation_affiliation_lists, get_representation_affiliations
@@ -174,19 +172,3 @@ def focal_event_ids(user, limit=FOCAL_EVENT_LIMIT):
                      .exists())
              .limit(limit))
     return {event_id for (event_id,) in query}
-
-
-class RegisteredByListItem(CustomRegistrationListItem):
-    """Reglist column showing who created each registration."""
-
-    name = 'affiliation_extras_registered_by'
-    title = _('Registered by')
-
-    def load_data(self, registrations):
-        rv = {}
-        for registration in registrations:
-            creator = registration.created_by
-            if creator is None:
-                continue
-            rv[registration] = RegistrationListColumn(creator.full_name, creator.full_name)
-        return rv

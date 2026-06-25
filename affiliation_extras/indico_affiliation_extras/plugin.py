@@ -29,7 +29,6 @@ from indico.web.menu import SideMenuItem
 from indico_affiliation_extras.blueprint import blueprint
 from indico_affiliation_extras.fields import RepresentationField, iter_representation_reglist_items
 from indico_affiliation_extras.focal_points import (
-    RegisteredByListItem,
     focal_affiliations_for_event,
     focal_event_ids,
     focal_list_criterion,
@@ -182,7 +181,6 @@ class AffiliationExtrasPlugin(IndicoPlugin):
 
     def _get_registrant_list_items(self, sender, **kwargs):
         yield from iter_representation_reglist_items(sender)
-        yield RegisteredByListItem
 
     def _filter_registration_list(self, regform, user, **kwargs):
         # Scope a focal point's management view to the registrations of their own affiliations. This
