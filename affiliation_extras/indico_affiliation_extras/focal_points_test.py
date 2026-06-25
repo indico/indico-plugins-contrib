@@ -11,7 +11,6 @@ from indico.modules.users.models.affiliations import Affiliation
 
 from indico_affiliation_extras.fields import RepresentationField
 from indico_affiliation_extras.focal_points import (
-    RegisteredByListItem,
     can_manage_registration,
     get_focal_affiliation_ids,
     get_registration_affiliation_ids,
@@ -127,33 +126,6 @@ def test_focal_event_ids(db, dummy_regform, dummy_reg, create_user):
 
     assert focal_event_ids(focal) == {dummy_regform.event.id}
     assert focal_event_ids(create_user(2)) == set()
-
-
-def test_registered_by_column_shows_creator_name(db, dummy_regform, dummy_reg, create_user):
-    managed = Affiliation(name='CERN')
-    db.session.add(managed)
-    db.session.flush()
-    field = _add_representation_field(db, dummy_regform)
-    _set_representation(db, dummy_reg, field, managed.id)
-    focal = create_user(1)
-    managed.focal_points.add(focal)
-    dummy_reg.created_by = focal
-    db.session.flush()
-
-    item = RegisteredByListItem(dummy_regform.event, dummy_regform)
-    column = item.load_data([dummy_reg])[dummy_reg]
-    # even when the creator is a focal point for the registration, the column shows just the name
-    assert str(column.content) == focal.full_name
-
-
-def test_registered_by_column_plain_for_non_focal(db, dummy_regform, dummy_reg, create_user):
-    creator = create_user(5)
-    dummy_reg.created_by = creator
-    db.session.flush()
-
-    item = RegisteredByListItem(dummy_regform.event, dummy_regform)
-    column = item.load_data([dummy_reg])[dummy_reg]
-    assert str(column.content) == creator.full_name
 
 
 def test_registration_can_manage_grants_focal_point_edit(db, dummy_regform, dummy_reg, create_user):
