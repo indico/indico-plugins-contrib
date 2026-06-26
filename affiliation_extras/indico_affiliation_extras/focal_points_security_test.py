@@ -5,13 +5,6 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-# Security invariant for focal-point registration management. On an event with a representation-bearing
-# registration form (focal-point management is enabled by default), a focal point is bounded to the
-# registrations of their own affiliation across EVERY registration_edit path: the per-registration
-# `Registration.can_manage` gate (which guards details, edit, delete and attachment download), the
-# management list and the managed count. A genuine manager who is also a focal point is never
-# restricted, and a non-focal user is unaffected.
-
 from flask import session
 
 from indico.modules.events.registration.lists import RegistrationListGenerator
@@ -64,13 +57,11 @@ def _set_representation(db, registration, field, affiliation_id):
 
 
 def _scoped_list(regform, user):
-    """Drive the real management list generator as the reglist RH does for ``user``."""
     session.set_session_user(user)
     return RegistrationListGenerator(regform=regform).get_list_kwargs()['registrations']
 
 
 def _add_event_catalog(db, event, affiliations):
-    """Make ``event``'s default catalog expose ``affiliations`` so focal points can reach them."""
     catalog = AffiliationCatalog(name='Catalog', event=event)
     db.session.add(catalog)
     db.session.flush()
@@ -82,12 +73,7 @@ def _add_event_catalog(db, event, affiliations):
 
 
 def _setup(db, regform, create_user, *, user_id=1, full_manager=False):
-    """One in-range and one out-of-range registration; ``user`` is a focal point for the in-range org.
-
-    Focal-point management is enabled by default, so there is no opt-in step. Both affiliations are
-    exposed by the event's catalog, so the focal point's reach is bounded only by which of them they
-    are designated for.
-    """
+    """One in-range and one out-of-range registration; ``user`` is a focal point for the in-range org."""
     managed = Affiliation(name='CERN')
     other = Affiliation(name='MIT')
     db.session.add_all([managed, other])
@@ -109,14 +95,11 @@ def _setup(db, regform, create_user, *, user_id=1, full_manager=False):
 def test_focal_point_bounded_to_own_affiliation(db, dummy_regform, create_user, request_context):
     focal, in_range, out_range = _setup(db, dummy_regform, create_user)
 
-    # per-registration gate (guards details, edit, delete and attachment download)
     assert in_range.can_manage(focal, 'registration_edit') is True
     assert out_range.can_manage(focal, 'registration_edit') is False
-    # edit only: never full management, moderation or check-in
     assert in_range.can_manage(focal, 'registration') is False
     assert in_range.can_manage(focal, 'registration_moderation') is False
     assert in_range.can_manage(focal, 'registration_checkin') is False
-    # list rows and managed count are scoped to the in-range registration
     assert _scoped_list(dummy_regform, focal) == [in_range]
     assert dummy_regform.get_managed_registration_count(focal) == 1
 
@@ -139,7 +122,6 @@ def test_non_focal_user_unaffected(db, dummy_regform, create_user, request_conte
 
     assert in_range.can_manage(outsider, 'registration_edit') is False
     assert out_range.can_manage(outsider, 'registration_edit') is False
-    # the plugin does not scope a non-focal user, so stock behaviour is unchanged for them
     assert AffiliationExtrasPlugin.instance._filter_registration_list(dummy_regform, outsider) is None
 
 
@@ -147,17 +129,12 @@ def test_focal_point_management_disabled_blocks_access(db, dummy_regform, create
     from indico_affiliation_extras.permissions import set_focal_point_management_enabled
 
     focal, in_range, __ = _setup(db, dummy_regform, create_user)
-    # enabled by default: the focal point manages their in-range registration
     assert in_range.can_manage(focal, 'registration_edit') is True
-    # a registration manager turns focal-point management off for this form -> the focal point loses access
     set_focal_point_management_enabled(dummy_regform, False)
     assert in_range.can_manage(focal, 'registration_edit') is False
 
 
 def test_per_form_toggle_isolates_forms(db, dummy_regform, create_regform, create_user, request_context):
-    # The toggle is per form: turning it off on one form must not affect another form on the same
-    # event. Because the grant is event-wide, the disabled form is actively denied (empty list,
-    # no per-registration access) while the still-enabled form keeps working.
     from indico_affiliation_extras.permissions import set_focal_point_management_enabled
 
     event = dummy_regform.event
@@ -177,11 +154,9 @@ def test_per_form_toggle_isolates_forms(db, dummy_regform, create_regform, creat
     managed.focal_points.add(focal)
     db.session.flush()
 
-    # enabled by default on both forms
     assert reg_a.can_manage(focal, 'registration_edit') is True
     assert reg_b.can_manage(focal, 'registration_edit') is True
 
-    # turning it off on form A denies that form only; form B stays manageable
     set_focal_point_management_enabled(form_a, False)
     assert reg_a.can_manage(focal, 'registration_edit') is False
     assert reg_b.can_manage(focal, 'registration_edit') is True

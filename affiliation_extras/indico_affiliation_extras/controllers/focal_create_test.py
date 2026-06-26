@@ -5,12 +5,6 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-# Tests for the focal-point create flow built on core screens: the pre-create guardrail, core's
-# `RHRegistrationCreate` admitting a scoped focal point, and the user-search result filter applied
-# to core's `/user/search/`. The guardrail is exercised by calling the plugin handler directly with
-# crafted submitted data (its representation-list validation belongs to the catalog setup tested
-# elsewhere); access and search run over HTTP. Everything runs against real fixtures, no mocking.
-
 import pytest
 from flask import session
 
@@ -53,7 +47,6 @@ def _add_representation_field(db, regform):
 
 
 def _add_event_catalog(db, event, affiliations):
-    """Make ``event``'s default catalog expose ``affiliations`` so focal points can reach them."""
     catalog = AffiliationCatalog(name='Catalog', event=event)
     db.session.add(catalog)
     db.session.flush()
@@ -81,7 +74,6 @@ def _user_with_affiliation(create_user, db, id_, affiliation, **kwargs):
 
 
 def _registration_data(field, affiliation_id, email='new@example.test'):
-    """Submitted form data keyed by html_field_name, representing ``affiliation_id``."""
     return {
         'email': email,
         'first_name': 'New',
@@ -97,13 +89,10 @@ def _guardrail(regform, user, data, management):
 
 
 def _search_token(app, user):
-    """Build a user-search token for ``user`` exactly as the templates do (via session)."""
     with app.test_request_context():
         session.set_session_user(user)
         return make_user_search_token()
 
-
-# -- pre-create guardrail -----------------------------------------------------------------------
 
 @pytest.mark.usefixtures('request_context')
 def test_pre_create_allows_focal_with_managed_affiliation(db, dummy_regform, create_user):
@@ -113,7 +102,6 @@ def test_pre_create_allows_focal_with_managed_affiliation(db, dummy_regform, cre
     managed.focal_points.add(focal)
     db.session.flush()
 
-    # representing an affiliation the focal point manages: the guardrail allows it (no raise)
     _guardrail(dummy_regform, focal, _registration_data(field, managed.id), True)
 
 
@@ -131,8 +119,6 @@ def test_pre_create_rejects_focal_without_managed_affiliation(db, dummy_regform,
 
 @pytest.mark.usefixtures('request_context')
 def test_pre_create_does_not_block_self_service(db, dummy_regform, create_user):
-    # A focal point registering through the public form (management=False) must never be blocked,
-    # even for an affiliation they do not manage.
     managed, other = _make_affiliations(db, dummy_regform.event)
     field = _add_representation_field(db, dummy_regform)
     focal = create_user(1)
@@ -151,14 +137,11 @@ def test_pre_create_never_blocks_full_manager(db, dummy_regform, create_user):
     managed.focal_points.add(manager)
     db.session.flush()
 
-    # A full manager who is also a focal point may register for any affiliation.
     _guardrail(dummy_regform, manager, _registration_data(field, other.id), True)
 
 
 @pytest.mark.usefixtures('request_context')
 def test_pre_create_blocked_on_disabled_form(db, dummy_regform, create_regform, create_user):
-    # With management turned off on one form (but on for another, so the event-wide grant still
-    # applies), a focal point may create on the enabled form but is blocked on the disabled one.
     from indico_affiliation_extras.permissions import set_focal_point_management_enabled
 
     managed, __ = _make_affiliations(db, dummy_regform.event)
@@ -175,10 +158,7 @@ def test_pre_create_blocked_on_disabled_form(db, dummy_regform, create_regform, 
         _guardrail(form_a, focal, _registration_data(field_a, managed.id), True)
 
 
-# -- core create RH access (RHRegistrationCreate) ---------------------------------------------
-
 def test_core_create_form_reachable_by_focal_point(test_client, db, dummy_regform, create_user):
-    # A scoped focal point may open core's create form (GET): access passes -> not 403.
     set_feature_enabled(dummy_regform.event, 'registration', True)
     _add_representation_field(db, dummy_regform)
     managed, __ = _make_affiliations(db, dummy_regform.event)
@@ -192,7 +172,6 @@ def test_core_create_form_reachable_by_focal_point(test_client, db, dummy_regfor
 
 
 def test_core_create_post_reachable_by_focal_point(test_client, db, dummy_regform, create_user, no_csrf_check):
-    # An invalid POST reaches the handler (access passes) and fails validation -> not 403.
     set_feature_enabled(dummy_regform.event, 'registration', True)
     _add_representation_field(db, dummy_regform)
     managed, __ = _make_affiliations(db, dummy_regform.event)
@@ -214,11 +193,8 @@ def test_core_create_denies_plain_non_manager(test_client, db, dummy_regform, cr
     assert resp.status_code == 403
 
 
-# -- core user search result filter (/user/search/) -------------------------------------------
-
 def test_user_search_returns_only_focal_affiliation_users(test_client, app, db, dummy_regform, create_user,
                                                           monkeypatch):
-    # The affiliation bound applies only on a restricted-search instance.
     monkeypatch.setitem(app.config, 'INDICO', {**app.config['INDICO'], 'ALLOW_PUBLIC_USER_SEARCH': False})
     managed, other = _make_affiliations(db, dummy_regform.event)
     focal = create_user(1)
@@ -254,8 +230,6 @@ def test_user_search_drops_other_affiliation_users(test_client, app, db, dummy_r
 
 
 def test_user_search_unbounded_when_public_search_allowed(test_client, app, db, dummy_regform, create_user):
-    # With public user search allowed (the Indico default), a focal point's search is not bounded:
-    # users from other affiliations come back too, so a dual-hat focal point/manager is not hindered.
     managed, other = _make_affiliations(db, dummy_regform.event)
     focal = create_user(1)
     managed.focal_points.add(focal)
@@ -271,16 +245,12 @@ def test_user_search_unbounded_when_public_search_allowed(test_client, app, db, 
     assert {mine.id, theirs.id} <= returned_ids
 
 
-# -- per-form toggle endpoint (set_focal_point_management) -------------------------------------
-
 def _toggle_url(regform):
     return (f'/event/{regform.event.id}/manage/affiliation-extras/'
             f'registration/{regform.id}/focal-point-management')
 
 
 def test_toggle_endpoint_denies_focal_point(test_client, db, dummy_regform, create_user, no_csrf_check):
-    # A focal point holds only the event-wide registration_edit grant, not 'registration'
-    # management, so they cannot reach the toggle and enable their own access.
     set_feature_enabled(dummy_regform.event, 'registration', True)
     _add_representation_field(db, dummy_regform)
     managed, __ = _make_affiliations(db, dummy_regform.event)

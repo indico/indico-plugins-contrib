@@ -134,8 +134,6 @@ class AffiliationExtrasPlugin(IndicoPlugin):
         yield p.AffiliationMetadataPlaceholder
 
     def _render_regform_focal_point_setting(self, regform=None, **kwargs):
-        # Per-form toggle on the registration form's management page. Only shown for
-        # representation-bearing forms, where focal-point management is meaningful.
         if regform is None or regform.is_deleted or not regform_has_representation_field(regform):
             return ''
         return render_plugin_template(
@@ -164,10 +162,8 @@ class AffiliationExtrasPlugin(IndicoPlugin):
             )
 
     def _extra_linked_events(self, user, dt=None, **kwargs):
-        # Surface focal-point events on the user's dashboard (and personal calendar feed). Focal
-        # points hold no ACL entry on these events (access is dynamic), so Indico's own linked-event
-        # lookup never finds them. We contribute the events the user has focal-point reach over,
-        # tagged with a management role so the dashboard shows the management indicator.
+        # Focal points hold no ACL entry (access is dynamic), so Indico's linked-event lookup misses
+        # their events; contribute them, tagged as managed for the dashboard indicator.
         event_ids = focal_event_ids(user)
         if not event_ids:
             return None
@@ -183,12 +179,9 @@ class AffiliationExtrasPlugin(IndicoPlugin):
         yield from iter_representation_reglist_items(sender)
 
     def _filter_registration_list(self, regform, user, **kwargs):
-        # Scope a focal point's management view to the registrations of their own affiliations. This
-        # criterion is what bounds the event-wide `registration_edit` grant: core applies it to the
-        # list, the managed count and the per-registration `Registration.can_manage` check. Genuine
-        # managers and non-focal users are not scoped (None), so their access stays unrestricted. The
-        # grant is event-wide, so on a form where focal management is turned off we actively deny
-        # (match nothing) rather than abstain, which would leave the grant unbounded there.
+        # Bounds the event-wide grant to the focal point's own affiliations (None leaves managers and
+        # non-focal users unscoped). On a form with management off, deny (match nothing) rather than
+        # abstain, since the event-wide grant would otherwise stay unbounded there.
         if not is_scoped_focal_point(regform.event, user):
             return None
         if not focal_point_management_enabled(regform):
@@ -196,11 +189,8 @@ class AffiliationExtrasPlugin(IndicoPlugin):
         return focal_list_criterion(user, regform.event)
 
     def _check_registration_pre_create(self, regform, user, data, management, **kwargs):
-        # Guardrail: a scoped focal point may only create registrations for affiliations they
-        # manage. Self-service (`management` is False) is a person registering THEMSELVES through
-        # the public form; that must never be blocked, even for an affiliation they do not manage,
-        # so we return immediately. Only management creation (registering ANOTHER person) is bounded.
-        # Genuine managers and non-focal users are not scoped, so stock Indico is unaffected.
+        # Self-service (`management` is False) is someone registering themselves and must never be
+        # blocked; only management creation is bounded to the focal point's own affiliations.
         if not management or not is_scoped_focal_point(regform.event, user):
             return
         if not focal_point_management_enabled(regform):
@@ -209,22 +199,14 @@ class AffiliationExtrasPlugin(IndicoPlugin):
             raise UserValueError(_('As a focal point you may only register people for your own affiliations.'))
 
     def _grant_focal_point_registration_edit(self, sender, obj, user=None, permission=None, **kwargs):
-        # Dynamically grant a focal point the equivalent of `registration_edit` on an opted-in event
-        # (see `is_scoped_focal_point`). Returning True grants; returning None defers to the regular
-        # ACL. We never return False here (that would deny a legitimate manager); the per-registration
-        # and list bounding is done separately by the blacklist signals.
+        # Dynamically grant `registration_edit` to a scoped focal point (True grants, None defers).
+        # Never return False, which would deny a legitimate manager; bounding is done by the blacklist signals.
         if permission == 'registration_edit' and is_scoped_focal_point(obj, user):
             return True
 
     def _filter_user_search_results(self, sender, user, results, **kwargs):
-        # Bound a focal point's user search to people of their own affiliations, so they can only
-        # pick registrants they are allowed to manage. Entries without a matching affiliation id
-        # (including external users, whose id is None or -1) are dropped.
-        #
-        # Only applied when the instance restricts user search (`ALLOW_PUBLIC_USER_SEARCH` off). On
-        # an open-directory instance the bound is pointless (any user can already search everyone)
-        # and would needlessly restrict a user who is both a focal point and a full manager, so we
-        # skip it there.
+        # Bound a focal point's user search to their own affiliations. Skipped when public user search
+        # is allowed: the bound is pointless there and would hinder a dual-hat focal point/manager.
         if config.ALLOW_PUBLIC_USER_SEARCH:
             return None
         focal_ids = get_focal_affiliation_ids(user)

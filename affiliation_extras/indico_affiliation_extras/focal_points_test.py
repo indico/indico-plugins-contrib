@@ -24,7 +24,6 @@ pytest_plugins = 'indico.modules.events.registration.testing.fixtures'
 
 
 def _add_event_catalog(db, event, affiliations):
-    """Make ``event``'s default catalog expose ``affiliations`` so focal points can reach them."""
     catalog = AffiliationCatalog(name='Catalog', event=event)
     db.session.add(catalog)
     db.session.flush()
@@ -112,7 +111,6 @@ def test_can_manage_registration(db, dummy_regform, dummy_reg, create_user):
 
 
 def test_focal_event_ids(db, dummy_regform, dummy_reg, create_user):
-    # Powers the personal "Focal-point events" page: the event surfaces for its focal point only.
     from indico_affiliation_extras.focal_points import focal_event_ids
 
     managed = Affiliation(name='CERN')
@@ -139,9 +137,7 @@ def test_registration_can_manage_grants_focal_point_edit(db, dummy_regform, dumm
     managed.focal_points.add(focal)
     db.session.flush()
 
-    # focal-point management is enabled by default, so the designation alone grants scoped access
     assert dummy_reg.can_manage(focal, 'registration_edit') is True
-    # focal points get edit only, not full registration management
     assert dummy_reg.can_manage(focal, 'registration') is False
     assert dummy_reg.can_manage(create_user(2), 'registration_edit') is False
 

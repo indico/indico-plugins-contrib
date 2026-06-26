@@ -5,10 +5,6 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-# Access and CRUD tests for the admin focal-points endpoint. Non-admins are rejected on
-# both GET and PATCH; an admin can replace the focal points of an affiliation and read
-# them back, and an empty list clears them.
-
 from indico.modules.users.models.affiliations import Affiliation
 
 
