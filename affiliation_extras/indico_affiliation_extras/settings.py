@@ -20,9 +20,7 @@ event_settings = EventSettingsProxy(
     'plugin_affiliation_extras',
     {
         'default_catalog_id': None,
-        # Registration forms on which focal-point management has been turned off. Management is
-        # enabled by default on every representation-bearing form; a full registration manager can
-        # disable it per form from the form's management page, which adds its id here.
+        # Forms with focal-point management turned off (it is enabled by default).
         'focal_point_disabled_regform_ids': [],
     },
 )

@@ -13,10 +13,7 @@ from indico.modules.users.models.users import User
 
 
 class FocalPoint(db.Model):
-    """A user designated as a focal point for an affiliation.
-
-    A focal point may manage the registrations whose affiliation is one they are linked to here.
-    """
+    """A user designated as a focal point for an affiliation."""
 
     __tablename__ = 'focal_points'
     __table_args__ = (
@@ -47,11 +44,9 @@ class FocalPoint(db.Model):
     )
 
 
-#: The users that act as focal points for an affiliation.
 Affiliation.focal_points = association_proxy(
     'focal_point_entries', 'user', creator=lambda user: FocalPoint(user=user)
 )
-#: The affiliations a user acts as a focal point for.
 User.focal_point_affiliations = association_proxy(
     'focal_point_entries', 'affiliation', creator=lambda affiliation: FocalPoint(affiliation=affiliation)
 )
