@@ -18,19 +18,21 @@ from indico_affiliation_extras.settings import event_settings
 
 
 def focal_point_management_enabled(regform):
-    """Whether focal-point management is enabled on ``regform`` (the default)."""
-    disabled = event_settings.get(regform.event, 'focal_point_disabled_regform_ids')
-    return regform.id not in disabled
+    """Whether focal-point management is enabled on ``regform`` (off by default, opt-in per form)."""
+    if not regform_has_representation_field(regform):
+        return False
+    enabled = event_settings.get(regform.event, 'focal_point_enabled_regform_ids')
+    return regform.id in enabled
 
 
 def set_focal_point_management_enabled(regform, enabled):
     """Turn focal-point management on or off for ``regform`` (persisted on its event)."""
-    disabled = set(event_settings.get(regform.event, 'focal_point_disabled_regform_ids'))
+    enabled_ids = set(event_settings.get(regform.event, 'focal_point_enabled_regform_ids'))
     if enabled:
-        disabled.discard(regform.id)
+        enabled_ids.add(regform.id)
     else:
-        disabled.add(regform.id)
-    event_settings.set(regform.event, 'focal_point_disabled_regform_ids', sorted(disabled))
+        enabled_ids.discard(regform.id)
+    event_settings.set(regform.event, 'focal_point_enabled_regform_ids', sorted(enabled_ids))
 
 
 def regform_has_representation_field(regform):
@@ -39,8 +41,8 @@ def regform_has_representation_field(regform):
 
 
 def event_has_focal_managed_regform(event):
-    """Whether the event has a non-deleted representation form with focal-point management enabled."""
-    return any(regform_has_representation_field(regform) and focal_point_management_enabled(regform)
+    """Whether the event has a non-deleted form with focal-point management enabled."""
+    return any(focal_point_management_enabled(regform)
                for regform in event.registration_forms if not regform.is_deleted)
 
 

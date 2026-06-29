@@ -20,7 +20,7 @@ event_settings = EventSettingsProxy(
     'plugin_affiliation_extras',
     {
         'default_catalog_id': None,
-        # Forms with focal-point management turned off (it is enabled by default).
-        'focal_point_disabled_regform_ids': [],
+        # Forms where focal-point management has been turned on (off by default).
+        'focal_point_enabled_regform_ids': [],
     },
 )

@@ -33,7 +33,6 @@ from indico_affiliation_extras.controllers.catalogs import (
     RHManageCategoryAffiliations,
     RHManageEventAffiliations,
     RHResolveAffiliations,
-    RHSetFocalPointManagement,
     RHToggleDefaultCatalog,
 )
 from indico_affiliation_extras.controllers.regform import (
@@ -171,13 +170,6 @@ blueprint.add_url_rule(
 
 # SPA page routes (React Router handles display)
 _management_page = _dispatch(RHManageEventAffiliations, RHManageCategoryAffiliations)
-
-blueprint.add_url_rule(
-    '/event/<int:event_id>/manage/affiliation-extras/registration/<int:reg_form_id>/focal-point-management',
-    'set_focal_point_management',
-    RHSetFocalPointManagement,
-    methods=('POST',),
-)
 
 for object_type in ('event', 'category'):
     if object_type == 'category':

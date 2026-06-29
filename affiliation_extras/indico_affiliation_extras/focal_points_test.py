@@ -17,6 +17,7 @@ from indico_affiliation_extras.focal_points import (
 )
 from indico_affiliation_extras.models.catalogs import AffiliationCatalog
 from indico_affiliation_extras.models.lists import AffiliationList
+from indico_affiliation_extras.permissions import set_focal_point_management_enabled
 from indico_affiliation_extras.settings import event_settings
 
 
@@ -135,6 +136,7 @@ def test_registration_can_manage_grants_focal_point_edit(db, dummy_regform, dumm
     _set_representation(db, dummy_reg, field, managed.id)
     focal = create_user(1)
     managed.focal_points.add(focal)
+    set_focal_point_management_enabled(dummy_regform, True)
     db.session.flush()
 
     assert dummy_reg.can_manage(focal, 'registration_edit') is True

@@ -17,6 +17,7 @@ from indico.util.user import make_user_search_token
 from indico_affiliation_extras.fields import RepresentationField
 from indico_affiliation_extras.models.catalogs import AffiliationCatalog
 from indico_affiliation_extras.models.lists import AffiliationList
+from indico_affiliation_extras.permissions import set_focal_point_management_enabled
 from indico_affiliation_extras.settings import event_settings
 
 
@@ -100,6 +101,7 @@ def test_pre_create_allows_focal_with_managed_affiliation(db, dummy_regform, cre
     field = _add_representation_field(db, dummy_regform)
     focal = create_user(1)
     managed.focal_points.add(focal)
+    set_focal_point_management_enabled(dummy_regform, True)
     db.session.flush()
 
     _guardrail(dummy_regform, focal, _registration_data(field, managed.id), True)
@@ -111,6 +113,7 @@ def test_pre_create_rejects_focal_without_managed_affiliation(db, dummy_regform,
     field = _add_representation_field(db, dummy_regform)
     focal = create_user(1)
     managed.focal_points.add(focal)
+    set_focal_point_management_enabled(dummy_regform, True)
     db.session.flush()
 
     with pytest.raises(UserValueError):
@@ -123,6 +126,7 @@ def test_pre_create_does_not_block_self_service(db, dummy_regform, create_user):
     field = _add_representation_field(db, dummy_regform)
     focal = create_user(1)
     managed.focal_points.add(focal)
+    set_focal_point_management_enabled(dummy_regform, True)
     db.session.flush()
 
     _guardrail(dummy_regform, focal, _registration_data(field, other.id), False)
@@ -135,6 +139,7 @@ def test_pre_create_never_blocks_full_manager(db, dummy_regform, create_user):
     manager = create_user(3)
     dummy_regform.event.update_principal(manager, full_access=True)
     managed.focal_points.add(manager)
+    set_focal_point_management_enabled(dummy_regform, True)
     db.session.flush()
 
     _guardrail(dummy_regform, manager, _registration_data(field, other.id), True)
@@ -142,16 +147,14 @@ def test_pre_create_never_blocks_full_manager(db, dummy_regform, create_user):
 
 @pytest.mark.usefixtures('request_context')
 def test_pre_create_blocked_on_disabled_form(db, dummy_regform, create_regform, create_user):
-    from indico_affiliation_extras.permissions import set_focal_point_management_enabled
-
     managed, __ = _make_affiliations(db, dummy_regform.event)
     form_a, form_b = dummy_regform, create_regform(dummy_regform.event, title='Form B')
     field_a = _add_representation_field(db, form_a)
     field_b = _add_representation_field(db, form_b)
     focal = create_user(1)
     managed.focal_points.add(focal)
+    set_focal_point_management_enabled(form_b, True)
     db.session.flush()
-    set_focal_point_management_enabled(form_a, False)
 
     _guardrail(form_b, focal, _registration_data(field_b, managed.id), True)
     with pytest.raises(UserValueError):
@@ -164,6 +167,7 @@ def test_core_create_form_reachable_by_focal_point(test_client, db, dummy_regfor
     managed, __ = _make_affiliations(db, dummy_regform.event)
     focal = create_user(1)
     managed.focal_points.add(focal)
+    set_focal_point_management_enabled(dummy_regform, True)
     db.session.flush()
 
     _login(test_client, focal)
@@ -177,6 +181,7 @@ def test_core_create_post_reachable_by_focal_point(test_client, db, dummy_regfor
     managed, __ = _make_affiliations(db, dummy_regform.event)
     focal = create_user(1)
     managed.focal_points.add(focal)
+    set_focal_point_management_enabled(dummy_regform, True)
     db.session.flush()
 
     _login(test_client, focal)
@@ -245,34 +250,15 @@ def test_user_search_unbounded_when_public_search_allowed(test_client, app, db, 
     assert {mine.id, theirs.id} <= returned_ids
 
 
-def _toggle_url(regform):
-    return (f'/event/{regform.event.id}/manage/affiliation-extras/'
-            f'registration/{regform.id}/focal-point-management')
-
-
-def test_toggle_endpoint_denies_focal_point(test_client, db, dummy_regform, create_user, no_csrf_check):
-    set_feature_enabled(dummy_regform.event, 'registration', True)
-    _add_representation_field(db, dummy_regform)
-    managed, __ = _make_affiliations(db, dummy_regform.event)
-    focal = create_user(1)
-    managed.focal_points.add(focal)
-    db.session.flush()
-
-    _login(test_client, focal)
-    resp = test_client.post(_toggle_url(dummy_regform), data={'enabled': '0'})
-    assert resp.status_code == 403
-
-
-def test_toggle_endpoint_allows_manager_and_flips_flag(test_client, db, dummy_regform, dummy_user, no_csrf_check):
+def test_settings_save_persists_focal_point_toggle(db, dummy_regform, app):
     from indico_affiliation_extras.permissions import focal_point_management_enabled
+    from indico_affiliation_extras.plugin import AffiliationExtrasPlugin
 
-    set_feature_enabled(dummy_regform.event, 'registration', True)
     _add_representation_field(db, dummy_regform)
-    dummy_regform.event.update_principal(dummy_user, full_access=True)
-    db.session.flush()
+    with app.test_request_context(method='POST', data={'focal_point_management': '1'}):
+        AffiliationExtrasPlugin.instance._persist_focal_point_setting(dummy_regform)
+    assert focal_point_management_enabled(dummy_regform) is True
 
-    _login(test_client, dummy_user)
-    resp = test_client.post(_toggle_url(dummy_regform), data={'enabled': '0'})
-    assert resp.status_code == 200
-    assert resp.json['enabled'] is False
+    with app.test_request_context(method='POST', data={}):
+        AffiliationExtrasPlugin.instance._persist_focal_point_setting(dummy_regform)
     assert focal_point_management_enabled(dummy_regform) is False

@@ -15,6 +15,7 @@ from indico.modules.users.models.affiliations import Affiliation
 from indico_affiliation_extras.fields import RepresentationField
 from indico_affiliation_extras.models.catalogs import AffiliationCatalog
 from indico_affiliation_extras.models.lists import AffiliationList
+from indico_affiliation_extras.permissions import set_focal_point_management_enabled
 from indico_affiliation_extras.settings import event_settings
 
 
@@ -86,6 +87,7 @@ def _setup(db, regform, create_user, *, user_id=1, full_manager=False):
     _set_representation(db, out_range, field, other.id)
     user = create_user(user_id)
     managed.focal_points.add(user)
+    set_focal_point_management_enabled(regform, True)
     if full_manager:
         regform.event.update_principal(user, full_access=True)
     db.session.flush()
@@ -126,8 +128,6 @@ def test_non_focal_user_unaffected(db, dummy_regform, create_user, request_conte
 
 
 def test_focal_point_management_disabled_blocks_access(db, dummy_regform, create_user, request_context):
-    from indico_affiliation_extras.permissions import set_focal_point_management_enabled
-
     focal, in_range, __ = _setup(db, dummy_regform, create_user)
     assert in_range.can_manage(focal, 'registration_edit') is True
     set_focal_point_management_enabled(dummy_regform, False)
@@ -135,8 +135,6 @@ def test_focal_point_management_disabled_blocks_access(db, dummy_regform, create
 
 
 def test_per_form_toggle_isolates_forms(db, dummy_regform, create_regform, create_user, request_context):
-    from indico_affiliation_extras.permissions import set_focal_point_management_enabled
-
     event = dummy_regform.event
     managed = Affiliation(name='CERN')
     db.session.add(managed)
@@ -152,6 +150,8 @@ def test_per_form_toggle_isolates_forms(db, dummy_regform, create_regform, creat
     _set_representation(db, reg_b, field_b, managed.id)
     focal = create_user(1)
     managed.focal_points.add(focal)
+    set_focal_point_management_enabled(form_a, True)
+    set_focal_point_management_enabled(form_b, True)
     db.session.flush()
 
     assert reg_a.can_manage(focal, 'registration_edit') is True

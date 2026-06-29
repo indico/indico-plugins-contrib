@@ -1,20 +1,11 @@
+{% from 'forms/_form.html' import form_fieldset %}
 {% from '_switch.html' import switch %}
 
-<div class="i-box focal-point-management">
-    <div class="i-box-header">
-        <div class="i-box-title">{% trans %}Focal point management{% endtrans %}</div>
+{% call form_fieldset(_('Focal point management')) %}
+    <div class="flexrow f-a-center">
+        {{ switch(id='focal-point-management', name='focal_point_management', checked=enabled, disabled=disabled) }}
+        <span style="margin-left: .75em">
+            {% trans %}Allow affiliation focal points to manage the registrations of their own affiliations submitted through this form.{% endtrans %}
+        </span>
     </div>
-    <div class="i-box-content">
-        <div class="flexrow f-a-center">
-            {{ switch(id='focal-point-management', checked=focal_point_management_enabled) }}
-            <span style="margin-left: .75em">
-                {% trans %}Allow affiliation focal points to manage the registrations of their own affiliations submitted through this form.{% endtrans %}
-            </span>
-        </div>
-    </div>
-</div>
-<script>
-    $('#focal-point-management').ajaxCheckbox({
-        href: {{ url_for_plugin('affiliation_extras.set_focal_point_management', regform) | tojson }}
-    });
-</script>
+{% endcall %}
