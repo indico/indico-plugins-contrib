@@ -38,7 +38,9 @@ from indico_affiliation_extras.controllers.catalogs import (
 from indico_affiliation_extras.controllers.regform import (
     RHAffiliationUserCount,
     RHAffiliationUserCountByIds,
+    RHFocalPointInviteMetadata,
     RHInviteByAffiliation,
+    RHInviteFocalPoints,
     RHManageSearchRepresentationAffiliation,
     RHRegFormAffiliationCountries,
     RHRegFormAffiliationGroups,
@@ -153,6 +155,17 @@ blueprint.add_url_rule(
     f'{_regform_prefix}/invite',
     'api_invite_by_affiliation',
     RHInviteByAffiliation,
+    methods=('POST',),
+)
+blueprint.add_url_rule(
+    f'{_regform_prefix}/focal-points/invite/metadata',
+    'api_focal_point_invite_metadata',
+    RHFocalPointInviteMetadata,
+)
+blueprint.add_url_rule(
+    f'{_regform_prefix}/focal-points/invite',
+    'api_invite_focal_points',
+    RHInviteFocalPoints,
     methods=('POST',),
 )
 blueprint.add_url_rule(

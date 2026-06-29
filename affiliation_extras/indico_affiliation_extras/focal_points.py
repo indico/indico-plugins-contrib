@@ -10,8 +10,10 @@ from indico.modules.events import Event
 from indico.modules.events.registration.models.form_fields import RegistrationFormField, RegistrationFormFieldData
 from indico.modules.events.registration.models.forms import RegistrationForm
 from indico.modules.events.registration.models.registrations import Registration, RegistrationData
+from indico.modules.users.models.users import User
 
 from indico_affiliation_extras.fields import RepresentationField
+from indico_affiliation_extras.models.focal_points import FocalPoint
 from indico_affiliation_extras.util import get_representation_affiliation_lists, get_representation_affiliations
 
 
@@ -67,6 +69,18 @@ def get_event_catalog_affiliation_ids(event):
     for affiliation_list in get_representation_affiliation_lists(event):
         ids.update(affiliation.id for affiliation in get_representation_affiliations(affiliation_list))
     return ids
+
+
+def get_event_catalog_focal_points(event):
+    """Return users who are focal points for affiliations in the event's affiliation catalog."""
+    affiliation_ids = get_event_catalog_affiliation_ids(event)
+    if not affiliation_ids:
+        return set()
+    return set(
+        User.query
+        .join(FocalPoint, FocalPoint.user_id == User.id)
+        .filter(FocalPoint.affiliation_id.in_(affiliation_ids), ~User.is_deleted)
+    )
 
 
 def focal_affiliations_for_event(user, event):
