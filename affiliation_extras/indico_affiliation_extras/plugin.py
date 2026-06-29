@@ -39,6 +39,7 @@ from indico_affiliation_extras.permissions import (
     focal_point_management_enabled,
     is_scoped_focal_point,
     regform_has_representation_field,
+    set_focal_point_management_enabled,
 )
 from indico_affiliation_extras.schemas import AffiliationExtraAttrsArgs, AffiliationExtraAttrsSchema
 from indico_affiliation_extras.util import (
@@ -81,6 +82,7 @@ class AffiliationExtrasPlugin(IndicoPlugin):
         self.connect(signals.event.registrant_list_items, self._get_registrant_list_items)
         self.connect(signals.event.filter_registration_list, self._filter_registration_list)
         self.connect(signals.event.registration_pre_create, self._check_registration_pre_create)
+        self.connect(signals.event.registration_form_edited, self._persist_focal_point_setting)
         self.connect(signals.users.filter_user_search_results, self._filter_user_search_results)
         self.connect(signals.users.extra_linked_events, self._extra_linked_events)
         self.connect(signals.acl.can_manage, self._grant_focal_point_registration_edit, sender=Event)
@@ -91,7 +93,7 @@ class AffiliationExtrasPlugin(IndicoPlugin):
             self._get_email_placeholders,
             sender='affiliation-representation-email',
         )
-        self.template_hook('extra-regform-settings', self._render_regform_focal_point_setting)
+        self.template_hook('extra-regform-edit-settings', self._render_regform_focal_point_setting)
 
     def get_blueprints(self):
         return blueprint
@@ -134,13 +136,17 @@ class AffiliationExtrasPlugin(IndicoPlugin):
         yield p.AffiliationMetadataPlaceholder
 
     def _render_regform_focal_point_setting(self, regform=None, **kwargs):
-        if regform is None or regform.is_deleted or not regform_has_representation_field(regform):
+        if regform is None or regform.is_deleted:
             return ''
         return render_plugin_template(
             'regform_focal_point_setting.html',
-            regform=regform,
-            focal_point_management_enabled=focal_point_management_enabled(regform),
+            enabled=focal_point_management_enabled(regform),
+            disabled=not regform_has_representation_field(regform),
         )
+
+    def _persist_focal_point_setting(self, regform, **kwargs):
+        if regform_has_representation_field(regform):
+            set_focal_point_management_enabled(regform, 'focal_point_management' in request.form)
 
     def _category_sidemenu_items(self, sender, category, **kwargs):
         if category.can_manage(session.user):

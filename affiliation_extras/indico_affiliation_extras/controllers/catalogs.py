@@ -15,7 +15,6 @@ from indico.modules.categories.controllers.base import RHManageCategoryBase
 from indico.modules.categories.models.categories import Category
 from indico.modules.events.management.controllers import RHManageEventBase
 from indico.modules.events.models.events import Event
-from indico.modules.events.registration.controllers.management import RHManageRegFormBase
 from indico.modules.events.util import check_event_locked
 from indico.modules.logs.models.entries import LogKind
 from indico.modules.logs.util import make_diff_log
@@ -33,7 +32,6 @@ from indico_affiliation_extras.controllers.compat import CountriesListMixin
 from indico_affiliation_extras.models.catalogs import AffiliationCatalog
 from indico_affiliation_extras.models.groups import AffiliationGroup
 from indico_affiliation_extras.models.tags import AffiliationTag
-from indico_affiliation_extras.permissions import set_focal_point_management_enabled
 from indico_affiliation_extras.schemas import (
     AffiliationCatalogArgs,
     AffiliationCatalogSchema,
@@ -85,15 +83,6 @@ class RHManageCategoryAffiliations(AffiliationCatalogListMixin, RHManageCategory
 
 class RHManageEventAffiliations(AffiliationCatalogListMixin, RHManageEventBase):
     pass
-
-
-class RHSetFocalPointManagement(RHManageRegFormBase):
-    """Toggle whether affiliation focal points may manage registrations submitted through a form."""
-
-    def _process(self):
-        enabled = request.form.get('enabled') == '1'
-        set_focal_point_management_enabled(self.regform, enabled)
-        return jsonify(enabled=enabled)
 
 
 class AffiliationAreaMixin:
