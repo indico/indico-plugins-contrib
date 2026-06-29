@@ -15,6 +15,7 @@ import affiliationFilters from './dashboard/filters';
 import AffiliationRowActions from './dashboard/AffiliationRowActions';
 import representationField from './regform/fields';
 import affiliationInvitations from './inviteDialog/affiliationInvitations';
+import focalPointInvitations from './inviteDialog/focalPointInvitations';
 
 const PLUGIN_NAME = 'affiliation_extras';
 
@@ -30,6 +31,7 @@ registerPluginComponent(
 );
 registerPluginComponent(PLUGIN_NAME, 'affiliation-dashboard-row-actions', AffiliationRowActions);
 registerPluginObject(PLUGIN_NAME, 'invite-dialog-extra-modes', affiliationInvitations);
+registerPluginObject(PLUGIN_NAME, 'invite-dialog-extra-modes', focalPointInvitations);
 
 // Category management is bootstrapped from the Jinja-rendered page via this global
 window.setupAffiliationCatalogs = setupAffiliationCatalogs;

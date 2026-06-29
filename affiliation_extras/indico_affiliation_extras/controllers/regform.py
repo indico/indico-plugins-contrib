@@ -35,6 +35,7 @@ from indico_affiliation_extras.controllers.base import (
     SearchAffiliationsExtendedMixin,
 )
 from indico_affiliation_extras.controllers.compat import CountriesListMixin
+from indico_affiliation_extras.focal_points import get_event_catalog_affiliation_ids, get_event_catalog_focal_points
 from indico_affiliation_extras.models.groups import AffiliationGroup
 from indico_affiliation_extras.models.lists import AffiliationList
 from indico_affiliation_extras.models.tags import AffiliationTag
@@ -205,6 +206,89 @@ class RHInviteByAffiliation(RHManageRegFormBase):
         existing = invited | registered
         users_to_invite = [u for u in users_by_id.values() if u.email and u.email.lower() not in existing]
         skipped = len(users_by_id) - len(users_to_invite)
+
+        for user in users_to_invite:
+            create_invitation(
+                self.regform,
+                {
+                    'first_name': user.first_name,
+                    'last_name': user.last_name,
+                    'email': user.email,
+                    'affiliation': user.affiliation or '',
+                },
+                sender_address,
+                subject,
+                body,
+                skip_moderation=skip_moderation,
+                skip_access_check=skip_access_check,
+                lock_email=lock_email,
+                bcc_addresses=bcc_addresses,
+                copy_for_sender=copy_for_sender,
+            )
+
+        invitations = (
+            RegistrationInvitation.query
+            .with_parent(self.regform)
+            .options(joinedload('registration'))
+            .order_by(db.func.lower(RegistrationInvitation.first_name))
+            .all()
+        )
+        return jsonify(
+            sent=len(users_to_invite),
+            skipped=skipped,
+            has_pending_invitations=any(i.state == InvitationState.pending for i in invitations),
+            invitation_list=RegistrationInvitationSchema(many=True).dump(invitations),
+        )
+
+
+class RHFocalPointInviteMetadata(RHManageRegFormBase):
+    """Return focal-point recipient information for the invitation dialog."""
+
+    def _process(self):
+        return jsonify(
+            focal_point_count=len(get_event_catalog_focal_points(self.event)),
+            affiliation_count=len(get_event_catalog_affiliation_ids(self.event)),
+        )
+
+
+class RHInviteFocalPoints(RHManageRegFormBase):
+    """Invite focal points for affiliations in the event's catalog."""
+
+    @use_kwargs({
+        'sender_address': fields.String(required=True, validate=not_empty),
+        'subject': fields.String(required=True, validate=[not_empty, validate.Length(max=200)]),
+        'body': fields.String(required=True, validate=[not_empty, no_relative_urls]),
+        'bcc_addresses': fields.List(LowercaseString(validate=validate.Email()), load_default=lambda: []),
+        'copy_for_sender': fields.Bool(load_default=False),
+        'skip_moderation': fields.Bool(load_default=False),
+        'skip_access_check': fields.Bool(load_default=False),
+        'lock_email': fields.Bool(load_default=False),
+        'focal_points': fields.Dict(load_default=lambda: {}),
+    })
+    def _process(
+        self,
+        sender_address,
+        subject,
+        body,
+        bcc_addresses,
+        copy_for_sender,
+        skip_moderation,
+        skip_access_check,
+        lock_email,
+        focal_points,
+    ):
+        sender_address = self.event.get_allowed_sender_emails(_for_sending=True).get(sender_address)
+        if not sender_address:
+            abort(422, messages={'sender_address': ['Invalid sender address']})
+        if not self.regform.moderation_enabled:
+            skip_moderation = False
+
+        users = sorted(get_event_catalog_focal_points(self.event), key=lambda u: (u.last_name, u.first_name, u.email))
+        invited = {inv.email.lower() for inv in self.regform.invitations}
+        registered = {r.email.lower() for r in self.regform.registrations if r.is_active and r.email}
+        existing = invited | registered
+        users_to_invite = [u for u in users if u.email and u.email.lower() not in existing]
+        skipped = len(users) - len(users_to_invite)
 
         for user in users_to_invite:
             create_invitation(
