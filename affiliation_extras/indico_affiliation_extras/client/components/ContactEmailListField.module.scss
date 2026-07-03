@@ -1,0 +1,21 @@
+// This file is part of the third-party Indico plugins.
+// Copyright (C) 2026 CERN
+//
+// The third-party Indico plugins are free software; you can
+// redistribute them and/or modify them under the terms of the;
+// MIT License see the LICENSE file for more details.
+
+:global(.ui.label.inactive-email) {
+  background: repeating-linear-gradient(-40deg, #fff, #fff 10px, #ececec 10px, #ececec 20px);
+  color: #555;
+
+  span {
+    text-decoration: line-through;
+  }
+}
+
+:global(.ui.form .field.error .ui.label.inactive-email) {
+  background: repeating-linear-gradient(-40deg, #fff6f6, #fff6f6 10px, #f2caca 10px, #f2caca 20px);
+  border-color: #e0b4b4;
+  color: #9f3a38;
+}

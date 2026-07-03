@@ -162,6 +162,7 @@ def serialize_contact_lists(contact_lists: list[AffiliationContactList]) -> dict
         item.id: {
             'name': item.name or '(unnamed list)',
             'emails': sorted(item.emails),
+            'inactive_emails': sorted(item.inactive_emails),
         }
         for item in contact_lists
     }
@@ -188,6 +189,7 @@ def populate_contacts(affiliation: Affiliation, contact_lists: list[dict]) -> tu
             used_ids.add(contact_id)
         contact.name = contact_data['name']
         contact.emails = contact_data['emails']
+        contact.inactive_emails = contact_data.get('inactive_emails', [])
 
     for contact_id, contact in existing_by_id.items():
         if contact_id not in touched_ids:
@@ -210,14 +212,20 @@ def populate_contacts(affiliation: Affiliation, contact_lists: list[dict]) -> tu
     for id_ in old_contact_lists.keys() | new_contact_lists.keys():
         old_data = old_contact_lists.get(id_, {})
         new_data = new_contact_lists.get(id_, {})
+        name = new_data.get('name') or old_data.get('name')
         old_emails = old_data.get('emails', [])
         new_emails = new_data.get('emails', [])
-        if old_emails == new_emails:
-            continue
-        name = new_data.get('name') or old_data.get('name')
-        key = f'contact_lists_item_{id_}'
-        changes[key] = (old_emails, new_emails)
-        log_fields[key] = {'title': f'Contact list: {name}', 'type': 'list'}
+        if old_emails != new_emails:
+            key = f'contact_lists_item_{id_}'
+            changes[key] = (old_emails, new_emails)
+            log_fields[key] = {'title': f'Contact list: {name}', 'type': 'list'}
+        common_emails = set(old_emails) & set(new_emails)
+        old_inactive_emails = sorted(set(old_data.get('inactive_emails', [])) & common_emails)
+        new_inactive_emails = sorted(set(new_data.get('inactive_emails', [])) & common_emails)
+        if old_inactive_emails != new_inactive_emails:
+            key = f'contact_lists_inactive_item_{id_}'
+            changes[key] = (old_inactive_emails, new_inactive_emails)
+            log_fields[key] = {'title': f'Inactive emails in contact list: {name}', 'type': 'list'}
     return changes, log_fields
 
 
