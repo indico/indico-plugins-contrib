@@ -5,6 +5,9 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
+import pytest
+
+from indico.modules.events.registration.models.invitations import RegistrationInvitation
 from indico.modules.users.models.affiliations import Affiliation
 
 from indico_affiliation_extras.models.catalogs import AffiliationCatalog
@@ -24,6 +27,10 @@ def _url(regform):
     return f'/admin/plugins/affiliation_extras/events/{regform.event.id}/regforms/{regform.id}/focal-points/invite'
 
 
+def _affiliation_invite_url(regform):
+    return f'/admin/plugins/affiliation_extras/events/{regform.event.id}/regforms/{regform.id}/invite'
+
+
 def _metadata_url(regform):
     return f'{_url(regform)}/metadata'
 
@@ -39,13 +46,13 @@ def _add_event_catalog(db, event, affiliations):
     event_settings.set(event, 'default_catalog_id', catalog.id)
 
 
+@pytest.mark.usefixtures('no_csrf_check')
 def test_invite_focal_points_invites_catalog_focal_points(
     test_client,
     db,
     dummy_regform,
     dummy_user,
     create_user,
-    no_csrf_check,
     monkeypatch,
 ):
     monkeypatch.setattr('indico.modules.events.registration.util.notify_invitation', lambda *args, **kwargs: None)
@@ -76,6 +83,98 @@ def test_invite_focal_points_invites_catalog_focal_points(
             'skip_access_check': False,
             'lock_email': False,
             'focal_points': {'count': 1},
+        },
+    )
+
+    assert resp.status_code == 200
+    assert resp.json['sent'] == 1
+    assert resp.json['skipped'] == 0
+    assert [inv.email for inv in dummy_regform.invitations] == ['alice@example.test']
+
+
+@pytest.mark.usefixtures('no_csrf_check')
+def test_invite_focal_points_returns_invitations_sorted_by_name(
+    test_client,
+    db,
+    dummy_regform,
+    dummy_user,
+):
+    dummy_regform.event.update_principal(dummy_user, full_access=True)
+    _login(test_client, dummy_user)
+    dummy_regform.invitations.extend((
+        RegistrationInvitation(
+            first_name='Alice',
+            last_name='Zulu',
+            email='alice.zulu@example.test',
+            affiliation='CERN',
+        ),
+        RegistrationInvitation(
+            first_name='Alice',
+            last_name='Alpha',
+            email='alice.alpha@example.test',
+            affiliation='CERN',
+        ),
+    ))
+    db.session.flush()
+
+    resp = test_client.post(
+        _url(dummy_regform),
+        json={
+            'sender_address': dummy_user.email,
+            'subject': 'Invitation',
+            'body': 'Please register',
+            'bcc_addresses': [],
+            'copy_for_sender': False,
+            'skip_moderation': False,
+            'skip_access_check': False,
+            'lock_email': False,
+            'focal_points': {'count': 0},
+        },
+    )
+
+    assert resp.status_code == 200
+    assert [invitation['email'] for invitation in resp.json['invitation_list']] == [
+        'alice.alpha@example.test',
+        'alice.zulu@example.test',
+    ]
+
+
+@pytest.mark.usefixtures('no_csrf_check')
+def test_invite_by_affiliation_invites_affiliation_users(
+    test_client,
+    db,
+    dummy_regform,
+    dummy_user,
+    create_user,
+    monkeypatch,
+):
+    monkeypatch.setattr('indico.modules.events.registration.util.notify_invitation', lambda *args, **kwargs: None)
+    dummy_regform.event.update_principal(dummy_user, full_access=True)
+    _login(test_client, dummy_user)
+
+    managed = Affiliation(name='CERN')
+    other = Affiliation(name='MIT')
+    db.session.add_all([managed, other])
+    db.session.flush()
+
+    invited = create_user(1, first_name='Alice', last_name='Managed', email='alice@example.test')
+    outside = create_user(2, first_name='Bob', last_name='Other', email='bob@example.test')
+    invited.affiliation_link = managed
+    outside.affiliation_link = other
+    db.session.flush()
+
+    resp = test_client.post(
+        _affiliation_invite_url(dummy_regform),
+        json={
+            'sender_address': dummy_user.email,
+            'subject': 'Invitation',
+            'body': 'Please register',
+            'bcc_addresses': [],
+            'copy_for_sender': False,
+            'skip_moderation': False,
+            'skip_access_check': False,
+            'lock_email': False,
+            'affiliations': {'affiliations': [{'id': managed.id}], 'groups': [], 'tags': []},
         },
     )
 
