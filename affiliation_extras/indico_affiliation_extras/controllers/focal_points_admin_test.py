@@ -7,6 +7,8 @@
 
 from indico.modules.users.models.affiliations import Affiliation
 
+from indico_affiliation_extras.models.focal_points import get_focal_points, set_focal_points
+
 
 def _login(test_client, user):
     with test_client.session_transaction() as sess:
@@ -47,7 +49,7 @@ def test_focal_points_patch_then_get_returns_users(test_client, db, create_user,
 
     resp = test_client.patch(_url(affiliation), json={'focal_points': [alice.identifier, bob.identifier]})
     assert resp.status_code == 204
-    assert affiliation.focal_points == {alice, bob}
+    assert get_focal_points(affiliation) == {alice, bob}
 
     resp = test_client.get(_url(affiliation))
     assert resp.status_code == 200
@@ -58,13 +60,13 @@ def test_focal_points_patch_empty_list_clears(test_client, db, create_user, no_c
     affiliation = _create_affiliation(db)
     admin = create_user(1, admin=True)
     alice = create_user(2)
-    affiliation.focal_points.add(alice)
+    set_focal_points(affiliation, {alice})
     db.session.flush()
     _login(test_client, admin)
 
     resp = test_client.patch(_url(affiliation), json={'focal_points': []})
     assert resp.status_code == 204
-    assert affiliation.focal_points == set()
+    assert get_focal_points(affiliation) == set()
 
     resp = test_client.get(_url(affiliation))
     assert resp.status_code == 200

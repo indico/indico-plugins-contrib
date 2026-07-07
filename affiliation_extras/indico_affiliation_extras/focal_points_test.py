@@ -16,6 +16,7 @@ from indico_affiliation_extras.focal_points import (
     get_registration_affiliation_ids,
 )
 from indico_affiliation_extras.models.catalogs import AffiliationCatalog
+from indico_affiliation_extras.models.focal_points import set_focal_points
 from indico_affiliation_extras.models.lists import AffiliationList
 from indico_affiliation_extras.permissions import set_focal_point_management_enabled
 from indico_affiliation_extras.settings import event_settings
@@ -84,7 +85,7 @@ def test_get_focal_affiliation_ids(db, create_user):
     cern = Affiliation(name='CERN')
     db.session.add(cern)
     db.session.flush()
-    cern.focal_points.add(user)
+    set_focal_points(cern, {user})
     db.session.flush()
 
     assert get_focal_affiliation_ids(user) == {cern.id}
@@ -101,9 +102,9 @@ def test_can_manage_registration(db, dummy_regform, dummy_reg, create_user):
     _set_representation(db, dummy_reg, field, managed.id)
 
     focal = create_user(1)
-    managed.focal_points.add(focal)
+    set_focal_points(managed, {focal})
     non_focal = create_user(2)
-    other.focal_points.add(non_focal)
+    set_focal_points(other, {non_focal})
     db.session.flush()
 
     assert can_manage_registration(focal, dummy_reg) is True
@@ -120,7 +121,7 @@ def test_focal_event_ids(db, dummy_regform, dummy_reg, create_user):
     field = _add_representation_field(db, dummy_regform)
     _set_representation(db, dummy_reg, field, managed.id)
     focal = create_user(1)
-    managed.focal_points.add(focal)
+    set_focal_points(managed, {focal})
     db.session.flush()
 
     assert focal_event_ids(focal) == {dummy_regform.event.id}
@@ -135,7 +136,7 @@ def test_registration_can_manage_grants_focal_point_edit(db, dummy_regform, dumm
     field = _add_representation_field(db, dummy_regform)
     _set_representation(db, dummy_reg, field, managed.id)
     focal = create_user(1)
-    managed.focal_points.add(focal)
+    set_focal_points(managed, {focal})
     set_focal_point_management_enabled(dummy_regform, True)
     db.session.flush()
 

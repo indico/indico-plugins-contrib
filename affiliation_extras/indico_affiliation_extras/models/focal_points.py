@@ -5,8 +5,6 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-from sqlalchemy.ext.associationproxy import association_proxy
-
 from indico.core.db import db
 from indico.modules.users.models.affiliations import Affiliation
 from indico.modules.users.models.users import User
@@ -44,9 +42,14 @@ class FocalPoint(db.Model):
     )
 
 
-Affiliation.focal_points = association_proxy(
-    'focal_point_entries', 'user', creator=lambda user: FocalPoint(user=user)
-)
-User.focal_point_affiliations = association_proxy(
-    'focal_point_entries', 'affiliation', creator=lambda affiliation: FocalPoint(affiliation=affiliation)
-)
+def get_focal_points(affiliation):
+    return {entry.user for entry in affiliation.focal_point_entries}
+
+
+def set_focal_points(affiliation, users):
+    entries = {entry.user: entry for entry in affiliation.focal_point_entries}
+    for user in users - entries.keys():
+        affiliation.focal_point_entries.add(FocalPoint(user=user))
+    for user, entry in entries.items():
+        if user not in users:
+            affiliation.focal_point_entries.discard(entry)
