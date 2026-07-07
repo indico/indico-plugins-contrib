@@ -17,6 +17,7 @@ from indico.modules.users.models.affiliations import Affiliation
 from indico_affiliation_extras.fields import RepresentationField
 from indico_affiliation_extras.focal_points import focal_list_criterion
 from indico_affiliation_extras.models.catalogs import AffiliationCatalog
+from indico_affiliation_extras.models.focal_points import set_focal_points
 from indico_affiliation_extras.models.lists import AffiliationList
 from indico_affiliation_extras.permissions import set_focal_point_management_enabled
 from indico_affiliation_extras.settings import event_settings
@@ -124,7 +125,7 @@ def test_reglist_reachable_by_focal_point(test_client, db, dummy_regform, create
     _add_representation_field(db, dummy_regform)
     managed, __ = _make_affiliations(db, dummy_regform.event)
     focal = create_user(1)
-    managed.focal_points.add(focal)
+    set_focal_points(managed, {focal})
     set_focal_point_management_enabled(dummy_regform, True)
     db.session.flush()
 
@@ -163,7 +164,7 @@ def test_criterion_matches_representation_field(db, dummy_regform, create_user):
     _set_representation(db, free_text, field, None, text='Some University')
 
     focal = create_user(1)
-    managed.focal_points.add(focal)
+    set_focal_points(managed, {focal})
     db.session.flush()
 
     assert _focal_query(dummy_regform, focal) == [mine]
@@ -176,7 +177,7 @@ def test_criterion_ignores_affiliation_field(db, dummy_regform, create_user):
     _set_affiliation(db, mine, field, managed.id)
 
     focal = create_user(1)
-    managed.focal_points.add(focal)
+    set_focal_points(managed, {focal})
     db.session.flush()
 
     assert _focal_query(dummy_regform, focal) == []
@@ -192,7 +193,7 @@ def test_criterion_matches_representation_only(db, dummy_regform, create_user):
     _set_representation(db, via_representation, representation_field, managed.id)
 
     focal = create_user(1)
-    managed.focal_points.add(focal)
+    set_focal_points(managed, {focal})
     db.session.flush()
 
     assert _focal_query(dummy_regform, focal) == [via_representation]
@@ -205,7 +206,7 @@ def test_criterion_empty_for_non_focal(db, dummy_regform, create_user):
     _set_representation(db, reg, field, managed.id)
 
     non_focal = create_user(2)
-    other.focal_points.add(non_focal)
+    set_focal_points(other, {non_focal})
     db.session.flush()
 
     assert _focal_query(dummy_regform, non_focal) == []
@@ -216,7 +217,7 @@ def test_manager_handler_unrestricted(db, dummy_regform, create_user):
 
     managed, __ = _make_affiliations(db, dummy_regform.event)
     manager = create_user(3)
-    managed.focal_points.add(manager)
+    set_focal_points(managed, {manager})
     dummy_regform.event.update_principal(manager, full_access=True)
     db.session.flush()
 
@@ -232,7 +233,7 @@ def test_focal_handler_returns_criterion(db, dummy_regform, create_user):
     _set_representation(db, mine, field, managed.id)
 
     focal = create_user(1)
-    managed.focal_points.add(focal)
+    set_focal_points(managed, {focal})
     set_focal_point_management_enabled(dummy_regform, True)
     db.session.flush()
 
@@ -250,7 +251,7 @@ def test_generator_scopes_list_for_focal_point(db, dummy_regform, create_user, r
     _set_representation(db, theirs, field, other.id, text='MIT')
 
     focal = create_user(1)
-    managed.focal_points.add(focal)
+    set_focal_points(managed, {focal})
     set_focal_point_management_enabled(dummy_regform, True)
     db.session.flush()
 
@@ -266,7 +267,7 @@ def test_generator_unrestricted_for_manager(db, dummy_regform, create_user, requ
     _set_representation(db, theirs, field, other.id, text='MIT')
 
     manager = create_user(3)
-    managed.focal_points.add(manager)
+    set_focal_points(managed, {manager})
     dummy_regform.event.update_principal(manager, full_access=True)
     db.session.flush()
 

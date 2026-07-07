@@ -16,6 +16,7 @@ from indico.util.user import make_user_search_token
 
 from indico_affiliation_extras.fields import RepresentationField
 from indico_affiliation_extras.models.catalogs import AffiliationCatalog
+from indico_affiliation_extras.models.focal_points import set_focal_points
 from indico_affiliation_extras.models.lists import AffiliationList
 from indico_affiliation_extras.permissions import set_focal_point_management_enabled
 from indico_affiliation_extras.settings import event_settings
@@ -100,7 +101,7 @@ def test_pre_create_allows_focal_with_managed_affiliation(db, dummy_regform, cre
     managed, __ = _make_affiliations(db, dummy_regform.event)
     field = _add_representation_field(db, dummy_regform)
     focal = create_user(1)
-    managed.focal_points.add(focal)
+    set_focal_points(managed, {focal})
     set_focal_point_management_enabled(dummy_regform, True)
     db.session.flush()
 
@@ -112,7 +113,7 @@ def test_pre_create_rejects_focal_without_managed_affiliation(db, dummy_regform,
     managed, other = _make_affiliations(db, dummy_regform.event)
     field = _add_representation_field(db, dummy_regform)
     focal = create_user(1)
-    managed.focal_points.add(focal)
+    set_focal_points(managed, {focal})
     set_focal_point_management_enabled(dummy_regform, True)
     db.session.flush()
 
@@ -125,7 +126,7 @@ def test_pre_create_does_not_block_self_service(db, dummy_regform, create_user):
     managed, other = _make_affiliations(db, dummy_regform.event)
     field = _add_representation_field(db, dummy_regform)
     focal = create_user(1)
-    managed.focal_points.add(focal)
+    set_focal_points(managed, {focal})
     set_focal_point_management_enabled(dummy_regform, True)
     db.session.flush()
 
@@ -138,7 +139,7 @@ def test_pre_create_never_blocks_full_manager(db, dummy_regform, create_user):
     field = _add_representation_field(db, dummy_regform)
     manager = create_user(3)
     dummy_regform.event.update_principal(manager, full_access=True)
-    managed.focal_points.add(manager)
+    set_focal_points(managed, {manager})
     set_focal_point_management_enabled(dummy_regform, True)
     db.session.flush()
 
@@ -152,7 +153,7 @@ def test_pre_create_blocked_on_disabled_form(db, dummy_regform, create_regform, 
     field_a = _add_representation_field(db, form_a)
     field_b = _add_representation_field(db, form_b)
     focal = create_user(1)
-    managed.focal_points.add(focal)
+    set_focal_points(managed, {focal})
     set_focal_point_management_enabled(form_b, True)
     db.session.flush()
 
@@ -166,7 +167,7 @@ def test_core_create_form_reachable_by_focal_point(test_client, db, dummy_regfor
     _add_representation_field(db, dummy_regform)
     managed, __ = _make_affiliations(db, dummy_regform.event)
     focal = create_user(1)
-    managed.focal_points.add(focal)
+    set_focal_points(managed, {focal})
     set_focal_point_management_enabled(dummy_regform, True)
     db.session.flush()
 
@@ -180,7 +181,7 @@ def test_core_create_post_reachable_by_focal_point(test_client, db, dummy_regfor
     _add_representation_field(db, dummy_regform)
     managed, __ = _make_affiliations(db, dummy_regform.event)
     focal = create_user(1)
-    managed.focal_points.add(focal)
+    set_focal_points(managed, {focal})
     set_focal_point_management_enabled(dummy_regform, True)
     db.session.flush()
 
@@ -203,7 +204,7 @@ def test_user_search_returns_only_focal_affiliation_users(test_client, app, db, 
     monkeypatch.setitem(app.config, 'INDICO', {**app.config['INDICO'], 'ALLOW_PUBLIC_USER_SEARCH': False})
     managed, other = _make_affiliations(db, dummy_regform.event)
     focal = create_user(1)
-    managed.focal_points.add(focal)
+    set_focal_points(managed, {focal})
     mine = _user_with_affiliation(create_user, db, 10, managed, first_name='Alice', last_name='Managed')
     theirs = _user_with_affiliation(create_user, db, 11, other, first_name='Alice', last_name='Other')
     db.session.flush()
@@ -221,7 +222,7 @@ def test_user_search_drops_other_affiliation_users(test_client, app, db, dummy_r
     monkeypatch.setitem(app.config, 'INDICO', {**app.config['INDICO'], 'ALLOW_PUBLIC_USER_SEARCH': False})
     managed, other = _make_affiliations(db, dummy_regform.event)
     focal = create_user(1)
-    managed.focal_points.add(focal)
+    set_focal_points(managed, {focal})
     _user_with_affiliation(create_user, db, 10, managed, first_name='Bob', last_name='Shared')
     _user_with_affiliation(create_user, db, 11, other, first_name='Carol', last_name='Shared')
     db.session.flush()
@@ -237,7 +238,7 @@ def test_user_search_drops_other_affiliation_users(test_client, app, db, dummy_r
 def test_user_search_unbounded_when_public_search_allowed(test_client, app, db, dummy_regform, create_user):
     managed, other = _make_affiliations(db, dummy_regform.event)
     focal = create_user(1)
-    managed.focal_points.add(focal)
+    set_focal_points(managed, {focal})
     mine = _user_with_affiliation(create_user, db, 10, managed, first_name='Dan', last_name='Open')
     theirs = _user_with_affiliation(create_user, db, 11, other, first_name='Dana', last_name='Open')
     db.session.flush()

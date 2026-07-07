@@ -58,7 +58,7 @@ def get_focal_affiliation_ids(user):
     """Return the affiliation ids ``user`` is centrally a focal point for (excluding deleted)."""
     if user is None:
         return set()
-    return {affiliation.id for affiliation in user.focal_point_affiliations if not affiliation.is_deleted}
+    return {entry.affiliation.id for entry in user.focal_point_entries if not entry.affiliation.is_deleted}
 
 
 def get_event_catalog_affiliation_ids(event):

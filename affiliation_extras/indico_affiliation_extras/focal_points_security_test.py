@@ -14,6 +14,7 @@ from indico.modules.users.models.affiliations import Affiliation
 
 from indico_affiliation_extras.fields import RepresentationField
 from indico_affiliation_extras.models.catalogs import AffiliationCatalog
+from indico_affiliation_extras.models.focal_points import set_focal_points
 from indico_affiliation_extras.models.lists import AffiliationList
 from indico_affiliation_extras.permissions import set_focal_point_management_enabled
 from indico_affiliation_extras.settings import event_settings
@@ -86,7 +87,7 @@ def _setup(db, regform, create_user, *, user_id=1, full_manager=False):
     _set_representation(db, in_range, field, managed.id)
     _set_representation(db, out_range, field, other.id)
     user = create_user(user_id)
-    managed.focal_points.add(user)
+    set_focal_points(managed, {user})
     set_focal_point_management_enabled(regform, True)
     if full_manager:
         regform.event.update_principal(user, full_access=True)
@@ -149,7 +150,7 @@ def test_per_form_toggle_isolates_forms(db, dummy_regform, create_regform, creat
     _set_representation(db, reg_a, field_a, managed.id)
     _set_representation(db, reg_b, field_b, managed.id)
     focal = create_user(1)
-    managed.focal_points.add(focal)
+    set_focal_points(managed, {focal})
     set_focal_point_management_enabled(form_a, True)
     set_focal_point_management_enabled(form_b, True)
     db.session.flush()

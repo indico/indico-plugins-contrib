@@ -7,6 +7,8 @@
 
 from indico.modules.users.models.affiliations import Affiliation
 
+from indico_affiliation_extras.models.focal_points import get_focal_points, set_focal_points
+
 
 def test_focal_points_relationship_both_directions(db, create_user):
     user = create_user(123)
@@ -14,11 +16,11 @@ def test_focal_points_relationship_both_directions(db, create_user):
     db.session.add(affiliation)
     db.session.flush()
 
-    affiliation.focal_points.add(user)
+    set_focal_points(affiliation, {user})
     db.session.flush()
 
-    assert user in affiliation.focal_points
-    assert affiliation in user.focal_point_affiliations
+    assert user in get_focal_points(affiliation)
+    assert affiliation in {entry.affiliation for entry in user.focal_point_entries}
 
 
 def test_focal_point_for_multiple_affiliations(db, create_user):
@@ -28,12 +30,13 @@ def test_focal_point_for_multiple_affiliations(db, create_user):
     db.session.add_all([cern, mit])
     db.session.flush()
 
-    user.focal_point_affiliations.update({cern, mit})
+    set_focal_points(cern, {user})
+    set_focal_points(mit, {user})
     db.session.flush()
 
-    assert {cern, mit} <= set(user.focal_point_affiliations)
-    assert user in cern.focal_points
-    assert user in mit.focal_points
+    assert {cern, mit} <= {entry.affiliation for entry in user.focal_point_entries}
+    assert user in get_focal_points(cern)
+    assert user in get_focal_points(mit)
 
 
 def test_affiliation_with_multiple_focal_points(db, create_user):
@@ -43,7 +46,7 @@ def test_affiliation_with_multiple_focal_points(db, create_user):
     alice = create_user(1)
     bob = create_user(2)
 
-    affiliation.focal_points.update({alice, bob})
+    set_focal_points(affiliation, {alice, bob})
     db.session.flush()
 
-    assert {alice, bob} == set(affiliation.focal_points)
+    assert {alice, bob} == get_focal_points(affiliation)

@@ -37,6 +37,7 @@ from indico.util.placeholders import get_sorted_placeholders, replace_placeholde
 from indico.util.string import validate_email
 from indico.web.args import use_kwargs, use_rh_args, use_rh_kwargs
 
+from indico_affiliation_extras.models.focal_points import get_focal_points, set_focal_points
 from indico_affiliation_extras.models.groups import AffiliationGroup
 from indico_affiliation_extras.models.tags import AffiliationTag
 from indico_affiliation_extras.schemas import (
@@ -326,15 +327,16 @@ class RHAffiliationFocalPoints(RHAdminBase):
         self.affiliation = affiliation
 
     def _process_GET(self):
-        return jsonify(sorted(user.identifier for user in self.affiliation.focal_points))
+        return jsonify(sorted(user.identifier for user in get_focal_points(self.affiliation)))
 
     @use_kwargs({'focal_points': PrincipalList(required=True)})
     def _process_PATCH(self, focal_points):
-        if focal_points == self.affiliation.focal_points:
+        current = get_focal_points(self.affiliation)
+        if focal_points == current:
             return '', 204
-        old = sorted(user.full_name for user in self.affiliation.focal_points)
+        old = sorted(user.full_name for user in current)
         new = sorted(user.full_name for user in focal_points)
-        self.affiliation.focal_points = focal_points
+        set_focal_points(self.affiliation, focal_points)
         self.affiliation.log(
             AppLogRealm.admin,
             LogKind.change,
