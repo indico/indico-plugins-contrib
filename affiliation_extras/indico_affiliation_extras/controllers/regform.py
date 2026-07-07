@@ -15,6 +15,7 @@ from webargs.flaskparser import abort
 from werkzeug.exceptions import NotFound
 
 from indico.core.db import db
+from indico.core.marshmallow import mm
 from indico.modules.events.registration.controllers.display import RHRegistrationFormFieldActionBase
 from indico.modules.events.registration.controllers.management import (
     RHManageRegFormBase,
@@ -157,20 +158,98 @@ class RHAffiliationUserCount(RHManageRegFormBase):
         return jsonify(count=count)
 
 
-class RHInviteByAffiliation(RHManageRegFormBase):
+class InviteUsersArgs(mm.Schema):
+    sender_address = fields.String(required=True, validate=not_empty)
+    subject = fields.String(required=True, validate=[not_empty, validate.Length(max=200)])
+    body = fields.String(required=True, validate=[not_empty, no_relative_urls])
+    bcc_addresses = fields.List(LowercaseString(validate=validate.Email()), load_default=list)
+    copy_for_sender = fields.Bool(load_default=False)
+    skip_moderation = fields.Bool(load_default=False)
+    skip_access_check = fields.Bool(load_default=False)
+    lock_email = fields.Bool(load_default=False)
+
+
+class InviteByAffiliationArgs(InviteUsersArgs):
+    affiliations = fields.Dict(load_default=dict)
+
+
+class InviteFocalPointsArgs(InviteUsersArgs):
+    # The invite dialog stores metadata here for recipient counts and also submits plugin extraFields.
+    focal_points = fields.Dict(load_default=dict)
+
+
+class RHInviteUsersBase(RHManageRegFormBase):
+    def _invite_users(
+        self,
+        users,
+        sender_address,
+        subject,
+        body,
+        bcc_addresses,
+        copy_for_sender,
+        skip_moderation,
+        skip_access_check,
+        lock_email,
+    ):
+        sender_address = self.event.get_allowed_sender_emails(_for_sending=True).get(sender_address)
+        if not sender_address:
+            abort(422, messages={'sender_address': ['Invalid sender address']})
+        if not self.regform.moderation_enabled:
+            skip_moderation = False
+
+        users = list(users)
+        invited = {inv.email.lower() for inv in self.regform.invitations}
+        registered = {r.email.lower() for r in self.regform.registrations if r.is_active and r.email}
+        existing = invited | registered
+        users_to_invite = [u for u in users if u.email and u.email.lower() not in existing]
+        skipped = len(users) - len(users_to_invite)
+
+        for user in users_to_invite:
+            create_invitation(
+                self.regform,
+                self._serialize_user(user),
+                sender_address,
+                subject,
+                body,
+                skip_moderation=skip_moderation,
+                skip_access_check=skip_access_check,
+                lock_email=lock_email,
+                bcc_addresses=bcc_addresses,
+                copy_for_sender=copy_for_sender,
+            )
+
+        invitations = (
+            RegistrationInvitation.query
+            .with_parent(self.regform)
+            .options(joinedload('registration'))
+            .order_by(
+                db.func.lower(RegistrationInvitation.first_name),
+                db.func.lower(RegistrationInvitation.last_name),
+                RegistrationInvitation.id,
+            )
+            .all()
+        )
+        return jsonify(
+            sent=len(users_to_invite),
+            skipped=skipped,
+            has_pending_invitations=any(i.state == InvitationState.pending for i in invitations),
+            invitation_list=RegistrationInvitationSchema(many=True).dump(invitations),
+        )
+
+    @staticmethod
+    def _serialize_user(user):
+        return {
+            'first_name': user.first_name,
+            'last_name': user.last_name,
+            'email': user.email,
+            'affiliation': user.affiliation or '',
+        }
+
+
+class RHInviteByAffiliation(RHInviteUsersBase):
     """Invite users by affiliation, group, or tag membership."""
 
-    @use_kwargs({
-        'sender_address': fields.String(required=True, validate=not_empty),
-        'subject': fields.String(required=True, validate=[not_empty, validate.Length(max=200)]),
-        'body': fields.String(required=True, validate=[not_empty, no_relative_urls]),
-        'bcc_addresses': fields.List(LowercaseString(validate=validate.Email()), load_default=lambda: []),
-        'copy_for_sender': fields.Bool(load_default=False),
-        'skip_moderation': fields.Bool(load_default=False),
-        'skip_access_check': fields.Bool(load_default=False),
-        'lock_email': fields.Bool(load_default=False),
-        'affiliations': fields.Dict(load_default=lambda: {}),
-    })
+    @use_kwargs(InviteByAffiliationArgs)
     def _process(
         self,
         sender_address,
@@ -183,12 +262,6 @@ class RHInviteByAffiliation(RHManageRegFormBase):
         lock_email,
         affiliations,
     ):
-        sender_address = self.event.get_allowed_sender_emails(_for_sending=True).get(sender_address)
-        if not sender_address:
-            abort(422, messages={'sender_address': ['Invalid sender address']})
-        if not self.regform.moderation_enabled:
-            skip_moderation = False
-
         aff_ids = [a['id'] for a in affiliations.get('affiliations', [])]
         group_ids = [g['id'] for g in affiliations.get('groups', [])]
         tag_ids = [t['id'] for t in affiliations.get('tags', [])]
@@ -200,44 +273,16 @@ class RHInviteByAffiliation(RHManageRegFormBase):
         users_by_id = {
             user.id: user for user in User.query.filter(User.affiliation_id.in_(a.id for a in all_affiliations))
         }
-
-        invited = {inv.email.lower() for inv in self.regform.invitations}
-        registered = {r.email.lower() for r in self.regform.registrations if r.is_active and r.email}
-        existing = invited | registered
-        users_to_invite = [u for u in users_by_id.values() if u.email and u.email.lower() not in existing]
-        skipped = len(users_by_id) - len(users_to_invite)
-
-        for user in users_to_invite:
-            create_invitation(
-                self.regform,
-                {
-                    'first_name': user.first_name,
-                    'last_name': user.last_name,
-                    'email': user.email,
-                    'affiliation': user.affiliation or '',
-                },
-                sender_address,
-                subject,
-                body,
-                skip_moderation=skip_moderation,
-                skip_access_check=skip_access_check,
-                lock_email=lock_email,
-                bcc_addresses=bcc_addresses,
-                copy_for_sender=copy_for_sender,
-            )
-
-        invitations = (
-            RegistrationInvitation.query
-            .with_parent(self.regform)
-            .options(joinedload('registration'))
-            .order_by(db.func.lower(RegistrationInvitation.first_name))
-            .all()
-        )
-        return jsonify(
-            sent=len(users_to_invite),
-            skipped=skipped,
-            has_pending_invitations=any(i.state == InvitationState.pending for i in invitations),
-            invitation_list=RegistrationInvitationSchema(many=True).dump(invitations),
+        return self._invite_users(
+            users_by_id.values(),
+            sender_address,
+            subject,
+            body,
+            bcc_addresses,
+            copy_for_sender,
+            skip_moderation,
+            skip_access_check,
+            lock_email,
         )
 
 
@@ -245,26 +290,17 @@ class RHFocalPointInviteMetadata(RHManageRegFormBase):
     """Return focal-point recipient information for the invitation dialog."""
 
     def _process(self):
+        affiliation_ids = get_event_catalog_affiliation_ids(self.event)
         return jsonify(
-            focal_point_count=len(get_event_catalog_focal_points(self.event)),
-            affiliation_count=len(get_event_catalog_affiliation_ids(self.event)),
+            focal_point_count=len(get_event_catalog_focal_points(self.event, affiliation_ids)),
+            affiliation_count=len(affiliation_ids),
         )
 
 
-class RHInviteFocalPoints(RHManageRegFormBase):
+class RHInviteFocalPoints(RHInviteUsersBase):
     """Invite focal points for affiliations in the event's catalog."""
 
-    @use_kwargs({
-        'sender_address': fields.String(required=True, validate=not_empty),
-        'subject': fields.String(required=True, validate=[not_empty, validate.Length(max=200)]),
-        'body': fields.String(required=True, validate=[not_empty, no_relative_urls]),
-        'bcc_addresses': fields.List(LowercaseString(validate=validate.Email()), load_default=lambda: []),
-        'copy_for_sender': fields.Bool(load_default=False),
-        'skip_moderation': fields.Bool(load_default=False),
-        'skip_access_check': fields.Bool(load_default=False),
-        'lock_email': fields.Bool(load_default=False),
-        'focal_points': fields.Dict(load_default=lambda: {}),
-    })
+    @use_kwargs(InviteFocalPointsArgs)
     def _process(
         self,
         sender_address,
@@ -277,48 +313,15 @@ class RHInviteFocalPoints(RHManageRegFormBase):
         lock_email,
         focal_points,
     ):
-        sender_address = self.event.get_allowed_sender_emails(_for_sending=True).get(sender_address)
-        if not sender_address:
-            abort(422, messages={'sender_address': ['Invalid sender address']})
-        if not self.regform.moderation_enabled:
-            skip_moderation = False
-
         users = sorted(get_event_catalog_focal_points(self.event), key=lambda u: (u.last_name, u.first_name, u.email))
-        invited = {inv.email.lower() for inv in self.regform.invitations}
-        registered = {r.email.lower() for r in self.regform.registrations if r.is_active and r.email}
-        existing = invited | registered
-        users_to_invite = [u for u in users if u.email and u.email.lower() not in existing]
-        skipped = len(users) - len(users_to_invite)
-
-        for user in users_to_invite:
-            create_invitation(
-                self.regform,
-                {
-                    'first_name': user.first_name,
-                    'last_name': user.last_name,
-                    'email': user.email,
-                    'affiliation': user.affiliation or '',
-                },
-                sender_address,
-                subject,
-                body,
-                skip_moderation=skip_moderation,
-                skip_access_check=skip_access_check,
-                lock_email=lock_email,
-                bcc_addresses=bcc_addresses,
-                copy_for_sender=copy_for_sender,
-            )
-
-        invitations = (
-            RegistrationInvitation.query
-            .with_parent(self.regform)
-            .options(joinedload('registration'))
-            .order_by(db.func.lower(RegistrationInvitation.first_name))
-            .all()
-        )
-        return jsonify(
-            sent=len(users_to_invite),
-            skipped=skipped,
-            has_pending_invitations=any(i.state == InvitationState.pending for i in invitations),
-            invitation_list=RegistrationInvitationSchema(many=True).dump(invitations),
+        return self._invite_users(
+            users,
+            sender_address,
+            subject,
+            body,
+            bcc_addresses,
+            copy_for_sender,
+            skip_moderation,
+            skip_access_check,
+            lock_email,
         )

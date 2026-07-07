@@ -71,9 +71,10 @@ def get_event_catalog_affiliation_ids(event):
     return ids
 
 
-def get_event_catalog_focal_points(event):
+def get_event_catalog_focal_points(event, affiliation_ids=None):
     """Return users who are focal points for affiliations in the event's affiliation catalog."""
-    affiliation_ids = get_event_catalog_affiliation_ids(event)
+    if affiliation_ids is None:
+        affiliation_ids = get_event_catalog_affiliation_ids(event)
     if not affiliation_ids:
         return set()
     return set(
