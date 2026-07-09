@@ -7,6 +7,7 @@
 
 from indico.core.db import db
 from indico.modules.events import Event
+from indico.modules.events.models.settings import EventSetting
 from indico.modules.events.registration.models.form_fields import RegistrationFormField, RegistrationFormFieldData
 from indico.modules.events.registration.models.forms import RegistrationForm
 from indico.modules.events.registration.models.registrations import Registration, RegistrationData
@@ -14,6 +15,7 @@ from indico.modules.users.models.users import User
 
 from indico_affiliation_extras.fields import RepresentationField
 from indico_affiliation_extras.models.focal_points import FocalPoint
+from indico_affiliation_extras.settings import event_settings
 from indico_affiliation_extras.util import get_representation_affiliation_lists, get_representation_affiliations
 
 
@@ -110,6 +112,7 @@ def _focal_match_criterion(focal_ids):
         RegistrationData.field_data_id == RegistrationFormFieldData.id,
         RegistrationFormFieldData.field_id == RegistrationFormField.id,
         ~RegistrationFormField.is_deleted,
+        RegistrationFormField.is_enabled,
         RegistrationFormField.input_type == RepresentationField.name,
         representation_id.in_(focal_ids),
     ))
@@ -120,19 +123,28 @@ def focal_list_criterion(user, event):
     return _focal_match_criterion(focal_affiliations_for_event(user, event))
 
 
+def _focal_enabled_regform_ids():
+    rows = (EventSetting.query
+            .filter_by(module=event_settings.module, name='focal_point_enabled_regform_ids')
+            .with_entities(EventSetting.value))
+    return {form_id for (value,) in rows for form_id in (value or [])}
+
+
 def focal_event_ids(user, limit=FOCAL_EVENT_LIMIT):
-    """Ids of non-deleted events with a registration matching one of ``user``'s focal affiliations.
+    """Ids of non-deleted events with a focal-managed form matching ``user``'s focal affiliations.
 
     A superset: the per-event catalog scope is applied later by the caller (via ``is_scoped_focal_point``).
     """
     focal_ids = get_focal_affiliation_ids(user)
-    if not focal_ids:
+    enabled_form_ids = _focal_enabled_regform_ids()
+    if not focal_ids or not enabled_form_ids:
         return set()
     criterion = _focal_match_criterion(focal_ids)
     query = (db.session.query(Event.id)
              .filter(~Event.is_deleted,
                      RegistrationForm.query
                      .filter(RegistrationForm.event_id == Event.id,
+                             RegistrationForm.id.in_(enabled_form_ids),
                              ~RegistrationForm.is_deleted,
                              Registration.query
                              .filter(Registration.registration_form_id == RegistrationForm.id,

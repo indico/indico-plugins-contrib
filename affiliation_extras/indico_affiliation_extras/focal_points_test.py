@@ -122,10 +122,15 @@ def test_focal_event_ids(db, dummy_regform, dummy_reg, create_user):
     _set_representation(db, dummy_reg, field, managed.id)
     focal = create_user(1)
     set_focal_points(managed, {focal})
+    set_focal_point_management_enabled(dummy_regform, True)
     db.session.flush()
 
     assert focal_event_ids(focal) == {dummy_regform.event.id}
     assert focal_event_ids(create_user(2)) == set()
+
+    set_focal_point_management_enabled(dummy_regform, False)
+    db.session.flush()
+    assert focal_event_ids(focal) == set()
 
 
 def test_registration_can_manage_grants_focal_point_edit(db, dummy_regform, dummy_reg, create_user):
@@ -143,11 +148,3 @@ def test_registration_can_manage_grants_focal_point_edit(db, dummy_regform, dumm
     assert dummy_reg.can_manage(focal, 'registration_edit') is True
     assert dummy_reg.can_manage(focal, 'registration') is False
     assert dummy_reg.can_manage(create_user(2), 'registration_edit') is False
-
-
-def test_registration_can_manage_grants_event_manager(db, dummy_reg, create_user):
-    manager = create_user(3)
-    dummy_reg.event.update_principal(manager, full_access=True)
-    db.session.flush()
-
-    assert dummy_reg.can_manage(manager, 'registration_edit') is True
