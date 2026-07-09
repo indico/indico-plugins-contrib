@@ -76,7 +76,7 @@ const FocalPointsField = ({eventId, regformId}) => {
 
 const focalPointInvitations = {
   key: 'focal_points',
-  buttonLabel: 'Focal points',
+  buttonLabel: Translate.string('Focal points'),
   Component: FocalPointsField,
   extraFields: ['focal_points'],
   initialValues: {focal_points: {focalPointCount: 0, affiliationCount: 0}},
