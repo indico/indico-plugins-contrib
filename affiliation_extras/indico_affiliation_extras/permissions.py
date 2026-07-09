@@ -5,10 +5,10 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-# Focal-point access model: while enabled (the default on any event with a representation-bearing
-# form), Indico grants the equivalent of `registration_edit` to every focal point of a catalog
-# affiliation via `acl.can_manage`, then bounds it with blacklist signals. The grant is dynamic (no
-# per-user ACL) and a genuine `registration_edit` always prevails; a manager can disable it per form.
+# Focal-point access model: while enabled (opt-in per form, off by default), Indico grants the
+# equivalent of `registration_edit` to every focal point of a catalog affiliation via
+# `acl.can_manage`, then bounds it with blacklist signals. The grant is dynamic (no per-user ACL)
+# and a genuine `registration_edit` always prevails; a manager turns it on or off per form.
 
 from indico.util.user import iter_acl
 
