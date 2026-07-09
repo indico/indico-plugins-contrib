@@ -11,6 +11,7 @@ from indico.modules.events.registration.models.invitations import RegistrationIn
 from indico.modules.users.models.affiliations import Affiliation
 
 from indico_affiliation_extras.models.catalogs import AffiliationCatalog
+from indico_affiliation_extras.models.focal_points import set_focal_points
 from indico_affiliation_extras.models.lists import AffiliationList
 from indico_affiliation_extras.settings import event_settings
 
@@ -67,8 +68,8 @@ def test_invite_focal_points_invites_catalog_focal_points(
 
     focal = create_user(1, first_name='Alice', last_name='Focal', email='alice@example.test')
     outside = create_user(2, first_name='Bob', last_name='Other', email='bob@example.test')
-    managed.focal_points.add(focal)
-    other.focal_points.add(outside)
+    set_focal_points(managed, {focal})
+    set_focal_points(other, {outside})
     db.session.flush()
 
     resp = test_client.post(
@@ -200,8 +201,8 @@ def test_focal_point_invite_metadata_counts_catalog_focal_points(
     db.session.flush()
     _add_event_catalog(db, dummy_regform.event, {managed})
 
-    managed.focal_points.add(create_user(1))
-    unmanaged.focal_points.add(create_user(2))
+    set_focal_points(managed, {create_user(1)})
+    set_focal_points(unmanaged, {create_user(2)})
     db.session.flush()
 
     resp = test_client.get(_metadata_url(dummy_regform))
