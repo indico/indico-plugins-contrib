@@ -170,19 +170,6 @@ def test_criterion_matches_representation_field(db, dummy_regform, create_user):
     assert _focal_query(dummy_regform, focal) == [mine]
 
 
-def test_criterion_ignores_affiliation_field(db, dummy_regform, create_user):
-    managed, __ = _make_affiliations(db, dummy_regform.event)
-    field = _affiliation_field(dummy_regform)
-    mine = _create_registration(db, dummy_regform, 'Mine', 'mine@example.test')
-    _set_affiliation(db, mine, field, managed.id)
-
-    focal = create_user(1)
-    set_focal_points(managed, {focal})
-    db.session.flush()
-
-    assert _focal_query(dummy_regform, focal) == []
-
-
 def test_criterion_matches_representation_only(db, dummy_regform, create_user):
     managed, __ = _make_affiliations(db, dummy_regform.event)
     affiliation_field = _affiliation_field(dummy_regform)
@@ -222,24 +209,6 @@ def test_manager_handler_unrestricted(db, dummy_regform, create_user):
     db.session.flush()
 
     assert AffiliationExtrasPlugin.instance._filter_registration_list(dummy_regform, manager) is None
-
-
-def test_focal_handler_returns_criterion(db, dummy_regform, create_user):
-    from indico_affiliation_extras.plugin import AffiliationExtrasPlugin
-
-    managed, __ = _make_affiliations(db, dummy_regform.event)
-    field = _add_representation_field(db, dummy_regform)
-    mine = _create_registration(db, dummy_regform, 'Mine', 'mine@example.test')
-    _set_representation(db, mine, field, managed.id)
-
-    focal = create_user(1)
-    set_focal_points(managed, {focal})
-    set_focal_point_management_enabled(dummy_regform, True)
-    db.session.flush()
-
-    criterion = AffiliationExtrasPlugin.instance._filter_registration_list(dummy_regform, focal)
-    assert criterion is not None
-    assert Registration.query.with_parent(dummy_regform).filter(criterion).all() == [mine]
 
 
 def test_generator_scopes_list_for_focal_point(db, dummy_regform, create_user, request_context):

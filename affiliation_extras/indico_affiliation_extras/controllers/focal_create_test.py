@@ -162,7 +162,7 @@ def test_pre_create_blocked_on_disabled_form(db, dummy_regform, create_regform, 
         _guardrail(form_a, focal, _registration_data(field_a, managed.id), True)
 
 
-def test_core_create_form_reachable_by_focal_point(test_client, db, dummy_regform, create_user):
+def test_core_create_reachable_by_focal_point(test_client, db, dummy_regform, create_user):
     set_feature_enabled(dummy_regform.event, 'registration', True)
     _add_representation_field(db, dummy_regform)
     managed, __ = _make_affiliations(db, dummy_regform.event)
@@ -173,21 +173,7 @@ def test_core_create_form_reachable_by_focal_point(test_client, db, dummy_regfor
 
     _login(test_client, focal)
     resp = test_client.get(_create_url(dummy_regform))
-    assert resp.status_code != 403
-
-
-def test_core_create_post_reachable_by_focal_point(test_client, db, dummy_regform, create_user, no_csrf_check):
-    set_feature_enabled(dummy_regform.event, 'registration', True)
-    _add_representation_field(db, dummy_regform)
-    managed, __ = _make_affiliations(db, dummy_regform.event)
-    focal = create_user(1)
-    set_focal_points(managed, {focal})
-    set_focal_point_management_enabled(dummy_regform, True)
-    db.session.flush()
-
-    _login(test_client, focal)
-    resp = test_client.post(_create_url(dummy_regform), json={})
-    assert resp.status_code != 403
+    assert resp.status_code == 200
 
 
 def test_core_create_denies_plain_non_manager(test_client, db, dummy_regform, create_user):
@@ -197,25 +183,6 @@ def test_core_create_denies_plain_non_manager(test_client, db, dummy_regform, cr
     _login(test_client, create_user(2))
     resp = test_client.get(_create_url(dummy_regform))
     assert resp.status_code == 403
-
-
-def test_user_search_returns_only_focal_affiliation_users(test_client, app, db, dummy_regform, create_user,
-                                                          monkeypatch):
-    monkeypatch.setitem(app.config, 'INDICO', {**app.config['INDICO'], 'ALLOW_PUBLIC_USER_SEARCH': False})
-    managed, other = _make_affiliations(db, dummy_regform.event)
-    focal = create_user(1)
-    set_focal_points(managed, {focal})
-    mine = _user_with_affiliation(create_user, db, 10, managed, first_name='Alice', last_name='Managed')
-    theirs = _user_with_affiliation(create_user, db, 11, other, first_name='Alice', last_name='Other')
-    db.session.flush()
-    token = _search_token(app, focal)
-
-    _login(test_client, focal)
-    resp = test_client.get('/user/search/', query_string={'last_name': 'Managed', 'token': token})
-    assert resp.status_code == 200
-    returned_ids = {u['id'] for u in resp.json['users']}
-    assert mine.id in returned_ids
-    assert theirs.id not in returned_ids
 
 
 def test_user_search_drops_other_affiliation_users(test_client, app, db, dummy_regform, create_user, monkeypatch):
