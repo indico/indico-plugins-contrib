@@ -14,7 +14,7 @@ import inviteByAffiliationURL from 'indico-url:plugin_affiliation_extras.api_inv
 
 import React from 'react';
 
-import {Param, Plural, PluralTranslate, Singular} from 'indico/react/i18n';
+import {Param, Plural, PluralTranslate, Singular, Translate} from 'indico/react/i18n';
 
 import FinalAffiliationList from '../components/AffiliationListField';
 
@@ -57,7 +57,7 @@ const AffiliationField = ({eventId, regformId}) => {
 
 const affiliationInvitations = {
   key: 'affiliations',
-  buttonLabel: 'Affiliations',
+  buttonLabel: Translate.string('Affiliations'),
   Component: AffiliationField,
   extraFields: ['affiliations'],
   initialValues: {affiliations: {affiliations: [], groups: [], tags: [], _extraInfo: null}},
