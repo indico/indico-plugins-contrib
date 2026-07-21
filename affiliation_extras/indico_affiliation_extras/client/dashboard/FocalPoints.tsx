@@ -6,6 +6,7 @@
 // MIT License see the LICENSE file for more details.
 
 import focalPointsURL from 'indico-url:plugin_affiliation_extras.api_affiliation_focal_points';
+import userSearchTokenURL from 'indico-url:users.user_search_token';
 
 import _ from 'lodash';
 import React from 'react';
@@ -34,6 +35,10 @@ export default function FocalPoints({
   const favoriteUsersController = useFavoriteUsers();
   const url = focalPointsURL({affiliation_id: affiliation.id});
   const {data: focalPoints, loading} = useIndicoAxios<string[]>(url);
+  // focal-point management is admin-only; an admin gets a search token by passing the root category
+  const {data: searchTokenData, loading: tokenLoading} = useIndicoAxios<{token: string}>(
+    userSearchTokenURL({category_id: 0})
+  );
 
   const handleSubmit = async ({focal_points}: FocalPointsFormValues) => {
     try {
@@ -44,7 +49,7 @@ export default function FocalPoints({
     onClose();
   };
 
-  if (loading || !focalPoints) {
+  if (loading || tokenLoading || !focalPoints || !searchTokenData) {
     return <Loader active />;
   }
 
@@ -63,6 +68,7 @@ export default function FocalPoints({
       <FinalPrincipalList
         name="focal_points"
         favoriteUsersController={favoriteUsersController}
+        searchToken={searchTokenData.token}
         label={Translate.string('Focal points')}
       />
     </FinalModalForm>
