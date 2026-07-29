@@ -163,3 +163,22 @@ def test_per_form_toggle_isolates_forms(db, dummy_regform, create_regform, creat
     assert reg_b.can_manage(focal, 'registration_edit') is True
     assert _scoped_list(form_a, focal) == []
     assert _scoped_list(form_b, focal) == [reg_b]
+
+
+def test_focal_point_cannot_download(db, dummy_regform, create_user, request_context):
+    focal, __, __ = _setup(db, dummy_regform, create_user)
+    assert dummy_regform.is_download_blocked(focal) is True
+
+
+def test_genuine_manager_and_outsider_can_download(db, dummy_regform, create_user, request_context):
+    manager, __, __ = _setup(db, dummy_regform, create_user, user_id=3, full_manager=True)
+    outsider = create_user(9)
+    db.session.flush()
+    assert dummy_regform.is_download_blocked(manager) is False
+    assert dummy_regform.is_download_blocked(outsider) is False
+
+
+def test_focal_point_management_disabled_allows_download(db, dummy_regform, create_user, request_context):
+    focal, __, __ = _setup(db, dummy_regform, create_user)
+    set_focal_point_management_enabled(dummy_regform, False)
+    assert dummy_regform.is_download_blocked(focal) is False

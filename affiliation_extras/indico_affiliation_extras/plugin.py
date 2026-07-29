@@ -81,6 +81,7 @@ class AffiliationExtrasPlugin(IndicoPlugin):
         self.connect(signals.affiliations.get_affiliation_filters, self._get_affiliation_filters)
         self.connect(signals.event.registrant_list_items, self._get_registrant_list_items)
         self.connect(signals.event.filter_registration_list, self._filter_registration_list)
+        self.connect(signals.event.is_registration_download_blocked, self._block_focal_point_download)
         self.connect(signals.event.registration_pre_create, self._check_registration_pre_create)
         self.connect(signals.event.registration_form_edited, self._persist_focal_point_setting)
         self.connect(signals.users.filter_user_search_results, self._filter_user_search_results)
@@ -193,6 +194,10 @@ class AffiliationExtrasPlugin(IndicoPlugin):
         if not focal_point_management_enabled(regform):
             return db.false()
         return focal_list_criterion(user, regform.event)
+
+    def _block_focal_point_download(self, regform, user, **kwargs):
+        # A scoped focal point manages individual registrations but may not bulk-download the list.
+        return is_scoped_focal_point(regform.event, user)
 
     def _check_registration_pre_create(self, regform, user, data, management, **kwargs):
         # Self-service (`management` is False) is someone registering themselves and must never be
