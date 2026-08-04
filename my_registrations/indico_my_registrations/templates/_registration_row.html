@@ -1,3 +1,5 @@
+{% from 'events/display/conference/_util.html' import format_event_date %}
+
 {% set event = reg.event %}
 <li class="my-registrations-row">
     <div class="my-registrations-row-main">
@@ -7,10 +9,7 @@
         <div class="my-registrations-meta">
             <span>
                 <i class="icon-calendar"></i>
-                {{ event.start_dt | format_datetime(timezone=event.timezone) }}
-                {%- if event.end_dt != event.start_dt %}
-                    {{ '–' }} {{ event.end_dt | format_datetime(timezone=event.timezone) }}
-                {%- endif %}
+                {{ format_event_date(event) }}
             </span>
             <span>
                 <i class="icon-clipboard"></i>
