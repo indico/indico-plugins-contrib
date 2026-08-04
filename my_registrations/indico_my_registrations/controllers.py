@@ -25,7 +25,7 @@ class RHMyRegistrations(RHUserBase):
         upcoming = _paginate(get_upcoming_query(self.user), 'upcoming_page')
         past = _paginate(get_past_query(self.user), 'past_page')
         return WPMyRegistrations.render_template(
-            'dashboard.html',
+            'my_registrations.html',
             'my_registrations',
             user=self.user,
             upcoming=upcoming,
