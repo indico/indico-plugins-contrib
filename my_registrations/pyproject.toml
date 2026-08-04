@@ -32,7 +32,10 @@ packages = ['indico_my_registrations']
 exclude = [
     '*.no-header',
     '.keep',
+    # exclude original client sources (they are all included in source maps anyway)
     'indico_*/client/',
+    # no need for tests outside development
+    'test_snapshots/',
     'tests/',
     '*_test.py',
 ]
