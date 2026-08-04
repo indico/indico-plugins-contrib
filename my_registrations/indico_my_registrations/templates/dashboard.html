@@ -19,12 +19,10 @@
                         {% if page == pagination.page %}
                             <a href="#" class="i-button highlight">{{ page }}</a>
                         {% else %}
-                            <a href="{{ url_for_plugin(
-                                  'my_registrations.list',
-                                  user_id=user.id,
-                                  **{page_arg: page, other_page_arg: other_pagination.page}
-                               ) }}"
-                               class="i-button">{{ page }}</a>
+                            <a href="{{ url_for_plugin('.list', **{page_arg: page, other_page_arg: other_pagination.page}) }}"
+                               class="i-button">
+                                {{- page -}}
+                            </a>
                         {% endif %}
                     </span>
                 {% else %}

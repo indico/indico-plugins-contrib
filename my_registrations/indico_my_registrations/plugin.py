@@ -39,6 +39,6 @@ class MyRegistrationsPlugin(IndicoPlugin):
         yield SideMenuItem(
             'my_registrations',
             _('My Registrations'),
-            url_for_plugin('my_registrations.list', user_id=user.id),
+            url_for_plugin('my_registrations.list'),
             45,
         )
