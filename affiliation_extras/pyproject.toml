@@ -21,7 +21,7 @@ GitHub = 'https://github.com/indico/indico-plugins-contrib'
 affiliation_extras = 'indico_affiliation_extras.plugin:AffiliationExtrasPlugin'
 
 [build-system]
-requires = ['hatchling==1.29.0']
+requires = ['hatchling==1.31.0']
 build-backend = 'hatchling.build'
 
 [tool.hatch.build]

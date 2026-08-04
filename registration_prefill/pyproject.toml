@@ -21,7 +21,7 @@ GitHub = 'https://github.com/indico/indico-plugins-contrib'
 registration_prefill = 'indico_registration_prefill.plugin:RegistrationPrefillPlugin'
 
 [build-system]
-requires = ['hatchling==1.29.0']
+requires = ['hatchling==1.31.0']
 build-backend = 'hatchling.build'
 
 [tool.hatch.build]

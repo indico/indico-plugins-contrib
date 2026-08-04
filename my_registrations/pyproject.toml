@@ -24,7 +24,7 @@ GitHub = 'https://github.com/indico/indico-plugins-contrib'
 my_registrations = 'indico_my_registrations.plugin:MyRegistrationsPlugin'
 
 [build-system]
-requires = ['hatchling==1.29.0']
+requires = ['hatchling==1.31.0']
 build-backend = 'hatchling.build'
 
 [tool.hatch.build]
