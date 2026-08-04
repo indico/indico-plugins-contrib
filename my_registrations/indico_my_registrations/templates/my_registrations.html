@@ -1,0 +1,78 @@
+{% extends 'users/base.html' %}
+{% from 'pagination.html' import render_pagination_entries_fragment %}
+
+{% set _state_class = {
+    'complete': 'success',
+    'pending': 'warning',
+    'rejected': 'error',
+    'withdrawn': 'strong',
+    'unpaid': 'highlight',
+    'attended': 'visited',
+} %}
+
+{% macro _pagination(pagination, page_arg, other_page_arg, other_pagination, user) %}
+    {% if pagination.pages > 1 %}
+        <div class="my-registrations-pagination">
+            {%- for page in pagination.iter_pages() %}
+                {% if page %}
+                    <span class="page-number">
+                        {% if page == pagination.page %}
+                            <a href="#" class="i-button highlight">{{ page }}</a>
+                        {% else %}
+                            <a href="{{ url_for_plugin('.list', **{page_arg: page, other_page_arg: other_pagination.page}) }}"
+                               class="i-button">
+                                {{- page -}}
+                            </a>
+                        {% endif %}
+                    </span>
+                {% else %}
+                    <span>…</span>
+                {% endif %}
+            {%- endfor %}
+        </div>
+    {% endif %}
+{% endmacro %}
+
+{% macro _section(title, icon, empty_msg, pagination, page_arg, other_page_arg, other_pagination, user) %}
+    <div class="i-box my-registrations-box">
+        <div class="i-box-header">
+            <div class="i-box-title">
+                <i class="icon-{{ icon }}"></i>
+                {{ title }}
+            </div>
+            <div class="i-box-metadata">
+                {{ render_pagination_entries_fragment(pagination) }}
+            </div>
+        </div>
+        <div class="i-box-content">
+            {% if pagination.items %}
+                <ul class="group-list with-buttons content-after my-registrations-list">
+                    {% for reg in pagination.items %}
+                        {% include 'my_registrations:_registration_row.html' %}
+                    {% endfor %}
+                </ul>
+                {{ _pagination(pagination, page_arg, other_page_arg, other_pagination, user) }}
+            {% else %}
+                <div class="my-registrations-empty">
+                    <i class="icon-{{ icon }}"></i>
+                    <p>{{ empty_msg }}</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+{% endmacro %}
+
+{% block user_content %}
+    <div class="my-registrations">
+        {{ _section(
+            _('Upcoming'), 'calendar',
+            _('You have no upcoming registrations.'),
+            upcoming, 'upcoming_page', 'past_page', past, user,
+        ) }}
+        {{ _section(
+            _('Past'), 'time',
+            _('You have no past registrations.'),
+            past, 'past_page', 'upcoming_page', upcoming, user,
+        ) }}
+    </div>
+{% endblock %}

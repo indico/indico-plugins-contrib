@@ -1,0 +1,112 @@
+// This file is part of the third-party Indico plugins.
+// Copyright (C) 2026 CERN
+//
+// The third-party Indico plugins are free software; you can
+// redistribute them and/or modify them under the terms of the;
+// MIT License see the LICENSE file for more details.
+
+.my-registrations {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5em;
+}
+
+.my-registrations-box .i-box-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.my-registrations-box .i-box-title i {
+  margin-right: 0.4em;
+  color: #888;
+}
+
+.my-registrations-pagination {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 0.8em;
+  gap: 0.25em;
+}
+
+.my-registrations-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.my-registrations-list .my-registrations-row:last-child {
+  border-bottom: 0;
+}
+
+.my-registrations-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1em;
+  padding: 0.9em 1em;
+  border-bottom: 1px solid #ececec;
+}
+
+.my-registrations-row:hover {
+  background: #fafafa;
+}
+
+.my-registrations-row-main {
+  min-width: 0;
+  flex: 1;
+}
+
+.my-registrations-row-side {
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+  flex-shrink: 0;
+}
+
+.my-registrations-title {
+  font-size: 1.05em;
+  font-weight: 600;
+  color: #1d4374;
+  text-decoration: none;
+  display: block;
+  margin-bottom: 0.25em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.my-registrations-title:hover {
+  color: #0a73aa;
+  text-decoration: underline;
+}
+
+.my-registrations-meta {
+  color: #666;
+  font-size: 0.88em;
+  display: flex;
+  gap: 1.2em;
+  flex-wrap: wrap;
+}
+
+.my-registrations-meta i {
+  margin-right: 0.3em;
+  color: #999;
+}
+
+.my-registrations-empty {
+  text-align: center;
+  padding: 2.5em 1em;
+  color: #888;
+}
+
+.my-registrations-empty i {
+  font-size: 2.4em;
+  opacity: 0.35;
+  display: block;
+  margin-bottom: 0.4em;
+}
+
+.my-registrations-empty p {
+  margin: 0;
+}
