@@ -31,6 +31,7 @@ on:
           - ''  # all plugins
           - registration_prefill
           - affiliation_extras
+          - my_registrations
 
 permissions:
   contents: read
