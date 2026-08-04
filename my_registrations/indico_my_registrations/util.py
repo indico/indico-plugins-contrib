@@ -5,9 +5,10 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-from sqlalchemy.orm import contains_eager, joinedload
+from sqlalchemy.orm import contains_eager
 
 from indico.modules.events import Event
+from indico.modules.events.registration.models.forms import RegistrationForm
 from indico.modules.events.registration.models.registrations import Registration
 from indico.util.date_time import now_utc
 
@@ -17,7 +18,9 @@ def _base_query(user):
         user.registrations
         .filter(~Registration.is_deleted)
         .join(Registration.event)
+        .join(Registration.registration_form)
         .filter(~Event.is_deleted)
+        .filter(~RegistrationForm.is_deleted)
         .options(
             contains_eager(Registration.event).load_only(
                 'id',
@@ -28,7 +31,7 @@ def _base_query(user):
                 'category_id',
                 'protection_mode',
             ),
-            joinedload(Registration.registration_form).load_only('id', 'title'),
+            contains_eager(Registration.registration_form).load_only('id', 'title'),
         )
     )
 
