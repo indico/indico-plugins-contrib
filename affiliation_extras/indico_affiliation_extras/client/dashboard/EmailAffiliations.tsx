@@ -21,37 +21,12 @@ import {FinalCheckbox, FinalDropdown, handleSubmitError} from 'indico/react/form
 import {Plural, PluralTranslate, Singular, Translate} from 'indico/react/i18n';
 import {useIndicoAxios} from 'indico/react/hooks';
 
+import {getAffiliationEmails} from './contactEmails';
 import {ExtendedAffiliation} from './types';
 
 import './EmailAffiliations.module.scss';
-import {ContactList} from '../components/ContactListField';
 
 const SUCCESS_TIMEOUT = 5000;
-
-const filterContactLists = (
-  affiliation: ExtendedAffiliation,
-  contactLists: string[],
-  includeUnnamedLists: boolean
-) =>
-  affiliation.contact_lists.filter(
-    ({name}: ContactList) =>
-      contactLists.length === 0 ||
-      contactLists.includes(name) ||
-      (includeUnnamedLists && name === '')
-  );
-
-const getAffiliationEmails = (
-  affiliation: ExtendedAffiliation,
-  contactLists: string[] = [],
-  includeUnnamedLists: boolean = true
-) =>
-  Array.from(
-    new Set(
-      filterContactLists(affiliation, contactLists, includeUnnamedLists).flatMap(
-        contactList => contactList.emails
-      )
-    )
-  );
 
 function RecipientsField({contactListOptions}: {contactListOptions: string[]}) {
   const form = useForm();
@@ -100,7 +75,7 @@ function RecipientsWarning({
   includeUnnamedLists,
 }: RecipientsComponentProps) {
   const affiliationsWithoutEmails = affiliations.reduce(
-    (n, a) => n + (filterContactLists(a, contactLists, includeUnnamedLists).length === 0 ? 1 : 0),
+    (n, a) => n + (getAffiliationEmails(a, contactLists, includeUnnamedLists).length === 0 ? 1 : 0),
     0
   );
   return (
@@ -137,7 +112,7 @@ function RecipientsWarning({
         />
       )}
       {affiliations.some(a =>
-        getAffiliationEmails(a, contactLists, includeUnnamedLists).filter(e => invalidEmails.has(e))
+        getAffiliationEmails(a, contactLists, includeUnnamedLists).some(e => invalidEmails.has(e))
       ) && (
         <Message
           visible

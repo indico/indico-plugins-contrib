@@ -120,8 +120,10 @@ def _create_affiliation(db, name):
     return affiliation
 
 
-def _create_contact(db, affiliation, name, emails):
+def _create_contact(db, affiliation, name, emails, inactive_emails=None):
     contact = AffiliationContactList(affiliation=affiliation, name=name, emails=emails)
+    if inactive_emails is not None:
+        contact.inactive_emails = inactive_emails
     db.session.add(contact)
     db.session.flush()
     return contact
@@ -180,6 +182,93 @@ def test_populate_contacts_emails_only(db):
     }
     assert log_fields == {
         f'contact_lists_item_{contact.id}': {'title': 'Contact list: Old name', 'type': 'list'},
+    }
+
+
+def test_populate_contacts_inactive_emails_only(db):
+    affiliation = _create_affiliation(db, 'CERN')
+    contact = _create_contact(db, affiliation, 'Ops', ['off@example.test', 'on@example.test'])
+
+    changes, log_fields = util.populate_contacts(
+        affiliation,
+        [
+            {
+                'id': contact,
+                'name': 'Ops',
+                'emails': ['off@example.test', 'on@example.test'],
+                'inactive_emails': ['off@example.test'],
+            },
+        ],
+    )
+
+    assert contact.inactive_emails == ['off@example.test']
+    assert changes == {
+        f'contact_lists_inactive_item_{contact.id}': ([], ['off@example.test']),
+    }
+    assert log_fields == {
+        f'contact_lists_inactive_item_{contact.id}': {'title': 'Inactive emails in contact list: Ops', 'type': 'list'},
+    }
+
+
+def test_populate_contacts_reactivates_emails_from_full_payload(db):
+    affiliation = _create_affiliation(db, 'CERN')
+    contact = _create_contact(
+        db,
+        affiliation,
+        'Ops',
+        ['off@example.test', 'on@example.test'],
+        inactive_emails=['off@example.test'],
+    )
+
+    changes, log_fields = util.populate_contacts(
+        affiliation,
+        [
+            {
+                'id': contact,
+                'name': 'Ops',
+                'emails': ['off@example.test', 'on@example.test'],
+                'inactive_emails': [],
+            },
+        ],
+    )
+
+    assert contact.inactive_emails == []
+    assert changes == {
+        f'contact_lists_inactive_item_{contact.id}': (['off@example.test'], []),
+    }
+    assert log_fields == {
+        f'contact_lists_inactive_item_{contact.id}': {'title': 'Inactive emails in contact list: Ops', 'type': 'list'},
+    }
+
+
+def test_populate_contacts_removes_stale_inactive_emails_from_full_payload(db):
+    affiliation = _create_affiliation(db, 'CERN')
+    contact = _create_contact(
+        db,
+        affiliation,
+        'Ops',
+        ['off@example.test', 'old@example.test'],
+        inactive_emails=['off@example.test', 'old@example.test'],
+    )
+
+    changes, log_fields = util.populate_contacts(
+        affiliation,
+        [
+            {
+                'id': contact,
+                'name': 'Ops',
+                'emails': ['off@example.test'],
+                'inactive_emails': ['off@example.test'],
+            },
+        ],
+    )
+
+    assert contact.inactive_emails == ['off@example.test']
+    assert changes == {
+        f'contact_lists_item_{contact.id}': (['off@example.test', 'old@example.test'], ['off@example.test']),
+    }
+    assert log_fields == {
+        f'contact_lists_item_{contact.id}': {'title': 'Contact list: Ops', 'type': 'list'},
     }
 
 
@@ -354,3 +443,16 @@ def test_populate_contacts_rejects_duplicate_names_in_db(db):
             ],
         )
     db.session.rollback()
+
+
+def test_contact_list_active_emails_excludes_inactive_emails(db):
+    affiliation = _create_affiliation(db, 'CERN')
+    contact = _create_contact(
+        db,
+        affiliation,
+        'Ops',
+        ['off@example.test', 'on@example.test'],
+        inactive_emails=['off@example.test'],
+    )
+
+    assert contact.active_emails == ['on@example.test']
