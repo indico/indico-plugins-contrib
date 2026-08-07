@@ -101,10 +101,33 @@ def test_focal_point_bounded_to_own_affiliation(db, dummy_regform, create_user, 
     assert in_range.can_manage(focal, 'registration_edit') is True
     assert out_range.can_manage(focal, 'registration_edit') is False
     assert in_range.can_manage(focal, 'registration') is False
-    assert in_range.can_manage(focal, 'registration_moderation') is False
     assert in_range.can_manage(focal, 'registration_checkin') is False
     assert _scoped_list(dummy_regform, focal) == [in_range]
     assert dummy_regform.get_managed_registration_count(focal) == 1
+
+
+def test_focal_point_can_moderate_own_affiliation(db, dummy_regform, create_user, request_context):
+    focal, in_range, out_range = _setup(db, dummy_regform, create_user)
+
+    assert in_range.can_manage(focal, 'registration_moderation') is True
+    assert out_range.can_manage(focal, 'registration_moderation') is False
+
+
+def test_focal_point_management_disabled_blocks_moderation(db, dummy_regform, create_user, request_context):
+    focal, in_range, __ = _setup(db, dummy_regform, create_user)
+    set_focal_point_management_enabled(dummy_regform, False)
+
+    assert in_range.can_manage(focal, 'registration_moderation') is False
+
+
+def test_genuine_moderator_also_focal_is_unrestricted(db, dummy_regform, create_user, request_context):
+    focal, in_range, out_range = _setup(db, dummy_regform, create_user)
+    dummy_regform.event.update_principal(focal, permissions={'registration_moderation'})
+    db.session.flush()
+
+    assert out_range.can_manage(focal, 'registration_moderation') is True
+    assert set(_scoped_list(dummy_regform, focal)) == {in_range, out_range}
+    assert dummy_regform.is_download_blocked(focal) is False
 
 
 def test_genuine_manager_also_focal_is_unrestricted(db, dummy_regform, create_user, request_context):
