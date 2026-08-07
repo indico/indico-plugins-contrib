@@ -36,6 +36,7 @@ from indico_affiliation_extras.focal_points import (
     get_submitted_affiliation_ids,
 )
 from indico_affiliation_extras.permissions import (
+    FOCAL_POINT_PERMISSIONS,
     focal_point_management_enabled,
     is_scoped_focal_point,
     regform_has_representation_field,
@@ -86,7 +87,7 @@ class AffiliationExtrasPlugin(IndicoPlugin):
         self.connect(signals.event.registration_form_edited, self._persist_focal_point_setting)
         self.connect(signals.users.filter_user_search_results, self._filter_user_search_results)
         self.connect(signals.users.extra_linked_events, self._extra_linked_events)
-        self.connect(signals.acl.can_manage, self._grant_focal_point_registration_edit, sender=Event)
+        self.connect(signals.acl.can_manage, self._grant_focal_point_registration_permissions, sender=Event)
         self.connect(signals.menu.items, self._category_sidemenu_items, sender='category-management-sidemenu')
         self.connect(signals.menu.items, self._event_sidemenu_items, sender='event-management-sidemenu')
         self.connect(
@@ -209,10 +210,10 @@ class AffiliationExtrasPlugin(IndicoPlugin):
         if not (get_submitted_affiliation_ids(regform, data) & focal_affiliations_for_event(user, regform.event)):
             raise UserValueError(_('As a focal point you may only register people for your own affiliations.'))
 
-    def _grant_focal_point_registration_edit(self, sender, obj, user=None, permission=None, **kwargs):
-        # Dynamically grant `registration_edit` to a scoped focal point (True grants, None defers).
+    def _grant_focal_point_registration_permissions(self, sender, obj, user=None, permission=None, **kwargs):
+        # Dynamically grant the focal-point permissions to a scoped focal point (True grants, None defers).
         # Never return False, which would deny a legitimate manager; bounding is done by the blacklist signals.
-        if permission == 'registration_edit' and is_scoped_focal_point(obj, user):
+        if permission in FOCAL_POINT_PERMISSIONS and is_scoped_focal_point(obj, user):
             return True
 
     def _filter_user_search_results(self, sender, user, results, **kwargs):
