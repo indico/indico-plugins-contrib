@@ -164,9 +164,9 @@ def populate_memberships(
     return changes
 
 
-def serialize_contact_lists(contact_lists: list[AffiliationContactList]) -> dict[int, dict]:
+def serialize_contact_lists(contact_lists: list[AffiliationContactList]) -> dict[str, dict]:
     return {
-        item.id: {
+        item.name: {
             'name': item.name or '(unnamed list)',
             'emails': sorted(item.emails),
         }
@@ -174,7 +174,7 @@ def serialize_contact_lists(contact_lists: list[AffiliationContactList]) -> dict
     }
 
 
-def _diff_list_names(old: dict[int, dict], new: dict[int, dict]) -> tuple[list[str], list[str]] | None:
+def _diff_list_names(old: dict, new: dict) -> tuple[list[str], list[str]] | None:
     """Return the (old, new) sorted name summaries if they differ, else None."""
     old_names = sorted((item['name'] for item in old.values()), key=str.lower)
     new_names = sorted((item['name'] for item in new.values()), key=str.lower)
@@ -182,32 +182,20 @@ def _diff_list_names(old: dict[int, dict], new: dict[int, dict]) -> tuple[list[s
 
 
 def populate_contacts(affiliation: Affiliation, contact_lists: list[dict]) -> tuple[_Changes, _LogFields]:
-    existing_by_id = {item.id: item for item in affiliation.contact_lists}
-    used_ids = set()
-    touched_ids = set()
-
     old_contact_lists = serialize_contact_lists(affiliation.contact_lists)
-    for contact_data in contact_lists:
-        contact = contact_data.get('id')
-        if contact is None:
-            contact = AffiliationContactList()
-            affiliation.contact_lists.append(contact)
-        else:
-            contact_id = contact.id
-            if contact_id in used_ids:
-                raise UserValueError('Contact list IDs must be unique')
-            if contact_id not in existing_by_id:
-                raise UserValueError('Contact list does not belong to this affiliation')
-            touched_ids.add(contact_id)
-            used_ids.add(contact_id)
-        contact.name = contact_data['name']
-        contact.emails = contact_data['emails']
 
-    for contact_id, contact in existing_by_id.items():
-        if contact_id not in touched_ids:
-            affiliation.contact_lists.remove(contact)
-
+    # A contact list is identified only by its name, so rebuild the whole set rather than
+    # matching rows. Wiping the old rows in their own flush before inserting the new ones
+    # keeps two lists that swap names from clashing on the unique lower(name) index, which
+    # is checked per row and (being an expression index) can't be deferred.
+    affiliation.contact_lists.clear()
     db.session.flush()
+    for contact_data in contact_lists:
+        affiliation.contact_lists.append(
+            AffiliationContactList(name=contact_data['name'], emails=contact_data['emails'])
+        )
+    db.session.flush()
+
     new_contact_lists = serialize_contact_lists(affiliation.contact_lists)
     if old_contact_lists == new_contact_lists:
         return {}, {}
@@ -219,17 +207,17 @@ def populate_contacts(affiliation: Affiliation, contact_lists: list[dict]) -> tu
         changes['contact_lists'] = names
 
     # Individual list changes
-    for id_ in old_contact_lists.keys() | new_contact_lists.keys():
-        old_data = old_contact_lists.get(id_, {})
-        new_data = new_contact_lists.get(id_, {})
+    for name in old_contact_lists.keys() | new_contact_lists.keys():
+        old_data = old_contact_lists.get(name, {})
+        new_data = new_contact_lists.get(name, {})
         old_emails = old_data.get('emails', [])
         new_emails = new_data.get('emails', [])
         if old_emails == new_emails:
             continue
-        name = new_data.get('name') or old_data.get('name')
-        key = f'contact_lists_item_{id_}'
+        label = new_data.get('name') or old_data.get('name')
+        key = f'contact_lists_item_{name}'
         changes[key] = (old_emails, new_emails)
-        log_fields[key] = {'title': f'Contact list: {name}', 'type': 'list'}
+        log_fields[key] = {'title': f'Contact list: {label}', 'type': 'list'}
     return changes, log_fields
 
 

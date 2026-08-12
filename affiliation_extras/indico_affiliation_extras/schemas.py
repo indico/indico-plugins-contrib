@@ -87,7 +87,9 @@ class AffiliationContactListSchema(mm.SQLAlchemyAutoSchema):
 
 
 class AffiliationContactListArgs(mm.Schema):
-    id = ModelField(AffiliationContactList, load_default=None, allow_none=True)
+    class Meta:
+        unknown = EXCLUDE
+
     name = fields.String(load_default='')
     emails = fields.List(LowercaseString(validate=validate.Email()), required=True, validate=not_empty)
 
@@ -125,9 +127,6 @@ class AffiliationExtraAttrsArgs(mm.Schema):
 
     @validates('contact_lists')
     def _validate_contact_lists(self, contact_lists, **kwargs):
-        ids = [lst['id'].id for lst in contact_lists if lst.get('id') is not None]
-        if len(ids) != len(set(ids)):
-            raise ValidationError('Contact list IDs must be unique')
         names = {lst['name'].lower() for lst in contact_lists}
         if len(names) != len(contact_lists):
             raise ValidationError('Contact list names must be unique')
