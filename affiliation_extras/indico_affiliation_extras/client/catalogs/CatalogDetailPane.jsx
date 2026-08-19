@@ -69,14 +69,12 @@ export default function CatalogDetailPane({catalog, targetLocator, isNew, onSubm
           subscription={{}}
         >
           {fprops => (
-            <Form onSubmit={fprops.handleSubmit}>
+            <Form onSubmit={fprops.handleSubmit} noValidate>
               <section>
-                <h3>
-                  <Translate>Name</Translate>
-                </h3>
                 <FinalInput
                   name="name"
-                  required
+                  label={Translate.string('Name')}
+                  required="no-validator"
                   placeholder={Translate.string('Enter a name for the catalog')}
                   validate={value =>
                     value && value.trim()
@@ -86,13 +84,20 @@ export default function CatalogDetailPane({catalog, targetLocator, isNew, onSubm
                 />
               </section>
               <section>
-                <h3>
-                  <Translate>Lists</Translate>
-                </h3>
-                <FinalCatalogList name="lists" targetLocator={targetLocator} required />
+                <FinalCatalogList
+                  name="lists"
+                  label={Translate.string('Lists')}
+                  targetLocator={targetLocator}
+                  autoId={false}
+                  required
+                />
               </section>
               <div styleName="form-actions">
-                <FinalSubmitButton label={Translate.string('Save changes')} disabledUntilChange />
+                <FinalSubmitButton
+                  label={Translate.string('Save changes')}
+                  disabledUntilChange
+                  disabledIfInvalid={false}
+                />
               </div>
             </Form>
           )}
