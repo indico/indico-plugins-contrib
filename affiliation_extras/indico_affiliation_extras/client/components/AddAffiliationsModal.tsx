@@ -5,20 +5,20 @@
 // redistribute them and/or modify them under the terms of the;
 // MIT License see the LICENSE file for more details.
 
+import countriesURL from 'indico-url:core.api_countries';
+
 import React, {useState} from 'react';
 import {Form as FinalForm} from 'react-final-form';
 import {Button, Form, Grid, Icon, Label, List, Loader, Modal} from 'semantic-ui-react';
 
 import {Affiliation} from 'indico/modules/users/affiliations/types';
+import {FinalCountryDropdown} from 'indico/react/components';
 import {FinalDropdown, FinalInput, validators} from 'indico/react/forms';
 import {PluralTranslate, Singular, Plural, Param, Translate} from 'indico/react/i18n';
 import {indicoAxios} from 'indico/utils/axios';
 import {snakifyKeys} from 'indico/utils/case';
 
 import {GroupInfo, TagInfo} from '../types';
-
-// XXX: import from 'indico/react/components' when https://github.com/indico/indico/pull/7429 is merged.
-import {FinalCountryDropdown} from './CountryDropdown';
 
 import './AddAffiliationsModal.module.scss';
 
@@ -52,7 +52,6 @@ interface AddAffiliationsModalProps {
   onConfirm: (selection: AffiliationWithExtraInfo[]) => void;
   initialValues: AffiliationWithExtraInfo[];
   searchURL: string;
-  countriesURL: string;
   groups: GroupInfo[] | null;
   tags: TagInfo[] | null;
   extraInfoURL?: string | null;
@@ -92,7 +91,6 @@ export default function AddAffiliationsModal({
   onConfirm,
   initialValues,
   searchURL,
-  countriesURL,
   groups,
   tags,
   extraInfoURL = null,
@@ -218,7 +216,7 @@ export default function AddAffiliationsModal({
                   <FinalCountryDropdown
                     name="countryCode"
                     label={Translate.string('Country')}
-                    countriesURL={countriesURL}
+                    countriesURL={countriesURL({})}
                     fluid
                   />
                   <Button

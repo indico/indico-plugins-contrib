@@ -37,7 +37,6 @@ from indico_affiliation_extras.controllers.base import (
     AffiliationTagsWithUsersMixin,
     SearchAffiliationsExtendedMixin,
 )
-from indico_affiliation_extras.controllers.compat import CountriesListMixin
 from indico_affiliation_extras.focal_points import get_event_catalog_affiliation_ids, get_event_catalog_focal_points
 from indico_affiliation_extras.invitations import (
     AffiliationCatalogRecipientSource,
@@ -94,10 +93,6 @@ class RHManageSearchRepresentationAffiliation(
     SearchRepresentationAffiliationsMixin, RHManageRegistrationFieldActionBase
 ):
     """Management representation affiliation search for registration managers."""
-
-
-class RHRegFormAffiliationCountries(CountriesListMixin, RHManageRegFormBase):
-    pass
 
 
 class RHRegFormSearchAffiliationsExtended(SearchAffiliationsExtendedMixin, RHManageRegFormBase):

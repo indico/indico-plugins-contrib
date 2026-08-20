@@ -6,7 +6,6 @@
 // MIT License see the LICENSE file for more details.
 
 import affiliationGroupsURL from 'indico-url:plugin_affiliation_extras.api_affiliation_catalog_groups';
-import affiliationCountriesURL from 'indico-url:plugin_affiliation_extras.api_affiliation_catalog_countries';
 import resolveAffiliationsURL from 'indico-url:plugin_affiliation_extras.api_resolve_affiliations';
 import searchAffiliationsURL from 'indico-url:plugin_affiliation_extras.api_affiliation_catalog_search';
 import affiliationTagsURL from 'indico-url:plugin_affiliation_extras.api_affiliation_catalog_tags';
@@ -61,7 +60,6 @@ interface CatalogListRowProps {
   groupsURL: string;
   tagsURL: string;
   searchURL: string;
-  countriesURL: string;
   onChange: (value: CatalogItem) => void;
   onDelete: () => void;
   onMove: (sourceIndex: number, targetIndex: number) => void;
@@ -75,7 +73,6 @@ function CatalogListRow({
   groupsURL,
   tagsURL,
   searchURL,
-  countriesURL,
   onChange,
   onDelete,
   onMove,
@@ -200,7 +197,6 @@ function CatalogListRow({
               groupsURL={groupsURL}
               tagsURL={tagsURL}
               searchURL={searchURL}
-              countriesURL={countriesURL}
               required
             />
           </FinalModalForm>
@@ -302,7 +298,6 @@ function CatalogListField({
                   groupsURL={affiliationGroupsURL(targetLocator)}
                   tagsURL={affiliationTagsURL(targetLocator)}
                   searchURL={searchAffiliationsURL(targetLocator)}
-                  countriesURL={affiliationCountriesURL(targetLocator)}
                   canDelete={normalizedValues.length > 1}
                   onChange={newValue =>
                     handleChange(normalizedValues.map((v, i) => (i === idx ? newValue : v)))
