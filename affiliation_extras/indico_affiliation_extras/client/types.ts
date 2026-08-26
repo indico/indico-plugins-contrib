@@ -9,7 +9,7 @@ import {SemanticCOLORS} from 'semantic-ui-react';
 
 import {Affiliation} from 'indico/modules/users/affiliations/types';
 
-import {ContactList} from '../components/ContactListField';
+import {ContactList} from './components/ContactListField';
 
 export interface GroupInfo {
   id: number;

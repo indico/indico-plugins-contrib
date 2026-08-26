@@ -7,17 +7,21 @@
 
 import {registerPluginComponent, registerPluginObject} from 'indico/utils/plugins';
 
+import setupAffiliationCatalogs from './catalogs';
 import AffiliationDashboardActions from './dashboard/AffiliationDashboardActions';
 import dashboardColumns from './dashboard/columns';
 import formSection from './dashboard/formSection';
 import affiliationFilters from './dashboard/filters';
 import AffiliationRowActions from './dashboard/AffiliationRowActions';
+import representationField from './regform/fields';
+import affiliationInvitations from './inviteDialog/affiliationInvitations';
 
 const PLUGIN_NAME = 'affiliation_extras';
 
 registerPluginObject(PLUGIN_NAME, 'affiliations-dashboard-columns', dashboardColumns);
 registerPluginObject(PLUGIN_NAME, 'affiliation-form-sections', formSection);
 registerPluginObject(PLUGIN_NAME, 'affiliations-dashboard-filter-extensions', affiliationFilters);
+registerPluginObject(PLUGIN_NAME, 'regformCustomFields', representationField);
 
 registerPluginComponent(
   PLUGIN_NAME,
@@ -25,3 +29,7 @@ registerPluginComponent(
   AffiliationDashboardActions
 );
 registerPluginComponent(PLUGIN_NAME, 'affiliation-dashboard-row-actions', AffiliationRowActions);
+registerPluginObject(PLUGIN_NAME, 'invite-dialog-extra-modes', affiliationInvitations);
+
+// Category management is bootstrapped from the Jinja-rendered page via this global
+window.setupAffiliationCatalogs = setupAffiliationCatalogs;

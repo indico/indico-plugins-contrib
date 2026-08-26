@@ -7,7 +7,7 @@
 
 import {Translate} from 'indico/react/i18n';
 
-import {ExtendedAffiliation, GroupInfo, TagInfo} from './types';
+import {ExtendedAffiliation, GroupInfo, TagInfo} from '../types';
 
 const NO_ITEMS_VALUE = '__NO_ITEMS__';
 const UNNAMED_LIST_VALUE = '__UNNAMED_LIST__';

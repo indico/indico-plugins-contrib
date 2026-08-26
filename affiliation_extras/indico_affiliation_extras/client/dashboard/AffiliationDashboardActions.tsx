@@ -11,10 +11,11 @@ import {Button, Dropdown} from 'semantic-ui-react';
 import {Translate} from 'indico/react/i18n';
 
 import ItemManagerModal from '../components/ItemManagerModal';
+import {ExtendedAffiliation} from '../types';
+
 import TagManager from './TagManager';
 import GroupManager from './GroupManager';
 import EmailAffiliations from './EmailAffiliations';
-import {ExtendedAffiliation} from './types';
 
 export default function AffiliationDashboardActions({
   affiliations,

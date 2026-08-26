@@ -7,18 +7,21 @@
 
 from operator import attrgetter
 
-from marshmallow import EXCLUDE, ValidationError, fields, validate, validates
+from marshmallow import EXCLUDE, ValidationError, fields, validate, validates, validates_schema
 
 from indico.core.db import db
 from indico.core.marshmallow import mm
 from indico.modules.users.models.affiliations import Affiliation
+from indico.modules.users.schemas import AffiliationSchema as UserAffiliationSchema
 from indico.util.i18n import _
 from indico.util.marshmallow import LowercaseString, ModelField, ModelList, SortedList, not_empty
 from indico.util.string import validate_email
 from indico.web.forms.colors import get_sui_colors
 
+from indico_affiliation_extras.models.catalogs import AffiliationCatalog
 from indico_affiliation_extras.models.contacts import AffiliationContactList
 from indico_affiliation_extras.models.groups import AffiliationGroup
+from indico_affiliation_extras.models.lists import AffiliationList
 from indico_affiliation_extras.models.tags import AffiliationTag
 
 
@@ -84,16 +87,14 @@ class AffiliationContactListSchema(mm.SQLAlchemyAutoSchema):
 
 
 class AffiliationContactListArgs(mm.Schema):
-    id = ModelField(AffiliationContactList, load_default=None, allow_none=True)
+    class Meta:
+        unknown = EXCLUDE
+
     name = fields.String(load_default='')
     emails = fields.List(LowercaseString(validate=validate.Email()), required=True, validate=not_empty)
 
 
-class AffiliationExtraAttrsSchema(mm.SQLAlchemyAutoSchema):
-    class Meta:
-        model = Affiliation
-        fields = ('contact_lists', 'groups', 'tags', 'group_tags')
-
+class AffiliationExtraAttrs:
     contact_lists = fields.List(fields.Nested(AffiliationContactListSchema))
     groups = SortedList(fields.Nested(AffiliationGroupSchema(exclude=('meta',))), sort_key=attrgetter('code'))
     tags = SortedList(fields.Nested(AffiliationTagSchema), sort_key=attrgetter('code'))
@@ -103,6 +104,17 @@ class AffiliationExtraAttrsSchema(mm.SQLAlchemyAutoSchema):
         group_tags = {tag for group in affiliation.groups for tag in group.tags if tag not in affiliation.tags}
         group_tags = sorted(group_tags, key=attrgetter('code'))
         return AffiliationTagSchema(many=True).dump(group_tags)
+
+
+class ExtendedAffiliationSchema(AffiliationExtraAttrs, UserAffiliationSchema):
+    class Meta(UserAffiliationSchema.Meta):
+        fields = (*UserAffiliationSchema.Meta.fields, 'contact_lists', 'groups', 'tags', 'group_tags')
+
+
+class AffiliationExtraAttrsSchema(AffiliationExtraAttrs, mm.SQLAlchemyAutoSchema):
+    class Meta:
+        model = Affiliation
+        fields = ('contact_lists', 'groups', 'tags', 'group_tags')
 
 
 class AffiliationExtraAttrsArgs(mm.Schema):
@@ -115,9 +127,6 @@ class AffiliationExtraAttrsArgs(mm.Schema):
 
     @validates('contact_lists')
     def _validate_contact_lists(self, contact_lists, **kwargs):
-        ids = [lst['id'].id for lst in contact_lists if lst.get('id') is not None]
-        if len(ids) != len(set(ids)):
-            raise ValidationError('Contact list IDs must be unique')
         names = {lst['name'].lower() for lst in contact_lists}
         if len(names) != len(contact_lists):
             raise ValidationError('Contact list names must be unique')
@@ -128,3 +137,93 @@ class AffiliationExtraAttrsArgs(mm.Schema):
             for email in emails:
                 if not validate_email(email):
                     raise ValidationError(_('Invalid email address: {email}').format(email=email))
+
+
+class AffiliationListSchema(mm.SQLAlchemyAutoSchema):
+    class Meta:
+        model = AffiliationList
+        fields = ('id', 'name', 'position', 'is_enabled', 'groups', 'tags', 'affiliations')
+
+    groups = SortedList(fields.Nested(AffiliationGroupSchema(only=('id', 'name', 'code'))), sort_key=attrgetter('code'))
+    tags = SortedList(fields.Nested(AffiliationTagSchema), sort_key=attrgetter('code'))
+    affiliations = SortedList(
+        fields.Nested(UserAffiliationSchema(only=('id', 'name', 'city', 'country_code'))), sort_key=attrgetter('name')
+    )
+
+
+class AffiliationCatalogListArgs(mm.Schema):
+    class Meta:
+        unknown = EXCLUDE
+
+    list_link = ModelField(AffiliationList, data_key='id', load_default=None, allow_none=True, load_only=True)
+    name = fields.String(required=True, validate=not_empty)
+    position = fields.Integer(required=True)
+    is_enabled = fields.Boolean(load_default=True)
+    groups = ModelList(AffiliationGroup, collection_class=set, filter_deleted=True, load_default=set)
+    tags = ModelList(AffiliationTag, collection_class=set, load_default=set)
+    affiliations = ModelList(Affiliation, collection_class=set, filter_deleted=True, load_default=set)
+
+    @validates_schema
+    def _validate_members(self, data, **kwargs):
+        if not data.get('groups') and not data.get('tags') and not data.get('affiliations'):
+            raise ValidationError(_('Each list must contain at least one group, tag, or affiliation.'))
+
+
+class AffiliationCatalogArgs(mm.Schema):
+    class Meta:
+        unknown = EXCLUDE
+
+    name = fields.String(required=True, validate=not_empty)
+    lists = fields.List(fields.Nested(AffiliationCatalogListArgs), required=True, validate=not_empty)
+
+    @validates('lists')
+    def _validate_unique_list_names(self, lists, **kwargs):
+        names = [lst['name'].strip().lower() for lst in lists]
+        if len(names) != len(set(names)):
+            raise ValidationError(_('List names must be unique.'))
+
+
+class OwnerDataSchema(mm.Schema):
+    id = fields.Int()
+    title = fields.String()
+    locator = fields.Dict()
+
+
+class AffiliationCatalogSchema(mm.SQLAlchemyAutoSchema):
+    class Meta:
+        model = AffiliationCatalog
+        fields = ('id', 'name', 'owner', 'lists')
+
+    owner = fields.Nested(OwnerDataSchema)
+    lists = fields.List(fields.Nested(AffiliationListSchema))
+
+
+class AffiliationWithUsersSchema(mm.Schema):
+    id = fields.Integer()
+    name = fields.String()
+    users = fields.Method('_get_users')
+
+    def _get_users(self, obj):
+        from indico.modules.users.schemas import BasicUserSchema
+
+        users_by_affiliation = self.context.get('users_by_affiliation')
+        if users_by_affiliation is not None:
+            users = users_by_affiliation.get(obj.id, [])
+        else:
+            users = obj.user_affiliations.all()
+        return BasicUserSchema(many=True).dump(users)
+
+
+class AffiliationGroupWithAffiliationsSchema(mm.Schema):
+    id = fields.Integer()
+    name = fields.String()
+    code = fields.String()
+    affiliations = fields.List(fields.Nested(AffiliationWithUsersSchema))
+
+
+class AffiliationTagWithAffiliationsSchema(mm.Schema):
+    id = fields.Integer()
+    name = fields.String()
+    code = fields.String()
+    color = fields.String()
+    affiliations = fields.List(fields.Nested(AffiliationWithUsersSchema))
