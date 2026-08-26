@@ -26,11 +26,7 @@ def get_registration_affiliation_ids(registration):
     """Return the affiliation ids a registration represents (from its representation fields)."""
     ids = set()
     for field in registration.registration_form.form_items:
-        if (
-            not field.is_field
-            or field.is_deleted
-            or (field.parent is not None and field.parent.is_deleted)
-        ):
+        if not field.is_field or field.is_deleted or (field.parent is not None and field.parent.is_deleted):
             continue
         registration_data = registration.data_by_field.get(field.id)
         if registration_data is None or not registration_data.data:
@@ -80,9 +76,9 @@ def get_event_catalog_focal_points(event, affiliation_ids=None):
     if not affiliation_ids:
         return set()
     return set(
-        User.query
-        .join(FocalPoint, FocalPoint.user_id == User.id)
-        .filter(FocalPoint.affiliation_id.in_(affiliation_ids), ~User.is_deleted)
+        User.query.join(FocalPoint, FocalPoint.user_id == User.id).filter(
+            FocalPoint.affiliation_id.in_(affiliation_ids), ~User.is_deleted
+        )
     )
 
 
@@ -107,15 +103,17 @@ def _focal_match_criterion(focal_ids):
     if not focal_ids:
         return db.false()
     representation_id = db.cast(RegistrationData.data['affiliation']['id'].astext, db.Integer)
-    return db.exists().where(db.and_(
-        RegistrationData.registration_id == Registration.id,
-        RegistrationData.field_data_id == RegistrationFormFieldData.id,
-        RegistrationFormFieldData.field_id == RegistrationFormField.id,
-        ~RegistrationFormField.is_deleted,
-        RegistrationFormField.is_enabled,
-        RegistrationFormField.input_type == RepresentationField.name,
-        representation_id.in_(focal_ids),
-    ))
+    return db.exists().where(
+        db.and_(
+            RegistrationData.registration_id == Registration.id,
+            RegistrationData.field_data_id == RegistrationFormFieldData.id,
+            RegistrationFormFieldData.field_id == RegistrationFormField.id,
+            ~RegistrationFormField.is_deleted,
+            RegistrationFormField.is_enabled,
+            RegistrationFormField.input_type == RepresentationField.name,
+            representation_id.in_(focal_ids),
+        )
+    )
 
 
 def focal_list_criterion(user, event):
@@ -124,9 +122,9 @@ def focal_list_criterion(user, event):
 
 
 def _focal_enabled_regform_ids():
-    rows = (EventSetting.query
-            .filter_by(module=event_settings.module, name='focal_point_enabled_regform_ids')
-            .with_entities(EventSetting.value))
+    rows = EventSetting.query.filter_by(
+        module=event_settings.module, name='focal_point_enabled_regform_ids'
+    ).with_entities(EventSetting.value)
     return {form_id for (value,) in rows for form_id in (value or [])}
 
 
@@ -140,17 +138,20 @@ def focal_event_ids(user, limit=FOCAL_EVENT_LIMIT):
     if not focal_ids or not enabled_form_ids:
         return set()
     criterion = _focal_match_criterion(focal_ids)
-    query = (db.session.query(Event.id)
-             .filter(~Event.is_deleted,
-                     RegistrationForm.query
-                     .filter(RegistrationForm.event_id == Event.id,
-                             RegistrationForm.id.in_(enabled_form_ids),
-                             ~RegistrationForm.is_deleted,
-                             Registration.query
-                             .filter(Registration.registration_form_id == RegistrationForm.id,
-                                     ~Registration.is_deleted,
-                                     criterion)
-                             .exists())
-                     .exists())
-             .limit(limit))
+    query = (
+        db.session
+        .query(Event.id)
+        .filter(
+            ~Event.is_deleted,
+            RegistrationForm.query.filter(
+                RegistrationForm.event_id == Event.id,
+                RegistrationForm.id.in_(enabled_form_ids),
+                ~RegistrationForm.is_deleted,
+                Registration.query.filter(
+                    Registration.registration_form_id == RegistrationForm.id, ~Registration.is_deleted, criterion
+                ).exists(),
+            ).exists(),
+        )
+        .limit(limit)
+    )
     return {event_id for (event_id,) in query}

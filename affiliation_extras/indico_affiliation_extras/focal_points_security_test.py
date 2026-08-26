@@ -38,8 +38,14 @@ def _add_representation_field(db, regform):
 
 
 def _create_registration(db, regform, last_name, email):
-    reg = Registration(first_name='Focal', last_name=last_name, state=RegistrationState.complete,
-                       currency='USD', email=email, registration_form=regform)
+    reg = Registration(
+        first_name='Focal',
+        last_name=last_name,
+        state=RegistrationState.complete,
+        currency='USD',
+        email=email,
+        registration_form=regform,
+    )
     regform.event.registrations.append(reg)
     db.session.flush()
     return reg

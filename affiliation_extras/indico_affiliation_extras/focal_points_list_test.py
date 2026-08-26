@@ -36,8 +36,11 @@ def _login(test_client, user):
 
 
 def _affiliation_field(regform):
-    return next(field for field in regform.sections[0].fields
-                if field.is_field and field.personal_data_type == PersonalDataType.affiliation)
+    return next(
+        field
+        for field in regform.sections[0].fields
+        if field.is_field and field.personal_data_type == PersonalDataType.affiliation
+    )
 
 
 def _add_representation_field(db, regform):
@@ -69,24 +72,28 @@ def _create_registration(db, regform, last_name, email):
 
 
 def _set_affiliation(db, registration, field, affiliation_id, text='CERN'):
-    db.session.add(RegistrationData(
-        registration=registration,
-        field_data=field.current_data,
-        data={'id': affiliation_id, 'text': text},
-    ))
+    db.session.add(
+        RegistrationData(
+            registration=registration,
+            field_data=field.current_data,
+            data={'id': affiliation_id, 'text': text},
+        )
+    )
     db.session.flush()
 
 
 def _set_representation(db, registration, field, affiliation_id, text='CERN'):
-    db.session.add(RegistrationData(
-        registration=registration,
-        field_data=field.current_data,
-        data={
-            'representation_id': 1,
-            'representation_name': 'Delegates',
-            'affiliation': {'id': affiliation_id, 'text': text},
-        },
-    ))
+    db.session.add(
+        RegistrationData(
+            registration=registration,
+            field_data=field.current_data,
+            data={
+                'representation_id': 1,
+                'representation_name': 'Delegates',
+                'affiliation': {'id': affiliation_id, 'text': text},
+            },
+        )
+    )
     db.session.flush()
 
 
