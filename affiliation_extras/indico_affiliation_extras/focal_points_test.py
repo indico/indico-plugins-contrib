@@ -10,11 +10,7 @@ from indico.modules.events.registration.models.registrations import Registration
 from indico.modules.users.models.affiliations import Affiliation
 
 from indico_affiliation_extras.fields import RepresentationField
-from indico_affiliation_extras.focal_points import (
-    can_manage_registration,
-    get_focal_affiliation_ids,
-    get_registration_affiliation_ids,
-)
+from indico_affiliation_extras.focal_points import focal_event_ids, get_focal_affiliation_ids
 from indico_affiliation_extras.models.catalogs import AffiliationCatalog
 from indico_affiliation_extras.models.focal_points import set_focal_points
 from indico_affiliation_extras.models.lists import AffiliationList
@@ -63,23 +59,6 @@ def _set_representation(db, registration, field, affiliation_id):
     db.session.flush()
 
 
-def test_registration_affiliation_ids_from_representation(db, dummy_regform, dummy_reg):
-    affiliation = Affiliation(name='CERN')
-    db.session.add(affiliation)
-    db.session.flush()
-    field = _add_representation_field(db, dummy_regform)
-    _set_representation(db, dummy_reg, field, affiliation.id)
-
-    assert get_registration_affiliation_ids(dummy_reg) == {affiliation.id}
-
-
-def test_registration_affiliation_ids_ignores_free_text(db, dummy_regform, dummy_reg):
-    field = _add_representation_field(db, dummy_regform)
-    _set_representation(db, dummy_reg, field, None)
-
-    assert get_registration_affiliation_ids(dummy_reg) == set()
-
-
 def test_get_focal_affiliation_ids(db, create_user):
     user = create_user(1)
     cern = Affiliation(name='CERN')
@@ -92,29 +71,7 @@ def test_get_focal_affiliation_ids(db, create_user):
     assert get_focal_affiliation_ids(None) == set()
 
 
-def test_can_manage_registration(db, dummy_regform, dummy_reg, create_user):
-    managed = Affiliation(name='CERN')
-    other = Affiliation(name='MIT')
-    db.session.add_all([managed, other])
-    db.session.flush()
-    _add_event_catalog(db, dummy_regform.event, [managed, other])
-    field = _add_representation_field(db, dummy_regform)
-    _set_representation(db, dummy_reg, field, managed.id)
-
-    focal = create_user(1)
-    set_focal_points(managed, {focal})
-    non_focal = create_user(2)
-    set_focal_points(other, {non_focal})
-    db.session.flush()
-
-    assert can_manage_registration(focal, dummy_reg) is True
-    assert can_manage_registration(non_focal, dummy_reg) is False
-    assert can_manage_registration(None, dummy_reg) is False
-
-
 def test_focal_event_ids(db, dummy_regform, dummy_reg, create_user):
-    from indico_affiliation_extras.focal_points import focal_event_ids
-
     managed = Affiliation(name='CERN')
     db.session.add(managed)
     db.session.flush()
