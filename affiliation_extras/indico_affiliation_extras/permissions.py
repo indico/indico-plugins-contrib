@@ -45,8 +45,9 @@ def regform_has_representation_field(regform):
 
 def event_has_focal_managed_regform(event):
     """Whether the event has a non-deleted form with focal-point management enabled."""
-    return any(focal_point_management_enabled(regform)
-               for regform in event.registration_forms if not regform.is_deleted)
+    return any(
+        focal_point_management_enabled(regform) for regform in event.registration_forms if not regform.is_deleted
+    )
 
 
 def has_genuine_registration_management(event, user):
@@ -55,9 +56,11 @@ def has_genuine_registration_management(event, user):
         return False
     if event.can_manage(user):
         return True
-    return any(user in entry.principal and any(entry.has_management_permission(permission, explicit=True)
-                                               for permission in FOCAL_POINT_PERMISSIONS)
-               for entry in iter_acl(event.acl_entries))
+    return any(
+        user in entry.principal
+        and any(entry.has_management_permission(permission, explicit=True) for permission in FOCAL_POINT_PERMISSIONS)
+        for entry in iter_acl(event.acl_entries)
+    )
 
 
 def is_scoped_focal_point(event, user):

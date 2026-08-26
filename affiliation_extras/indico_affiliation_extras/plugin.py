@@ -176,9 +176,11 @@ class AffiliationExtrasPlugin(IndicoPlugin):
         if not event_ids:
             return None
         events = Event.query.filter(Event.id.in_(event_ids)).all()
-        return {event.id: {'conference_manager'}
-                for event in events
-                if is_scoped_focal_point(event, user) and (dt is None or event.start_dt >= dt)}
+        return {
+            event.id: {'conference_manager'}
+            for event in events
+            if is_scoped_focal_point(event, user) and (dt is None or event.start_dt >= dt)
+        }
 
     def _get_fields(self, sender, **kwargs):
         yield RepresentationField

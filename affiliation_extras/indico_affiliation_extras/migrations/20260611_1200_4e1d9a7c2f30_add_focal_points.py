@@ -26,9 +26,7 @@ def upgrade():
         sa.PrimaryKeyConstraint('user_id', 'affiliation_id'),
         schema='plugin_affiliation_extras',
     )
-    op.create_index(
-        None, 'focal_points', ['affiliation_id'], unique=False, schema='plugin_affiliation_extras'
-    )
+    op.create_index(None, 'focal_points', ['affiliation_id'], unique=False, schema='plugin_affiliation_extras')
 
 
 def downgrade():
