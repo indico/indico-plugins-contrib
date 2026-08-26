@@ -22,23 +22,6 @@ from indico_affiliation_extras.util import get_representation_affiliation_lists,
 FOCAL_EVENT_LIMIT = 25
 
 
-def get_registration_affiliation_ids(registration):
-    """Return the affiliation ids a registration represents (from its representation fields)."""
-    ids = set()
-    for field in registration.registration_form.form_items:
-        if not field.is_field or field.is_deleted or (field.parent is not None and field.parent.is_deleted):
-            continue
-        registration_data = registration.data_by_field.get(field.id)
-        if registration_data is None or not registration_data.data:
-            continue
-        if field.input_type != RepresentationField.name:
-            continue
-        affiliation_id = (registration_data.data.get('affiliation') or {}).get('id')
-        if affiliation_id is not None:
-            ids.add(affiliation_id)
-    return ids
-
-
 def get_submitted_affiliation_ids(regform, data):
     """Return the affiliation ids referenced by raw submitted registration ``data`` (create time)."""
     ids = set()
@@ -88,14 +71,6 @@ def focal_affiliations_for_event(user, event):
     if not focal_ids:
         return set()
     return focal_ids & get_event_catalog_affiliation_ids(event)
-
-
-def can_manage_registration(user, registration):
-    """Whether ``user`` is a focal point for at least one of the registration's affiliations."""
-    focal_ids = focal_affiliations_for_event(user, registration.event)
-    if not focal_ids:
-        return False
-    return bool(focal_ids & get_registration_affiliation_ids(registration))
 
 
 def _focal_match_criterion(focal_ids):
