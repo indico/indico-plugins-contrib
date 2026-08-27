@@ -1,0 +1,16 @@
+{% from 'forms/_form.html' import form_fieldset %}
+{% from '_switch.html' import switch %}
+
+{% call form_fieldset(_('Focal point management')) %}
+    <div class="form-group">
+        <div class="form-label form-label-empty">
+            <label for="focal-point-management">{% trans %}Enabled{% endtrans %}</label>
+        </div>
+        <div class="form-field">
+            {{ switch(id='focal-point-management', name='focal_point_management', checked=enabled, disabled=disabled) }}
+            <div class="form-field-description">
+                {% trans %}Let affiliation focal points manage and moderate the registrations that represent their own affiliations. Requires a representation field on the form.{% endtrans %}
+            </div>
+        </div>
+    </div>
+{% endcall %}

@@ -25,11 +25,19 @@ from indico.modules.logs.models.entries import AppLogEntry, AppLogRealm, LogKind
 from indico.modules.logs.util import make_diff_log
 from indico.modules.users.models.affiliations import Affiliation
 from indico.util.i18n import _
-from indico.util.marshmallow import LowercaseString, ModelField, ModelList, no_relative_urls, not_empty
+from indico.util.marshmallow import (
+    LowercaseString,
+    ModelField,
+    ModelList,
+    PrincipalList,
+    no_relative_urls,
+    not_empty,
+)
 from indico.util.placeholders import get_sorted_placeholders, replace_placeholders
 from indico.util.string import validate_email
 from indico.web.args import use_kwargs, use_rh_args, use_rh_kwargs
 
+from indico_affiliation_extras.models.focal_points import get_focal_points, set_focal_points
 from indico_affiliation_extras.models.groups import AffiliationGroup
 from indico_affiliation_extras.models.tags import AffiliationTag
 from indico_affiliation_extras.schemas import (
@@ -304,6 +312,44 @@ class RHAffiliationTag(RHAdminBase):
             session.user,
         )
         db.session.delete(self.tag)
+        return '', 204
+
+
+class RHAffiliationFocalPoints(RHAdminBase):
+    """Manage the focal-point users of a single affiliation."""
+
+    @use_kwargs(
+        {'affiliation': ModelField(Affiliation, filter_deleted=True, required=True, data_key='affiliation_id')},
+        location='view_args',
+    )
+    def _process_args(self, affiliation):
+        RHAdminBase._process_args(self)
+        self.affiliation = affiliation
+
+    def _process_GET(self):
+        return jsonify(sorted(user.identifier for user in get_focal_points(self.affiliation)))
+
+    @use_kwargs({'focal_points': PrincipalList(required=True)})
+    def _process_PATCH(self, focal_points):
+        current = get_focal_points(self.affiliation)
+        if focal_points == current:
+            return '', 204
+        old = sorted(user.full_name for user in current)
+        new = sorted(user.full_name for user in focal_points)
+        set_focal_points(self.affiliation, focal_points)
+        self.affiliation.log(
+            AppLogRealm.admin,
+            LogKind.change,
+            'Affiliations',
+            f'Focal points of "{self.affiliation.name}" modified',
+            session.user,
+            data={
+                'Changes': make_diff_log(
+                    {'focal_points': (old, new)}, {'focal_points': {'title': 'Focal points', 'type': 'list'}}
+                )
+            },
+        )
+        db.session.flush()
         return '', 204
 
 

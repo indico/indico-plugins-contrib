@@ -8,7 +8,11 @@
 from flask import g, has_request_context, request, session
 
 from indico.core import signals
-from indico.core.plugins import IndicoPlugin, url_for_plugin
+from indico.core.config import config
+from indico.core.db import db
+from indico.core.errors import UserValueError
+from indico.core.plugins import IndicoPlugin, render_plugin_template, url_for_plugin
+from indico.modules.events.models.events import Event
 from indico.modules.events.registration.fields.base import RegistrationFormFieldBase
 from indico.modules.events.registration.views import (
     WPDisplayRegistrationFormConference,
@@ -24,6 +28,20 @@ from indico.web.menu import SideMenuItem
 
 from indico_affiliation_extras.blueprint import blueprint
 from indico_affiliation_extras.fields import RepresentationField, iter_representation_reglist_items
+from indico_affiliation_extras.focal_points import (
+    focal_affiliations_for_event,
+    focal_event_ids,
+    focal_list_criterion,
+    get_focal_affiliation_ids,
+    get_submitted_affiliation_ids,
+)
+from indico_affiliation_extras.permissions import (
+    FOCAL_POINT_PERMISSIONS,
+    focal_point_management_enabled,
+    is_scoped_focal_point,
+    regform_has_representation_field,
+    set_focal_point_management_enabled,
+)
 from indico_affiliation_extras.schemas import AffiliationExtraAttrsArgs, AffiliationExtraAttrsSchema
 from indico_affiliation_extras.util import (
     get_extended_affiliation_filters,
@@ -63,6 +81,13 @@ class AffiliationExtrasPlugin(IndicoPlugin):
         self.connect(signals.affiliations.affiliation_updated, self._set_affiliation_extra_attrs)
         self.connect(signals.affiliations.get_affiliation_filters, self._get_affiliation_filters)
         self.connect(signals.event.registrant_list_items, self._get_registrant_list_items)
+        self.connect(signals.event.filter_registration_list, self._filter_registration_list)
+        self.connect(signals.event.is_registration_download_blocked, self._block_focal_point_download)
+        self.connect(signals.event.registration_pre_create, self._check_registration_pre_create)
+        self.connect(signals.event.registration_form_edited, self._persist_focal_point_setting)
+        self.connect(signals.users.filter_user_search_results, self._filter_user_search_results)
+        self.connect(signals.users.extra_linked_events, self._extra_linked_events)
+        self.connect(signals.acl.can_manage, self._grant_focal_point_registration_permissions, sender=Event)
         self.connect(signals.menu.items, self._category_sidemenu_items, sender='category-management-sidemenu')
         self.connect(signals.menu.items, self._event_sidemenu_items, sender='event-management-sidemenu')
         self.connect(
@@ -70,6 +95,7 @@ class AffiliationExtrasPlugin(IndicoPlugin):
             self._get_email_placeholders,
             sender='affiliation-representation-email',
         )
+        self.template_hook('extra-regform-edit-settings', self._render_regform_focal_point_setting)
 
     def get_blueprints(self):
         return blueprint
@@ -111,6 +137,19 @@ class AffiliationExtrasPlugin(IndicoPlugin):
         yield p.AffiliationCountryPlaceholder
         yield p.AffiliationMetadataPlaceholder
 
+    def _render_regform_focal_point_setting(self, regform=None, **kwargs):
+        if regform is None or regform.is_deleted:
+            return ''
+        return render_plugin_template(
+            'regform_focal_point_setting.html',
+            enabled=focal_point_management_enabled(regform),
+            disabled=not regform_has_representation_field(regform),
+        )
+
+    def _persist_focal_point_setting(self, regform, **kwargs):
+        if regform_has_representation_field(regform):
+            set_focal_point_management_enabled(regform, 'focal_point_management' in request.form)
+
     def _category_sidemenu_items(self, sender, category, **kwargs):
         if category.can_manage(session.user):
             return SideMenuItem(
@@ -130,11 +169,64 @@ class AffiliationExtrasPlugin(IndicoPlugin):
                 section='customization',
             )
 
+    def _extra_linked_events(self, user, dt=None, **kwargs):
+        # Focal points hold no ACL entry (access is dynamic), so Indico's linked-event lookup misses
+        # their events; contribute them, tagged as managed for the dashboard indicator.
+        event_ids = focal_event_ids(user)
+        if not event_ids:
+            return None
+        events = Event.query.filter(Event.id.in_(event_ids)).all()
+        return {
+            event.id: {'conference_manager'}
+            for event in events
+            if is_scoped_focal_point(event, user) and (dt is None or event.start_dt >= dt)
+        }
+
     def _get_fields(self, sender, **kwargs):
         yield RepresentationField
 
     def _get_registrant_list_items(self, sender, **kwargs):
         yield from iter_representation_reglist_items(sender)
+
+    def _filter_registration_list(self, regform, user, **kwargs):
+        # Bounds the event-wide grant to the focal point's own affiliations (None leaves managers and
+        # non-focal users unscoped). On a form with management off, deny (match nothing) rather than
+        # abstain, since the event-wide grant would otherwise stay unbounded there.
+        if not is_scoped_focal_point(regform.event, user):
+            return None
+        if not focal_point_management_enabled(regform):
+            return db.false()
+        return focal_list_criterion(user, regform.event)
+
+    def _block_focal_point_download(self, regform, user, **kwargs):
+        # A scoped focal point manages individual registrations but may not bulk-download the list.
+        return is_scoped_focal_point(regform.event, user)
+
+    def _check_registration_pre_create(self, regform, user, data, management, **kwargs):
+        # Self-service (`management` is False) is someone registering themselves and must never be
+        # blocked; only management creation is bounded to the focal point's own affiliations.
+        if not management or not is_scoped_focal_point(regform.event, user):
+            return
+        if not focal_point_management_enabled(regform):
+            raise UserValueError(_('Focal-point registration management is turned off for this form.'))
+        if not (get_submitted_affiliation_ids(regform, data) & focal_affiliations_for_event(user, regform.event)):
+            raise UserValueError(_('As a focal point you may only register people for your own affiliations.'))
+
+    def _grant_focal_point_registration_permissions(self, sender, obj, user=None, permission=None, **kwargs):
+        # Dynamically grant the focal-point permissions to a scoped focal point (True grants, None defers).
+        # Never return False, which would deny a legitimate manager; bounding is done by the blacklist signals.
+        if permission in FOCAL_POINT_PERMISSIONS and is_scoped_focal_point(obj, user):
+            return True
+
+    def _filter_user_search_results(self, sender, user, results, **kwargs):
+        # Bound a focal point's user search to their own affiliations. Skipped when public user search
+        # is allowed: the bound is pointless there and would hinder a dual-hat focal point/manager.
+        if config.ALLOW_PUBLIC_USER_SEARCH:
+            return None
+        focal_ids = get_focal_affiliation_ids(user)
+        if not focal_ids:
+            return None
+        return [entry for entry in results if entry.get('affiliation_id') in focal_ids]
 
     def _get_affiliation_filters(self, sender, context, **kwargs):
         return get_representation_affiliation_filters(context) + get_extended_affiliation_filters(context)

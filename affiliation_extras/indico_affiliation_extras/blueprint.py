@@ -10,6 +10,7 @@ from indico.util.caching import memoize
 from indico.web.flask.util import make_view_func
 
 from indico_affiliation_extras.controllers.admin import (
+    RHAffiliationFocalPoints,
     RHAffiliationGroup,
     RHAffiliationGroups,
     RHAffiliationTag,
@@ -37,7 +38,9 @@ from indico_affiliation_extras.controllers.catalogs import (
 from indico_affiliation_extras.controllers.regform import (
     RHAffiliationUserCount,
     RHAffiliationUserCountByIds,
+    RHFocalPointInviteMetadata,
     RHInviteByAffiliation,
+    RHInviteFocalPoints,
     RHManageSearchRepresentationAffiliation,
     RHRegFormAffiliationCountries,
     RHRegFormAffiliationGroups,
@@ -102,6 +105,12 @@ blueprint.add_url_rule(f'{_admin_prefix}/tags', 'api_affiliation_tags', RHAffili
 blueprint.add_url_rule(
     f'{_admin_prefix}/tags/<int:tag_id>', 'api_affiliation_tag', RHAffiliationTag, methods=('GET', 'PATCH', 'DELETE')
 )
+blueprint.add_url_rule(
+    f'{_admin_prefix}/affiliations/<int:affiliation_id>/focal-points',
+    'api_affiliation_focal_points',
+    RHAffiliationFocalPoints,
+    methods=('GET', 'PATCH'),
+)
 blueprint.add_url_rule(f'{_admin_prefix}/contact-lists/names', 'api_contact_list_names', RHContactListNames)
 _regform_prefix = f'{_admin_prefix}/events/<int:event_id>/regforms/<int:reg_form_id>'
 
@@ -146,6 +155,17 @@ blueprint.add_url_rule(
     f'{_regform_prefix}/invite',
     'api_invite_by_affiliation',
     RHInviteByAffiliation,
+    methods=('POST',),
+)
+blueprint.add_url_rule(
+    f'{_regform_prefix}/focal-points/invite/metadata',
+    'api_focal_point_invite_metadata',
+    RHFocalPointInviteMetadata,
+)
+blueprint.add_url_rule(
+    f'{_regform_prefix}/focal-points/invite',
+    'api_invite_focal_points',
+    RHInviteFocalPoints,
     methods=('POST',),
 )
 blueprint.add_url_rule(
