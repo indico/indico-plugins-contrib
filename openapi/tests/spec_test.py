@@ -26,3 +26,22 @@ def test_docs_page_is_served(dummy_user, test_client):
     resp = test_client.get('/api/v1/docs')
     assert resp.status_code == 200
     assert 'swagger-ui' in resp.text
+
+
+def test_spec_documents_every_event_field(dummy_user, test_client):
+    with test_client.session_transaction() as sess:
+        sess.set_session_user(dummy_user)
+    resp = test_client.get('/api/v1/openapi.json')
+    properties = resp.json['components']['schemas']['Event']['properties']
+    undocumented = [name for name, prop in properties.items() if not prop.get('description')]
+    assert not undocumented
+
+
+def test_spec_wraps_list_results(dummy_user, test_client):
+    with test_client.session_transaction() as sess:
+        sess.set_session_user(dummy_user)
+    resp = test_client.get('/api/v1/openapi.json')
+    operation = resp.json['paths']['/api/v1/events']['get']
+    schema = operation['responses']['200']['content']['application/json']['schema']
+    assert schema['$ref'] == '#/components/schemas/EventPage'
+    assert {p['name'] for p in operation['parameters']} >= {'limit', 'offset', 'category_id'}
