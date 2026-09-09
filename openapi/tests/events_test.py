@@ -5,15 +5,8 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-import pytest
 
 from indico.core.db.sqlalchemy.protection import ProtectionMode
-
-
-@pytest.fixture
-def token_headers(dummy_personal_token):
-    dummy_personal_token.scopes = ['read:everything']
-    return {'Authorization': f'Bearer {dummy_personal_token._plaintext_token}'}
 
 
 def test_event_details(dummy_event, token_headers, test_client):
@@ -81,3 +74,39 @@ def test_event_list_filters_by_category(dummy_event, create_category, create_eve
     listed = {e['id'] for e in resp.json['results']}
     assert dummy_event.id in listed
     assert other.id not in listed
+
+
+def test_event_matches_legacy_api(dummy_event, token_headers, test_client, legacy_api, as_legacy_date):
+    legacy = legacy_api(f'/export/event/{dummy_event.id}.json')['results'][0]
+    new = test_client.get(f'/api/v1/events/{dummy_event.id}', headers=token_headers).json
+    assert str(new['id']) == legacy['id']
+    assert new['title'] == legacy['title']
+    assert new['description'] == legacy['description']
+    assert new['timezone'] == legacy['timezone']
+    assert new['type'] == legacy['type']
+    assert new['url'] == legacy['url']
+    assert new['category_id'] == legacy['categoryId']
+    assert new['category_title'] == legacy['category']
+    assert new['location'] == legacy['location']
+    assert new['room'] == legacy['room']
+    assert new['room_full_name'] == legacy['roomFullname']
+    assert new['address'] == legacy['address']
+    assert new['keywords'] == legacy['keywords']
+    assert new['organizer'] == legacy['organizer']
+    assert new['language'] == legacy['language']
+    assert new['is_protected'] == legacy['hasAnyProtection']
+    assert as_legacy_date(new['start_dt']) == legacy['startDate']
+    assert as_legacy_date(new['end_dt']) == legacy['endDate']
+    assert as_legacy_date(new['created_dt']) == legacy['creationDate']
+
+
+def test_event_list_matches_legacy_api(dummy_event, create_event, token_headers, test_client, legacy_api):
+    other = create_event(title='Another event')
+    ids = f'{dummy_event.id}-{other.id}'
+    legacy = {e['id']: e for e in legacy_api(f'/export/event/{ids}.json')['results']}
+    new = test_client.get('/api/v1/events', headers=token_headers).json['results']
+    assert {str(e['id']) for e in new} == set(legacy)
+    for event in new:
+        assert event['title'] == legacy[str(event['id'])]['title']
+        assert event['url'] == legacy[str(event['id'])]['url']
+        assert event['timezone'] == legacy[str(event['id'])]['timezone']

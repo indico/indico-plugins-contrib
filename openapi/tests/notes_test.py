@@ -29,20 +29,6 @@ def dummy_note(create_note, dummy_event):
     return create_note(dummy_event, '<p>Minutes</p>')
 
 
-@pytest.fixture
-def token_headers(dummy_personal_token):
-    dummy_personal_token.scopes = ['read:everything']
-    return {'Authorization': f'Bearer {dummy_personal_token._plaintext_token}'}
-
-
-@pytest.fixture
-def outsider_headers(db, dummy_personal_token, create_user):
-    dummy_personal_token.user = create_user(42)
-    dummy_personal_token.scopes = ['read:everything']
-    db.session.flush()
-    return {'Authorization': f'Bearer {dummy_personal_token._plaintext_token}'}
-
-
 def test_note_details(dummy_event, dummy_note, token_headers, test_client):
     resp = test_client.get(f'/api/v1/events/{dummy_event.id}/notes/{dummy_note.id}', headers=token_headers)
     assert resp.status_code == 200
@@ -86,3 +72,27 @@ def test_note_of_another_event_is_not_found(dummy_note, create_event, token_head
     other = create_event()
     resp = test_client.get(f'/api/v1/events/{other.id}/notes/{dummy_note.id}', headers=token_headers)
     assert resp.status_code == 404
+
+
+def test_note_matches_legacy_api(dummy_event, dummy_note, token_headers, test_client, legacy_api):
+    legacy = legacy_api(f'/export/note/{dummy_event.id}.json')['results']
+    new = test_client.get(f'/api/v1/events/{dummy_event.id}/notes/{dummy_note.id}', headers=token_headers).json
+    assert new['url'] == legacy['url']
+    assert new['current_revision']['html'] == legacy['html']
+    assert new['current_revision']['created_dt'] == legacy['modified_dt']
+
+
+def test_note_list_matches_legacy_api(dummy_event, dummy_note, dummy_contribution, create_note, token_headers,
+                                      test_client, legacy_api):
+    contrib_note = create_note(dummy_contribution, '<p>Contribution minutes</p>')
+    contrib_url = f'/export/note/{dummy_event.id}/contribution/{dummy_contribution.id}.json'
+    legacy = {
+        dummy_note.id: legacy_api(f'/export/note/{dummy_event.id}.json')['results'],
+        contrib_note.id: legacy_api(contrib_url)['results'],
+    }
+    new = test_client.get(f'/api/v1/events/{dummy_event.id}/notes', headers=token_headers).json['results']
+    assert {n['id'] for n in new} == set(legacy)
+    for note in new:
+        assert note['url'] == legacy[note['id']]['url']
+        assert note['current_revision']['html'] == legacy[note['id']]['html']
+        assert note['current_revision']['created_dt'] == legacy[note['id']]['modified_dt']
