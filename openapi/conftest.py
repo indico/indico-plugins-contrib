@@ -7,4 +7,4 @@
 
 pytest_plugins = ['indico.testing.fixtures.oauth', 'indico.testing.fixtures.contribution',
                   'indico.testing.fixtures.person', 'indico.testing.fixtures.session',
-                  'indico.testing.fixtures.timetable']
+                  'indico.testing.fixtures.timetable', 'indico.testing.fixtures.storage']
