@@ -16,7 +16,6 @@ from indico.modules.events.contributions import contribution_settings
 from indico.modules.events.contributions.models.contributions import Contribution
 from indico.modules.events.contributions.schemas import (
     ContributionFieldValueSchema,
-    ContributionPersonLinkSchema,
     ContributionTypeSchema,
     FullContributionSchema,
 )
@@ -29,29 +28,7 @@ from indico.util.marshmallow import SortedList
 from indico.web.rh import json_errors
 
 from indico_openapi.resources.base import DescribedFieldsMixin, Endpoint, RHListBase
-from indico_openapi.schemas import AffiliationSchema
-
-
-class ContributionPersonSchema(DescribedFieldsMixin, ContributionPersonLinkSchema):
-    class Meta(ContributionPersonLinkSchema.Meta):
-        descriptions = {
-            'id': 'Numeric identifier of the link between the person and the contribution.',
-            'person_id': 'Identifier of the person within the event, shared by every contribution they take part in.',
-            'email': 'Email address. Only present for users who can manage the contribution.',
-            'email_hash': 'MD5 hash of the email address, so an avatar can be fetched without exposing the address.',
-            'first_name': 'First name of the person.',
-            'last_name': 'Last name of the person.',
-            'full_name': 'Full name of the person, in display order.',
-            'title': 'Personal title, such as `Dr` or `Prof`.',
-            'affiliation': 'Affiliation as free text, which is what gets displayed.',
-            'affiliation_link': 'Predefined affiliation the text was taken from, or `null` when it was typed by hand.',
-            'address': 'Postal address. Only present for users who can manage the contribution.',
-            'phone': 'Phone number. Only present for users who can manage the contribution.',
-            'is_speaker': 'Whether the person speaks in the contribution.',
-            'author_type': 'Role as author: `none`, `primary` or `secondary`.',
-        }
-
-    affiliation_link = fields.Nested(AffiliationSchema)
+from indico_openapi.schemas import ContributionPersonSchema
 
 
 class CustomFieldValueSchema(DescribedFieldsMixin, ContributionFieldValueSchema):
@@ -195,7 +172,6 @@ class RHContributionList(ContributionMixin, RHListBase, RHProtectedEventBase):
 
     def _dump_schema(self):
         return self._schema(many=True)
-
 
 
 ENDPOINTS = [
