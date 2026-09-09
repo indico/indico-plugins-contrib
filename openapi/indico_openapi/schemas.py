@@ -9,8 +9,14 @@
 from marshmallow import fields
 
 from indico.modules.events.contributions.models.persons import SubContributionPersonLink
-from indico.modules.events.contributions.schemas import ContributionPersonLinkSchema
+from indico.modules.events.contributions.schemas import (
+    ContributionFieldValueSchema,
+    ContributionPersonLinkSchema,
+    ContributionTypeSchema,
+)
+from indico.modules.events.tracks.schemas import TrackSchema
 from indico.modules.users.schemas import AffiliationSchema as CoreAffiliationSchema
+from indico.modules.users.schemas import BasicUserSchema
 
 from indico_openapi.resources.base import DescribedFieldsMixin
 
@@ -32,6 +38,52 @@ class AffiliationSchema(DescribedFieldsMixin, CoreAffiliationSchema):
         }
 
     country_name = fields.String()
+
+
+class UserReferenceSchema(DescribedFieldsMixin, BasicUserSchema):
+    class Meta(BasicUserSchema.Meta):
+        descriptions = {
+            'id': 'Numeric identifier of the user, unique across the whole instance.',
+            'identifier': 'Identifier of the user as used by Indico ACLs, such as `User:42`.',
+            'first_name': 'First name of the user.',
+            'last_name': 'Last name of the user.',
+            'full_name': 'Full name of the user, in display order.',
+            'email': 'Primary email address of the user.',
+            'affiliation': 'Affiliation as free text, which is what gets displayed.',
+            'affiliation_meta': 'Predefined affiliation the text was taken from, or `null` when typed by hand.',
+            'title': 'Personal title: `mr`, `ms`, `mrs`, `dr`, `prof` or `mx`, or `null` when there is none.',
+            'avatar_url': 'URL of the profile picture, relative to the Indico instance.',
+        }
+
+    affiliation_meta = fields.Nested(AffiliationSchema, attribute='affiliation_link')
+
+
+class CustomFieldValueSchema(DescribedFieldsMixin, ContributionFieldValueSchema):
+    class Meta(ContributionFieldValueSchema.Meta):
+        descriptions = {
+            'id': 'Identifier of the custom field this value belongs to.',
+            'name': 'Title of the custom field.',
+            'value': 'Value stored for this object, in the shape defined by the field type.',
+        }
+
+
+class TrackReferenceSchema(DescribedFieldsMixin, TrackSchema):
+    class Meta(TrackSchema.Meta):
+        fields = ('id', 'title', 'code')
+        descriptions = {
+            'id': 'Numeric identifier of the track.',
+            'title': 'Title of the track.',
+            'code': 'Programme code assigned to the track.',
+        }
+
+
+class ContributionTypeReferenceSchema(DescribedFieldsMixin, ContributionTypeSchema):
+    class Meta(ContributionTypeSchema.Meta):
+        fields = ('id', 'name')
+        descriptions = {
+            'id': 'Numeric identifier of the contribution type.',
+            'name': 'Name of the type, such as `Poster` or `Oral`.',
+        }
 
 
 class ContributionPersonSchema(DescribedFieldsMixin, ContributionPersonLinkSchema):

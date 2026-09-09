@@ -15,25 +15,16 @@ from indico.modules.users.schemas import UserSchema as CoreUserSchema
 from indico.web.rh import RHProtected, json_errors
 
 from indico_openapi.resources.base import DescribedFieldsMixin, Endpoint, RHListBase
-from indico_openapi.schemas import AffiliationSchema
+from indico_openapi.schemas import AffiliationSchema, UserReferenceSchema
 
 
 class UserSchema(DescribedFieldsMixin, CoreUserSchema):
     class Meta(CoreUserSchema.Meta):
         fields = (*CoreUserSchema.Meta.fields, 'is_admin')
         descriptions = {
-            'id': 'Numeric identifier of the user, unique across the whole instance.',
-            'identifier': 'Identifier of the user as used by Indico ACLs, such as `User:42`.',
-            'first_name': 'First name of the user.',
-            'last_name': 'Last name of the user.',
-            'full_name': 'Full name of the user, in display order.',
-            'email': 'Primary email address of the user.',
-            'affiliation': 'Affiliation as free text, which is what gets displayed.',
+            **UserReferenceSchema.Meta.descriptions,
             'affiliation_id': 'Identifier of the predefined affiliation, or `null` when typed by hand.',
-            'affiliation_meta': 'Predefined affiliation the text was taken from, or `null` when typed by hand.',
-            'title': 'Personal title: `mr`, `ms`, `mrs`, `dr`, `prof` or `mx`, or `null` when there is none.',
             'phone': 'Phone number of the user.',
-            'avatar_url': 'URL of the profile picture, relative to the Indico instance.',
             'is_admin': 'Whether the user administers the whole Indico instance.',
         }
 
