@@ -14,30 +14,21 @@ from werkzeug.exceptions import Forbidden, NotFound
 
 from indico.modules.events.contributions import contribution_settings
 from indico.modules.events.contributions.models.contributions import Contribution
-from indico.modules.events.contributions.schemas import (
-    ContributionFieldValueSchema,
-    ContributionTypeSchema,
-    FullContributionSchema,
-)
+from indico.modules.events.contributions.schemas import FullContributionSchema
 from indico.modules.events.contributions.util import has_contributions_with_user_as_submitter
 from indico.modules.events.controllers.base import RHProtectedEventBase
 from indico.modules.events.sessions.schemas import BasicSessionSchema, SessionBlockSchema
-from indico.modules.events.tracks.schemas import TrackSchema
 from indico.util.i18n import _
 from indico.util.marshmallow import SortedList
 from indico.web.rh import json_errors
 
 from indico_openapi.resources.base import DescribedFieldsMixin, Endpoint, RHListBase
-from indico_openapi.schemas import ContributionPersonSchema
-
-
-class CustomFieldValueSchema(DescribedFieldsMixin, ContributionFieldValueSchema):
-    class Meta(ContributionFieldValueSchema.Meta):
-        descriptions = {
-            'id': 'Identifier of the custom field this value belongs to.',
-            'name': 'Title of the custom field.',
-            'value': 'Value stored for this contribution, in the shape defined by the field type.',
-        }
+from indico_openapi.schemas import (
+    ContributionPersonSchema,
+    ContributionTypeReferenceSchema,
+    CustomFieldValueSchema,
+    TrackReferenceSchema,
+)
 
 
 class SessionReferenceSchema(DescribedFieldsMixin, BasicSessionSchema):
@@ -58,25 +49,6 @@ class SessionBlockReferenceSchema(DescribedFieldsMixin, SessionBlockSchema):
             'id': 'Numeric identifier of the session block.',
             'title': 'Title of the block, empty when it takes the title of its session.',
             'code': 'Programme code assigned to the block.',
-        }
-
-
-class TrackReferenceSchema(DescribedFieldsMixin, TrackSchema):
-    class Meta(TrackSchema.Meta):
-        fields = ('id', 'title', 'code')
-        descriptions = {
-            'id': 'Numeric identifier of the track.',
-            'title': 'Title of the track.',
-            'code': 'Programme code assigned to the track.',
-        }
-
-
-class ContributionTypeReferenceSchema(DescribedFieldsMixin, ContributionTypeSchema):
-    class Meta(ContributionTypeSchema.Meta):
-        fields = ('id', 'name')
-        descriptions = {
-            'id': 'Numeric identifier of the contribution type.',
-            'name': 'Name of the type, such as `Poster` or `Oral`.',
         }
 
 
