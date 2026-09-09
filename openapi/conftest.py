@@ -5,4 +5,5 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-pytest_plugins = ['indico.testing.fixtures.oauth']
+pytest_plugins = ['indico.testing.fixtures.oauth', 'indico.testing.fixtures.contribution',
+                  'indico.testing.fixtures.person']

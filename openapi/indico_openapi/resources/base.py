@@ -95,9 +95,12 @@ class RHListBase(RH):
     def _can_access(self, obj):
         return obj.can_access(session.user)
 
+    def _dump_schema(self):
+        return self.schema(many=True)
+
     def _process_GET(self):
         args = parser.parse(self.args_schema, request, location='query')
         limit = args.pop('limit')
         offset = args.pop('offset')
         results, next_offset = paginate(self._query(**args), self._can_access, limit, offset)
-        return jsonify(results=self.schema(many=True).dump(results), count=len(results), next_offset=next_offset)
+        return jsonify(results=self._dump_schema().dump(results), count=len(results), next_offset=next_offset)

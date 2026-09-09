@@ -5,7 +5,7 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-from flask import jsonify
+from flask import jsonify, session
 
 from indico.core.plugins import render_plugin_template, url_for_plugin
 from indico.web.rh import RHProtected, json_errors
@@ -21,4 +21,4 @@ class RHSpec(RHProtected):
 
 class RHDocs(RHProtected):
     def _process(self):
-        return render_plugin_template('docs.html', spec_url=url_for_plugin('openapi.spec'))
+        return render_plugin_template('docs.html', spec_url=url_for_plugin('openapi.spec'), user=session.user)

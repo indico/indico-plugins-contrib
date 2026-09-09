@@ -5,8 +5,22 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Indico REST API</title>
     <link rel="stylesheet" href="{{ url_for('plugin_openapi.static', filename='swagger-ui.css') }}" />
+    <style>
+      #session-auth {
+        padding: 1em 2em;
+        background: #eef4fb;
+        border-bottom: 1px solid #c9d9ec;
+        font-family: sans-serif;
+        font-size: 0.9em;
+      }
+    </style>
   </head>
   <body>
+    <div id="session-auth">
+      Authenticated as <strong>{{ user.full_name }}</strong> through your Indico session. Requests sent from this
+      page already run with your permissions, so <em>Authorize</em> can be left empty. Fill it in only to use a
+      personal token instead.
+    </div>
     <div id="swagger-ui"></div>
     <script src="{{ url_for('plugin_openapi.static', filename='swagger-ui-bundle.js') }}"></script>
     <script>
