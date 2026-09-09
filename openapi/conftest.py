@@ -17,6 +17,7 @@ pytest_plugins = ['indico.testing.fixtures.oauth', 'indico.testing.fixtures.cont
                   'indico.testing.fixtures.person', 'indico.testing.fixtures.session',
                   'indico.testing.fixtures.timetable', 'indico.testing.fixtures.storage',
                   'indico.testing.fixtures.rb', 'indico.testing.fixtures.abstract',
+                  'indico.testing.fixtures.paper',
                   'indico.modules.events.registration.testing.fixtures']
 
 SCOPES = ['read:everything', 'read:legacy_api']
