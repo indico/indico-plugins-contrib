@@ -19,6 +19,8 @@ of being reported as an error.
 | `/api/v1/events/<event_id>/contributions/<contrib_id>/subcontributions/<subcontrib_id>` | Subcontribution details |
 | `/api/v1/events/<event_id>/sessions` | List the sessions of an event |
 | `/api/v1/events/<event_id>/sessions/<session_id>` | Session details |
+| `/api/v1/events/<event_id>/tracks` | List the tracks of an event |
+| `/api/v1/events/<event_id>/tracks/<track_id>` | Track details |
 | `/api/v1/categories` | List categories |
 | `/api/v1/categories/<category_id>` | Category details |
 | `/api/v1/openapi.json` | OpenAPI v3 document |
