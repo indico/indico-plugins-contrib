@@ -53,6 +53,8 @@ of being reported as an error.
 | `/api/v1/rooms/<room_id>` | Room details |
 | `/api/v1/reservations` | List room bookings |
 | `/api/v1/reservations/<reservation_id>` | Room booking details |
+| `/api/v1/blockings` | List the blockings that keep rooms from being booked |
+| `/api/v1/blockings/<blocking_id>` | Blocking details |
 | `/api/v1/users` | List users |
 | `/api/v1/users/me` | Details of the authenticated user |
 | `/api/v1/users/<user_id>` | User details |
@@ -81,8 +83,8 @@ JSON.
 | Rooms | `/export/room/<location>/<room_ids>.json` |
 | Reservations | `/export/reservation/<location>.json` |
 
-Tracks, registrations, abstracts, papers and locations have no counterpart in
-the legacy API, so there is nothing to compare them against.
+Tracks, registrations, abstracts, papers, locations and blockings have no
+counterpart in the legacy API, so there is nothing to compare them against.
 
 ## Pagination
 
