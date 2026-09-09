@@ -28,12 +28,14 @@ def test_docs_page_is_served(dummy_user, test_client):
     assert 'swagger-ui' in resp.text
 
 
-def test_spec_documents_every_event_field(dummy_user, test_client):
+def test_spec_documents_every_field(dummy_user, test_client):
     with test_client.session_transaction() as sess:
         sess.set_session_user(dummy_user)
     resp = test_client.get('/api/v1/openapi.json')
-    properties = resp.json['components']['schemas']['Event']['properties']
-    undocumented = [name for name, prop in properties.items() if not prop.get('description')]
+    undocumented = [f'{name}.{field}'
+                    for name, schema in resp.json['components']['schemas'].items()
+                    for field, prop in schema.get('properties', {}).items()
+                    if not prop.get('description')]
     assert not undocumented
 
 
