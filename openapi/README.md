@@ -43,6 +43,9 @@ of being reported as an error.
 | `/api/v1/categories/<category_id>` | Category details |
 | `/api/v1/categories/<category_id>/attachments` | List the attachments of a category |
 | `/api/v1/categories/<category_id>/attachments/<attachment_id>` | Attachment details |
+| `/api/v1/users` | List users |
+| `/api/v1/users/me` | Details of the authenticated user |
+| `/api/v1/users/<user_id>` | User details |
 | `/api/v1/openapi.json` | OpenAPI v3 document |
 | `/api/v1/docs` | Swagger UI |
 
@@ -64,6 +67,7 @@ JSON.
 | Persons | `/export/event/<event_id>.json`, field `chairs` |
 | Notes | `/export/note/<event_id>[/session/<id>\|/contribution/<id>[/<subid>]].json` |
 | Attachments | `/export/attachments/<event_id>[/session/<id>\|/contribution/<id>[/<subid>]].json` |
+| Users | `/export/user/<user_id>.json` |
 
 Tracks and registrations have no counterpart in the legacy API, so there is
 nothing to compare them against.
