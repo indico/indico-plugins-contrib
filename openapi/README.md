@@ -23,6 +23,8 @@ of being reported as an error.
 | `/api/v1/events/<event_id>/timetable/<entry_id>` | Timetable entry details |
 | `/api/v1/events/<event_id>/tracks` | List the tracks of an event |
 | `/api/v1/events/<event_id>/tracks/<track_id>` | Track details |
+| `/api/v1/events/<event_id>/persons` | List the people taking part in an event |
+| `/api/v1/events/<event_id>/persons/<person_id>` | Event person details |
 | `/api/v1/events/<event_id>/notes` | List the notes of an event and of everything inside it |
 | `/api/v1/events/<event_id>/notes/<note_id>` | Note details |
 | `/api/v1/events/<event_id>/attachments` | List the attachments of an event |
@@ -55,6 +57,7 @@ JSON.
 | Subcontributions | `/export/event/<event_id>.json?detail=subcontributions` |
 | Sessions | `/export/event/<event_id>/session/<session_id>.json` |
 | Timetable | `/export/timetable/<event_id>.json` |
+| Persons | `/export/event/<event_id>.json`, field `chairs` |
 | Notes | `/export/note/<event_id>[/session/<id>\|/contribution/<id>[/<subid>]].json` |
 | Attachments | `/export/attachments/<event_id>[/session/<id>\|/contribution/<id>[/<subid>]].json` |
 
