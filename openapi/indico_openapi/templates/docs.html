@@ -17,6 +17,13 @@
           deepLinking: true,
           withCredentials: true,
           tryItOutEnabled: true,
+          persistAuthorization: true,
+          // Indico rejects a request carrying both a token and a session cookie,
+          // so the cookie is only sent when no token was entered.
+          requestInterceptor: (req) => {
+            req.credentials = req.headers.Authorization ? 'omit' : 'include';
+            return req;
+          },
         });
       };
     </script>

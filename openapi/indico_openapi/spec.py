@@ -5,10 +5,14 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
+
 import re
 
 from apispec import APISpec
 from apispec.ext.marshmallow import MarshmallowPlugin
+from marshmallow import fields
+
+from indico.core.marshmallow import mm
 
 from indico_openapi.resources import ENDPOINTS
 
@@ -19,16 +23,36 @@ BASE_PATH = '/api/v1'
 DESCRIPTION = """
 Read-only access to Indico resources.
 
-Every request is resolved with the permissions of the token owner, so a
+Every request is resolved with the permissions of the authenticated user, so a
 response never contains anything the same person could not see in the web
-interface.
+interface. Objects the user cannot access are omitted from lists rather than
+reported as an error.
 
-Authenticate with a personal token created under your Indico profile with the
-`read:everything` scope, sent as a bearer token.
+From this page requests are authenticated with your Indico session cookie, so
+there is nothing to fill in. From outside, use a personal token created under
+your Indico profile with the `read:everything` scope, sent as a bearer token.
+Do not send both: Indico rejects a request that carries a token and a session
+cookie at the same time.
 """.strip()
 
 _PARAM_RE = re.compile(r'<(?:(?P<converter>[^:>]+):)?(?P<name>[^>]+)>')
 _CONVERTER_TYPES = {'int': 'integer', 'float': 'number'}
+_page_schemas = {}
+
+
+def page_schema(schema_cls):
+    """Build (once) the paginated envelope wrapping a resource schema."""
+    if schema_cls not in _page_schemas:
+        name = re.sub(r'Schema$', '', schema_cls.__name__)
+        _page_schemas[schema_cls] = type(f'{name}PageSchema', (mm.Schema,), {
+            'results': fields.List(fields.Nested(schema_cls),
+                                   metadata={'description': 'The results of this page.'}),
+            'count': fields.Integer(metadata={'description': 'Number of results in this page.'}),
+            'next_offset': fields.Integer(allow_none=True,
+                                          metadata={'description': 'Value to pass as `offset` to get the next '
+                                                                   'page, or `null` when this is the last one.'}),
+        })
+    return _page_schemas[schema_cls]
 
 
 def _path_and_params(rule):
@@ -47,19 +71,17 @@ def _path_and_params(rule):
 def _operation(endpoint, params):
     content = None
     if endpoint.schema:
-        schema = {'type': 'array', 'items': endpoint.schema} if endpoint.many else endpoint.schema
+        schema = page_schema(endpoint.schema) if endpoint.many else endpoint.schema
         content = {'application/json': {'schema': schema}}
     responses = {
         '200': {'description': 'Success', **({'content': content} if content else {})},
-        '403': {'description': 'The token owner cannot access this resource'},
+        '403': {'description': 'The user cannot access this resource'},
         '404': {'description': 'The resource does not exist'},
     }
-    query_params = [
-        {'name': name, 'in': 'query', 'required': False, 'schema': schema}
-        for name, schema in endpoint.query_args.items()
-    ]
+    if args_schema := getattr(endpoint.rh, 'args_schema', None):
+        params = [*params, {'in': 'query', 'schema': args_schema}]
     return {'get': {'summary': endpoint.summary, 'tags': [endpoint.tag],
-                    'parameters': params + query_params, 'responses': responses}}
+                    'parameters': params, 'responses': responses}}
 
 
 def build_spec():
@@ -71,5 +93,5 @@ def build_spec():
         path, params = _path_and_params(endpoint.rule)
         spec.path(path=BASE_PATH + path, operations=_operation(endpoint, params))
     data = spec.to_dict()
-    data['security'] = [{'bearer': []}]
+    data['security'] = [{'bearer': []}, {}]
     return data
