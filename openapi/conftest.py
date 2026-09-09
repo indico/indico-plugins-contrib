@@ -15,7 +15,8 @@ from indico.core.config import config
 
 pytest_plugins = ['indico.testing.fixtures.oauth', 'indico.testing.fixtures.contribution',
                   'indico.testing.fixtures.person', 'indico.testing.fixtures.session',
-                  'indico.testing.fixtures.timetable', 'indico.testing.fixtures.storage']
+                  'indico.testing.fixtures.timetable', 'indico.testing.fixtures.storage',
+                  'indico.modules.events.registration.testing.fixtures']
 
 SCOPES = ['read:everything', 'read:legacy_api']
 
@@ -27,8 +28,13 @@ def token_headers(dummy_personal_token):
 
 
 @pytest.fixture
-def outsider_headers(db, dummy_personal_token, create_user):
-    dummy_personal_token.user = create_user(42)
+def outsider(create_user):
+    return create_user(42)
+
+
+@pytest.fixture
+def outsider_headers(db, dummy_personal_token, outsider):
+    dummy_personal_token.user = outsider
     dummy_personal_token.scopes = SCOPES
     db.session.flush()
     return {'Authorization': f'Bearer {dummy_personal_token._plaintext_token}'}

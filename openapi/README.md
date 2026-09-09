@@ -25,6 +25,10 @@ of being reported as an error.
 | `/api/v1/events/<event_id>/tracks/<track_id>` | Track details |
 | `/api/v1/events/<event_id>/persons` | List the people taking part in an event |
 | `/api/v1/events/<event_id>/persons/<person_id>` | Event person details |
+| `/api/v1/events/<event_id>/registration-forms` | List the registration forms of an event |
+| `/api/v1/events/<event_id>/registration-forms/<regform_id>` | Registration form details |
+| `/api/v1/events/<event_id>/registrations` | List the registrations of an event |
+| `/api/v1/events/<event_id>/registrations/<registration_id>` | Registration details |
 | `/api/v1/events/<event_id>/notes` | List the notes of an event and of everything inside it |
 | `/api/v1/events/<event_id>/notes/<note_id>` | Note details |
 | `/api/v1/events/<event_id>/attachments` | List the attachments of an event |
@@ -61,8 +65,8 @@ JSON.
 | Notes | `/export/note/<event_id>[/session/<id>\|/contribution/<id>[/<subid>]].json` |
 | Attachments | `/export/attachments/<event_id>[/session/<id>\|/contribution/<id>[/<subid>]].json` |
 
-Tracks have no counterpart in the legacy API, so there is nothing to compare
-them against.
+Tracks and registrations have no counterpart in the legacy API, so there is
+nothing to compare them against.
 
 ## Pagination
 
