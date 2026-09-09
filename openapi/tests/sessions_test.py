@@ -6,23 +6,10 @@
 # MIT License see the LICENSE file for more details.
 
 
-import pytest
+from datetime import timedelta
 
 from indico.core.db.sqlalchemy.protection import ProtectionMode
-
-
-@pytest.fixture
-def token_headers(dummy_personal_token):
-    dummy_personal_token.scopes = ['read:everything']
-    return {'Authorization': f'Bearer {dummy_personal_token._plaintext_token}'}
-
-
-@pytest.fixture
-def outsider_headers(db, dummy_personal_token, create_user):
-    dummy_personal_token.user = create_user(42)
-    dummy_personal_token.scopes = ['read:everything']
-    db.session.flush()
-    return {'Authorization': f'Bearer {dummy_personal_token._plaintext_token}'}
+from indico.util.date_time import now_utc
 
 
 def test_session_details(dummy_event, dummy_session, token_headers, test_client):
@@ -70,3 +57,44 @@ def test_session_of_another_event_is_not_found(dummy_session, create_event, toke
     other = create_event()
     resp = test_client.get(f'/api/v1/events/{other.id}/sessions/{dummy_session.id}', headers=token_headers)
     assert resp.status_code == 404
+
+
+def test_session_matches_legacy_api(dummy_event, dummy_session, dummy_session_block, token_headers, test_client,
+                                    legacy_api, as_legacy_date):
+    legacy_block = legacy_api(f'/export/event/{dummy_event.id}/session/{dummy_session.id}.json')['results'][0]
+    legacy = legacy_block['session']
+    new = test_client.get(f'/api/v1/events/{dummy_event.id}/sessions/{dummy_session.id}', headers=token_headers).json
+    assert new['id'] == legacy['db_id']
+    assert new['friendly_id'] == legacy['friendly_id']
+    assert new['title'] == legacy['title']
+    assert new['code'] == legacy['code']
+    assert new['description'] == legacy['description']
+    assert new['background_color'] == legacy['color']
+    assert new['text_color'] == legacy['textColor']
+    assert new['venue_name'] == legacy['location']
+    assert new['room_name'] == legacy['roomFullname']
+    assert new['address'] == legacy['address']
+    assert (new['type'] or {}).get('name') == legacy['type']
+    assert (new['type'] or {}).get('is_poster', False) == legacy['isPoster']
+    assert len(new['blocks']) == legacy['numSlots']
+    block = new['blocks'][0]
+    assert block['id'] == legacy_block['id']
+    assert block['title'] == legacy_block['slotTitle']
+    assert block['room_name'] == legacy_block['roomFullname']
+    assert as_legacy_date(block['start_dt']) == legacy_block['startDate']
+    assert as_legacy_date(block['end_dt']) == legacy_block['endDate']
+
+
+def test_session_list_matches_legacy_api(dummy_event, dummy_session, dummy_session_block, create_session,
+                                         create_session_block, token_headers, test_client, legacy_api):
+    other = create_session(dummy_event, 'Another session')
+    create_session_block(other, 'Another block', timedelta(minutes=30), now_utc())
+    ids = f'{dummy_session.id}-{other.id}'
+    legacy = {b['session']['db_id']: b['session']
+              for b in legacy_api(f'/export/event/{dummy_event.id}/session/{ids}.json')['results']}
+    new = test_client.get(f'/api/v1/events/{dummy_event.id}/sessions', headers=token_headers).json['results']
+    assert {s['id'] for s in new} == set(legacy)
+    for sess in new:
+        assert sess['title'] == legacy[sess['id']]['title']
+        assert sess['friendly_id'] == legacy[sess['id']]['friendly_id']
+        assert len(sess['blocks']) == legacy[sess['id']]['numSlots']

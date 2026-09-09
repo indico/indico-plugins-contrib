@@ -21,12 +21,6 @@ def contribution_speaker(db, dummy_contribution, dummy_event_person):
     return link
 
 
-@pytest.fixture
-def token_headers(dummy_personal_token):
-    dummy_personal_token.scopes = ['read:everything']
-    return {'Authorization': f'Bearer {dummy_personal_token._plaintext_token}'}
-
-
 def test_contribution_details(dummy_event, dummy_contribution, token_headers, test_client):
     resp = test_client.get(f'/api/v1/events/{dummy_event.id}/contributions/{dummy_contribution.id}',
                            headers=token_headers)
@@ -67,14 +61,6 @@ def test_contribution_list_denied_while_unpublished(dummy_event, dummy_contribut
     assert resp.status_code == 404
 
 
-@pytest.fixture
-def outsider_headers(db, dummy_personal_token, create_user):
-    dummy_personal_token.user = create_user(42)
-    dummy_personal_token.scopes = ['read:everything']
-    db.session.flush()
-    return {'Authorization': f'Bearer {dummy_personal_token._plaintext_token}'}
-
-
 @pytest.mark.usefixtures('contribution_speaker')
 def test_contribution_hides_person_contact_details(dummy_event, dummy_contribution, outsider_headers, test_client):
     resp = test_client.get(f'/api/v1/events/{dummy_event.id}/contributions/{dummy_contribution.id}',
@@ -92,3 +78,44 @@ def test_contribution_list_hides_person_contact_details(dummy_event, dummy_contr
     persons = resp.json['results'][0]['persons']
     assert persons
     assert all('email' not in person for person in persons)
+
+
+@pytest.mark.usefixtures('contribution_speaker')
+def test_contribution_matches_legacy_api(dummy_event, dummy_contribution, token_headers, test_client, legacy_api,
+                                         as_legacy_date):
+    legacy = legacy_api(f'/export/event/{dummy_event.id}.json?detail=contributions')['results'][0]['contributions'][0]
+    new = test_client.get(f'/api/v1/events/{dummy_event.id}/contributions/{dummy_contribution.id}',
+                          headers=token_headers).json
+    assert new['id'] == legacy['db_id']
+    assert new['friendly_id'] == legacy['friendly_id']
+    assert new['title'] == legacy['title']
+    assert new['description'] == legacy['description']
+    assert new['code'] == legacy['code']
+    assert new['board_number'] == legacy['board_number']
+    assert new['keywords'] == legacy['keywords']
+    assert new['duration'] == legacy['duration'] * 60
+    assert new['venue_name'] == legacy['location']
+    assert new['room_name'] == legacy['roomFullname']
+    assert (new['track'] or {}).get('title') == legacy['track']
+    assert (new['session'] or {}).get('title') == legacy['session']
+    assert (new['type'] or {}).get('name') == legacy['type']
+    assert as_legacy_date(new['start_dt']) == legacy['startDate']
+    assert as_legacy_date(new['end_dt']) == legacy['endDate']
+    speakers = [p for p in new['persons'] if p['is_speaker']]
+    assert [(p['first_name'], p['last_name'], p['affiliation'], p['email_hash']) for p in speakers] == \
+           [(p['first_name'], p['last_name'], p['affiliation'], p['emailHash']) for p in legacy['speakers']]
+    authors = [p for p in new['persons'] if p['author_type'] == 'primary']
+    assert [p['email_hash'] for p in authors] == [p['emailHash'] for p in legacy['primaryauthors']]
+
+
+def test_contribution_list_matches_legacy_api(dummy_event, dummy_contribution, create_contribution, token_headers,
+                                              test_client, legacy_api):
+    create_contribution(dummy_event, 'Another contribution')
+    legacy = {c['db_id']: c for c in
+              legacy_api(f'/export/event/{dummy_event.id}.json?detail=contributions')['results'][0]['contributions']}
+    new = test_client.get(f'/api/v1/events/{dummy_event.id}/contributions', headers=token_headers).json['results']
+    assert {c['id'] for c in new} == set(legacy)
+    for contrib in new:
+        assert contrib['title'] == legacy[contrib['id']]['title']
+        assert contrib['friendly_id'] == legacy[contrib['id']]['friendly_id']
+        assert contrib['duration'] == legacy[contrib['id']]['duration'] * 60

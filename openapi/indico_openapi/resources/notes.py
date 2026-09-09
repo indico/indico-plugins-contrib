@@ -14,6 +14,7 @@ from indico.core.marshmallow import mm
 from indico.modules.events.controllers.base import RHProtectedEventBase
 from indico.modules.events.notes.models.notes import EventNote
 from indico.modules.events.notes.schemas import EventNoteSchema
+from indico.web.flask.util import url_for
 from indico.web.rh import json_errors
 
 from indico_openapi.resources.base import DescribedFieldsMixin, Endpoint, RHListBase
@@ -35,7 +36,7 @@ class NoteSchema(DescribedFieldsMixin, mm.SQLAlchemyAutoSchema):
     class Meta:
         model = EventNote
         fields = ('id', 'link_type', 'event_id', 'session_id', 'contribution_id', 'subcontribution_id',
-                  'current_revision')
+                  'url', 'current_revision')
         descriptions = {
             'id': 'Numeric identifier of the note, unique across the whole instance.',
             'link_type': 'Kind of object the note is written on: `event`, `session`, `contribution` or '
@@ -44,9 +45,11 @@ class NoteSchema(DescribedFieldsMixin, mm.SQLAlchemyAutoSchema):
             'session_id': 'Identifier of the session the note is written on, or `null`.',
             'contribution_id': 'Identifier of the contribution the note is written on, or `null`.',
             'subcontribution_id': 'Identifier of the subcontribution the note is written on, or `null`.',
+            'url': 'Absolute URL of the note page.',
             'current_revision': 'Latest revision of the note, which is the one being displayed.',
         }
 
+    url = fields.Function(lambda note: url_for('event_notes.view', note, _external=True))
     current_revision = fields.Nested(NoteRevisionSchema)
 
 

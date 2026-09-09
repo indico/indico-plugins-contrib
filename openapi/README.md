@@ -38,6 +38,26 @@ of being reported as an error.
 | `/api/v1/openapi.json` | OpenAPI v3 document |
 | `/api/v1/docs` | Swagger UI |
 
+## Parity with the legacy export API
+
+Every entity that the legacy export API (`/export/...`) also serves has a test
+asserting both APIs return the same values, field by field. The payloads have a
+different shape, so the tests compare the underlying values rather than the raw
+JSON.
+
+| Entity | Legacy endpoint |
+| --- | --- |
+| Events | `/export/event/<event_id>.json` |
+| Categories | `/export/categ/<category_id>.json` |
+| Contributions | `/export/event/<event_id>.json?detail=contributions` |
+| Subcontributions | `/export/event/<event_id>.json?detail=subcontributions` |
+| Sessions | `/export/event/<event_id>/session/<session_id>.json` |
+| Notes | `/export/note/<event_id>[/session/<id>\|/contribution/<id>[/<subid>]].json` |
+| Attachments | `/export/attachments/<event_id>[/session/<id>\|/contribution/<id>[/<subid>]].json` |
+
+Tracks have no counterpart in the legacy API, so there is nothing to compare
+them against.
+
 ## Pagination
 
 List endpoints take `limit` and `offset` and answer with an envelope:

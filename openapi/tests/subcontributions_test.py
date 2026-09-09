@@ -20,20 +20,6 @@ def subcontribution_speaker(db, dummy_subcontribution, dummy_event_person):
     return link
 
 
-@pytest.fixture
-def token_headers(dummy_personal_token):
-    dummy_personal_token.scopes = ['read:everything']
-    return {'Authorization': f'Bearer {dummy_personal_token._plaintext_token}'}
-
-
-@pytest.fixture
-def outsider_headers(db, dummy_personal_token, create_user):
-    dummy_personal_token.user = create_user(42)
-    dummy_personal_token.scopes = ['read:everything']
-    db.session.flush()
-    return {'Authorization': f'Bearer {dummy_personal_token._plaintext_token}'}
-
-
 def test_subcontribution_details(dummy_event, dummy_contribution, dummy_subcontribution, token_headers, test_client):
     resp = test_client.get(f'/api/v1/events/{dummy_event.id}/contributions/{dummy_contribution.id}'
                            f'/subcontributions/{dummy_subcontribution.id}', headers=token_headers)
@@ -77,3 +63,33 @@ def test_subcontribution_hides_person_contact_details(dummy_event, dummy_contrib
     assert resp.status_code == 200
     assert resp.json['persons']
     assert all('email' not in person for person in resp.json['persons'])
+
+
+@pytest.mark.usefixtures('subcontribution_speaker')
+def test_subcontribution_matches_legacy_api(dummy_event, dummy_contribution, dummy_subcontribution, token_headers,
+                                            test_client, legacy_api):
+    legacy_event = legacy_api(f'/export/event/{dummy_event.id}.json?detail=subcontributions')['results'][0]
+    legacy = legacy_event['contributions'][0]['subContributions'][0]
+    new = test_client.get(f'/api/v1/events/{dummy_event.id}/contributions/{dummy_contribution.id}'
+                          f'/subcontributions/{dummy_subcontribution.id}', headers=token_headers).json
+    assert new['id'] == legacy['db_id']
+    assert new['friendly_id'] == legacy['friendly_id']
+    assert new['title'] == legacy['title']
+    assert new['code'] == legacy['code']
+    assert new['duration'] == legacy['duration'] * 60
+    assert [(p['first_name'], p['last_name'], p['affiliation'], p['email_hash']) for p in new['persons']] == \
+           [(p['first_name'], p['last_name'], p['affiliation'], p['emailHash']) for p in legacy['speakers']]
+
+
+def test_subcontribution_list_matches_legacy_api(dummy_event, dummy_contribution, dummy_subcontribution,
+                                                 create_subcontribution, token_headers, test_client, legacy_api):
+    create_subcontribution(dummy_contribution, 'Another subcontribution')
+    legacy_event = legacy_api(f'/export/event/{dummy_event.id}.json?detail=subcontributions')['results'][0]
+    legacy = {s['db_id']: s for s in legacy_event['contributions'][0]['subContributions']}
+    new = test_client.get(f'/api/v1/events/{dummy_event.id}/contributions/{dummy_contribution.id}'
+                          f'/subcontributions', headers=token_headers).json['results']
+    assert [s['id'] for s in new] == list(legacy)
+    for subcontrib in new:
+        assert subcontrib['title'] == legacy[subcontrib['id']]['title']
+        assert subcontrib['friendly_id'] == legacy[subcontrib['id']]['friendly_id']
+        assert subcontrib['duration'] == legacy[subcontrib['id']]['duration'] * 60

@@ -29,20 +29,6 @@ def dummy_track(db, dummy_event, dummy_track_group):
     return track
 
 
-@pytest.fixture
-def token_headers(dummy_personal_token):
-    dummy_personal_token.scopes = ['read:everything']
-    return {'Authorization': f'Bearer {dummy_personal_token._plaintext_token}'}
-
-
-@pytest.fixture
-def outsider_headers(db, dummy_personal_token, create_user):
-    dummy_personal_token.user = create_user(42)
-    dummy_personal_token.scopes = ['read:everything']
-    db.session.flush()
-    return {'Authorization': f'Bearer {dummy_personal_token._plaintext_token}'}
-
-
 def test_track_details(dummy_event, dummy_track, dummy_track_group, token_headers, test_client):
     resp = test_client.get(f'/api/v1/events/{dummy_event.id}/tracks/{dummy_track.id}', headers=token_headers)
     assert resp.status_code == 200

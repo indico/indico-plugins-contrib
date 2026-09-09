@@ -6,15 +6,7 @@
 # MIT License see the LICENSE file for more details.
 
 
-import pytest
-
 from indico.core.db.sqlalchemy.protection import ProtectionMode
-
-
-@pytest.fixture
-def token_headers(dummy_personal_token):
-    dummy_personal_token.scopes = ['read:everything']
-    return {'Authorization': f'Bearer {dummy_personal_token._plaintext_token}'}
 
 
 def test_category_details(dummy_category, token_headers, test_client):
@@ -53,3 +45,19 @@ def test_category_list_hides_inaccessible_categories(dummy_category, dummy_perso
 def test_category_list_filters_by_parent(dummy_category, token_headers, test_client):
     resp = test_client.get(f'/api/v1/categories?parent_id={dummy_category.parent_id}', headers=token_headers)
     assert {c['id'] for c in resp.json['results']} == {dummy_category.id}
+
+
+def test_category_matches_legacy_api(dummy_category, dummy_event, token_headers, test_client, legacy_api):
+    legacy = legacy_api(f'/export/categ/{dummy_category.id}.json')
+    path = legacy['additionalInfo']['eventCategories'][0]['path']
+    entry = next(p for p in path if p.get('id') == dummy_category.id)
+    new = test_client.get(f'/api/v1/categories/{dummy_category.id}', headers=token_headers).json
+    assert new['title'] == entry['name']
+    assert new['url'] == entry['url']
+    assert new['chain_titles'] == [p['name'] for p in path if 'name' in p]
+
+
+def test_category_events_match_legacy_api(dummy_category, dummy_event, token_headers, test_client, legacy_api):
+    legacy = legacy_api(f'/export/categ/{dummy_category.id}.json')['results']
+    new = test_client.get(f'/api/v1/events?category_id={dummy_category.id}', headers=token_headers).json
+    assert {str(e['id']) for e in new['results']} == {e['id'] for e in legacy}
