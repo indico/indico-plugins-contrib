@@ -9,22 +9,34 @@ of being reported as an error.
 
 ## Endpoints
 
-| Path                                                                                    | Description                                 |
-|-----------------------------------------------------------------------------------------|---------------------------------------------|
-| `/api/v1/events`                                                                        | List events                                 |
-| `/api/v1/events/<event_id>`                                                             | Event details                               |
-| `/api/v1/events/<event_id>/contributions`                                               | List the contributions of an event          |
-| `/api/v1/events/<event_id>/contributions/<contrib_id>`                                  | Contribution details                        |
-| `/api/v1/events/<event_id>/contributions/<contrib_id>/subcontributions`                 | List the subcontributions of a contribution |
-| `/api/v1/events/<event_id>/contributions/<contrib_id>/subcontributions/<subcontrib_id>` | Subcontribution details                     |
-| `/api/v1/events/<event_id>/sessions`                                                    | List the sessions of an event               |
-| `/api/v1/events/<event_id>/sessions/<session_id>`                                       | Session details                             |
-| `/api/v1/events/<event_id>/tracks`                                                      | List the tracks of an event                 |
-| `/api/v1/events/<event_id>/tracks/<track_id>`                                           | Track details                               |
-| `/api/v1/categories`                                                                    | List categories                             |
-| `/api/v1/categories/<category_id>`                                                      | Category details                            |
-| `/api/v1/openapi.json`                                                                  | OpenAPI v3 document                         |
-| `/api/v1/docs`                                                                          | Swagger UI                                  |
+| Path | Description |
+| --- | --- |
+| `/api/v1/events` | List events |
+| `/api/v1/events/<event_id>` | Event details |
+| `/api/v1/events/<event_id>/contributions` | List the contributions of an event |
+| `/api/v1/events/<event_id>/contributions/<contrib_id>` | Contribution details |
+| `/api/v1/events/<event_id>/contributions/<contrib_id>/subcontributions` | List the subcontributions of a contribution |
+| `/api/v1/events/<event_id>/contributions/<contrib_id>/subcontributions/<subcontrib_id>` | Subcontribution details |
+| `/api/v1/events/<event_id>/sessions` | List the sessions of an event |
+| `/api/v1/events/<event_id>/sessions/<session_id>` | Session details |
+| `/api/v1/events/<event_id>/tracks` | List the tracks of an event |
+| `/api/v1/events/<event_id>/tracks/<track_id>` | Track details |
+| `/api/v1/events/<event_id>/notes` | List the notes of an event and of everything inside it |
+| `/api/v1/events/<event_id>/notes/<note_id>` | Note details |
+| `/api/v1/events/<event_id>/attachments` | List the attachments of an event |
+| `/api/v1/events/<event_id>/attachments/<attachment_id>` | Attachment details |
+| `/api/v1/events/<event_id>/sessions/<session_id>/attachments` | List the attachments of a session |
+| `/api/v1/events/<event_id>/sessions/<session_id>/attachments/<attachment_id>` | Attachment details |
+| `/api/v1/events/<event_id>/contributions/<contrib_id>/attachments` | List the attachments of a contribution |
+| `/api/v1/events/<event_id>/contributions/<contrib_id>/attachments/<attachment_id>` | Attachment details |
+| `/api/v1/events/<event_id>/contributions/<contrib_id>/subcontributions/<subcontrib_id>/attachments` | List the attachments of a subcontribution |
+| `/api/v1/events/<event_id>/contributions/<contrib_id>/subcontributions/<subcontrib_id>/attachments/<attachment_id>` | Attachment details |
+| `/api/v1/categories` | List categories |
+| `/api/v1/categories/<category_id>` | Category details |
+| `/api/v1/categories/<category_id>/attachments` | List the attachments of a category |
+| `/api/v1/categories/<category_id>/attachments/<attachment_id>` | Attachment details |
+| `/api/v1/openapi.json` | OpenAPI v3 document |
+| `/api/v1/docs` | Swagger UI |
 
 ## Pagination
 
