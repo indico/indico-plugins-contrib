@@ -47,6 +47,8 @@ of being reported as an error.
 | `/api/v1/categories/<category_id>` | Category details |
 | `/api/v1/categories/<category_id>/attachments` | List the attachments of a category |
 | `/api/v1/categories/<category_id>/attachments/<attachment_id>` | Attachment details |
+| `/api/v1/locations` | List the locations rooms belong to |
+| `/api/v1/locations/<location_id>` | Location details |
 | `/api/v1/rooms` | List the rooms that can be booked |
 | `/api/v1/rooms/<room_id>` | Room details |
 | `/api/v1/reservations` | List room bookings |
@@ -79,8 +81,8 @@ JSON.
 | Rooms | `/export/room/<location>/<room_ids>.json` |
 | Reservations | `/export/reservation/<location>.json` |
 
-Tracks, registrations, abstracts and papers have no counterpart in the legacy
-API, so there is nothing to compare them against.
+Tracks, registrations, abstracts, papers and locations have no counterpart in
+the legacy API, so there is nothing to compare them against.
 
 ## Pagination
 

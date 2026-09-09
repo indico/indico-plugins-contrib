@@ -55,6 +55,12 @@ class RoomSchema(DescribedFieldsMixin, CoreRoomSchema):
     available_equipment = fields.Function(lambda room: sorted(eq.name for eq in room.available_equipment))
 
 
+class RoomReferenceSchema(DescribedFieldsMixin, CoreRoomSchema):
+    class Meta(CoreRoomSchema.Meta):
+        fields = ('id', 'name', 'full_name')
+        descriptions = RoomSchema.Meta.descriptions
+
+
 class RoomListArgs(ListArgs):
     location_id = fields.Integer(load_default=None,
                                  metadata={'description': 'Only list the rooms of this location.'})
