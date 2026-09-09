@@ -45,6 +45,8 @@ of being reported as an error.
 | `/api/v1/categories/<category_id>/attachments/<attachment_id>` | Attachment details |
 | `/api/v1/rooms` | List the rooms that can be booked |
 | `/api/v1/rooms/<room_id>` | Room details |
+| `/api/v1/reservations` | List room bookings |
+| `/api/v1/reservations/<reservation_id>` | Room booking details |
 | `/api/v1/users` | List users |
 | `/api/v1/users/me` | Details of the authenticated user |
 | `/api/v1/users/<user_id>` | User details |
@@ -71,6 +73,7 @@ JSON.
 | Attachments | `/export/attachments/<event_id>[/session/<id>\|/contribution/<id>[/<subid>]].json` |
 | Users | `/export/user/<user_id>.json` |
 | Rooms | `/export/room/<location>/<room_ids>.json` |
+| Reservations | `/export/reservation/<location>.json` |
 
 Tracks and registrations have no counterpart in the legacy API, so there is
 nothing to compare them against.
