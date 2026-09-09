@@ -19,6 +19,8 @@ of being reported as an error.
 | `/api/v1/events/<event_id>/contributions/<contrib_id>/subcontributions/<subcontrib_id>` | Subcontribution details |
 | `/api/v1/events/<event_id>/sessions` | List the sessions of an event |
 | `/api/v1/events/<event_id>/sessions/<session_id>` | Session details |
+| `/api/v1/events/<event_id>/timetable` | List the timetable entries of an event |
+| `/api/v1/events/<event_id>/timetable/<entry_id>` | Timetable entry details |
 | `/api/v1/events/<event_id>/tracks` | List the tracks of an event |
 | `/api/v1/events/<event_id>/tracks/<track_id>` | Track details |
 | `/api/v1/events/<event_id>/notes` | List the notes of an event and of everything inside it |
@@ -52,6 +54,7 @@ JSON.
 | Contributions | `/export/event/<event_id>.json?detail=contributions` |
 | Subcontributions | `/export/event/<event_id>.json?detail=subcontributions` |
 | Sessions | `/export/event/<event_id>/session/<session_id>.json` |
+| Timetable | `/export/timetable/<event_id>.json` |
 | Notes | `/export/note/<event_id>[/session/<id>\|/contribution/<id>[/<subid>]].json` |
 | Attachments | `/export/attachments/<event_id>[/session/<id>\|/contribution/<id>[/<subid>]].json` |
 
