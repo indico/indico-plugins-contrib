@@ -38,7 +38,7 @@ class ReservationSchema(DescribedFieldsMixin, CoreReservationSchema):
         fields = ('id', 'room_id', 'location_name', 'start_dt', 'end_dt', 'created_dt', 'booking_reason',
                   'booked_for_name', 'contact_email', 'state', 'is_accepted', 'is_pending', 'is_cancelled',
                   'is_rejected', 'rejection_reason', 'is_repeating', 'repeat_frequency', 'repeat_interval',
-                  'recurrence_weekdays', 'external_details_url', 'internal_note')
+                  'recurrence_weekdays', 'external_details_url')
         descriptions = {
             'id': 'Numeric identifier of the booking, unique across the whole instance.',
             'room_id': 'Identifier of the booked room.',
@@ -62,7 +62,6 @@ class ReservationSchema(DescribedFieldsMixin, CoreReservationSchema):
             'repeat_interval': 'Number of frequency units between two occurrences, such as `2` for every other week.',
             'recurrence_weekdays': 'Weekdays a weekly booking happens on, such as `["mon", "thu"]`, or `null`.',
             'external_details_url': 'Absolute URL of the booking page.',
-            'internal_note': 'Note the room managers wrote about the booking. Only present for them.',
         }
 
     state = fields.Enum(ReservationState)
@@ -74,8 +73,6 @@ class ReservationSchema(DescribedFieldsMixin, CoreReservationSchema):
         if not booking.can_see_details(session.user):
             data['booked_for_name'] = None
             data['contact_email'] = None
-        if not booking.room.can_manage(session.user):
-            del data['internal_note']
         return data
 
 

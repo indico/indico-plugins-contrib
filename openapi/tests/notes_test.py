@@ -29,23 +29,20 @@ def dummy_note(create_note, dummy_event):
     return create_note(dummy_event, '<p>Minutes</p>')
 
 
-def test_note_details(dummy_event, dummy_note, token_headers, test_client):
+def test_note_details(dummy_event, dummy_note, dummy_user, token_headers, test_client):
     resp = test_client.get(f'/api/v1/events/{dummy_event.id}/notes/{dummy_note.id}', headers=token_headers)
     assert resp.status_code == 200
-    assert resp.json['id'] == dummy_note.id
-    assert resp.json['link_type'] == 'event'
-    assert resp.json['event_id'] == dummy_event.id
-    assert resp.json['contribution_id'] is None
-    assert resp.json['current_revision']['source'] == '<p>Minutes</p>'
-    assert resp.json['current_revision']['render_mode'] == 'html'
+    assert resp.json['html'] == '<p>Minutes</p>'
+    assert resp.json['author_id'] == dummy_user.id
+    assert resp.json['url'].endswith(f'/event/{dummy_event.id}/note/')
 
 
 def test_note_list(dummy_event, dummy_note, dummy_contribution, create_note, token_headers, test_client):
-    contrib_note = create_note(dummy_contribution, '<p>Contribution minutes</p>')
+    create_note(dummy_contribution, '<p>Contribution minutes</p>')
     resp = test_client.get(f'/api/v1/events/{dummy_event.id}/notes', headers=token_headers)
     assert resp.status_code == 200
-    assert [n['id'] for n in resp.json['results']] == [dummy_note.id, contrib_note.id]
-    assert resp.json['results'][1]['contribution_id'] == dummy_contribution.id
+    assert [n['html'] for n in resp.json['results']] == ['<p>Minutes</p>', '<p>Contribution minutes</p>']
+    assert f'/contributions/{dummy_contribution.id}/' in resp.json['results'][1]['url']
 
 
 def test_note_of_protected_contribution_is_not_listed(db, dummy_event, dummy_contribution, create_note,
@@ -74,25 +71,19 @@ def test_note_of_another_event_is_not_found(dummy_note, create_event, token_head
     assert resp.status_code == 404
 
 
-def test_note_matches_indico_api(dummy_event, dummy_note, token_headers, test_client, indico_api):
-    legacy = indico_api(f'/export/note/{dummy_event.id}.json')['results']
+NOTE_FIELDS = ('url', 'html', 'modified_dt')
+
+
+def test_note_matches_current_api(dummy_event, dummy_note, token_headers, test_client, indico_api, same_json):
+    current = indico_api(f'/export/note/{dummy_event.id}.json')['results']
     new = test_client.get(f'/api/v1/events/{dummy_event.id}/notes/{dummy_note.id}', headers=token_headers).json
-    assert new['url'] == legacy['url']
-    assert new['current_revision']['html'] == legacy['html']
-    assert new['current_revision']['created_dt'] == legacy['modified_dt']
+    same_json(new, current, same=NOTE_FIELDS, renamed={'author_id': ('user', None)})
 
 
-def test_note_list_matches_indico_api(dummy_event, dummy_note, dummy_contribution, create_note, token_headers,
-                                      test_client, indico_api):
-    contrib_note = create_note(dummy_contribution, '<p>Contribution minutes</p>')
+def test_note_list_matches_current_api(dummy_event, dummy_note, dummy_contribution, create_note, token_headers,
+                                       test_client, indico_api, same_json_list):
+    create_note(dummy_contribution, '<p>Contribution minutes</p>')
     contrib_url = f'/export/note/{dummy_event.id}/contribution/{dummy_contribution.id}.json'
-    legacy = {
-        dummy_note.id: indico_api(f'/export/note/{dummy_event.id}.json')['results'],
-        contrib_note.id: indico_api(contrib_url)['results'],
-    }
+    current = [indico_api(f'/export/note/{dummy_event.id}.json')['results'], indico_api(contrib_url)['results']]
     new = test_client.get(f'/api/v1/events/{dummy_event.id}/notes', headers=token_headers).json['results']
-    assert {n['id'] for n in new} == set(legacy)
-    for note in new:
-        assert note['url'] == legacy[note['id']]['url']
-        assert note['current_revision']['html'] == legacy[note['id']]['html']
-        assert note['current_revision']['created_dt'] == legacy[note['id']]['modified_dt']
+    same_json_list(new, current, same=NOTE_FIELDS, renamed={'author_id': ('user', None)}, key='url')

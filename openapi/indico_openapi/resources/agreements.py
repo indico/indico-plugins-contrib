@@ -63,9 +63,9 @@ class AgreementListArgs(ListArgs):
 class AgreementMixin:
     """Access checks shared by the agreement endpoints.
 
-    Agreements are only visible to the managers of the event, which is also what
-    the legacy export API requires. The people asked to sign reach their own
-    agreement through the link they were emailed, not through this API.
+    Agreements are only visible to the managers of the event, the same audience
+    the management interface serves them to. The people asked to sign reach their
+    own agreement through the link they were emailed, not through this API.
     """
 
     def _check_access(self):

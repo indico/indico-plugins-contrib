@@ -9,6 +9,7 @@
 import pytest
 
 from indico.modules.events.abstracts.models.abstracts import AbstractState
+from indico.modules.events.contributions.models.types import ContributionType
 from indico.modules.events.features.util import set_feature_enabled
 from indico.modules.events.tracks.models.tracks import Track
 from indico.util.date_time import now_utc
@@ -128,31 +129,55 @@ def abstract_manager(db, dummy_event, dummy_user):
     db.session.flush()
 
 
-def test_abstract_matches_current_api(dummy_abstract, dummy_abstract_file, dummy_event, abstract_manager,
-                                      token_headers, test_client, indico_api):
+@pytest.fixture
+def affiliated_persons(db, dummy_abstract, dummy_affiliation):
+    for link in dummy_abstract.person_links:
+        link.person.affiliation_link = dummy_affiliation
+    db.session.flush()
+
+
+@pytest.fixture
+def judged_abstract(db, dummy_abstract, dummy_event, dummy_user, dummy_track):
+    contrib_type = ContributionType(event=dummy_event, name='Poster')
+    other_track = Track(event=dummy_event, title='Other track', code='OT')
+    db.session.add_all((contrib_type, other_track))
+    dummy_abstract.state = AbstractState.accepted
+    dummy_abstract.judge = dummy_user
+    dummy_abstract.judgment_dt = now_utc()
+    dummy_abstract.submitted_contrib_type = contrib_type
+    dummy_abstract.accepted_contrib_type = contrib_type
+    dummy_abstract.accepted_track = dummy_track
+    dummy_abstract.submitted_for_tracks = {dummy_track}
+    dummy_abstract.reviewed_for_tracks = {dummy_track, other_track}
+    db.session.flush()
+    return dummy_abstract
+
+
+ABSTRACT_FIELDS = ('id', 'friendly_id', 'title', 'content', 'state', 'submitted_dt', 'modified_dt', 'judgment_dt',
+                   'submitter', 'modified_by', 'judge', 'submission_comment', 'judgment_comment',
+                   'submitted_contrib_type', 'accepted_contrib_type', 'accepted_track', 'submitted_for_tracks',
+                   'reviewed_for_tracks', 'persons', 'custom_fields', 'files')
+
+
+def as_abstract_id(name):
+    return lambda current: current[name]['id'] if current[name] else None
+
+
+ABSTRACT_LINKS = {'duplicate_of_id': as_abstract_id('duplicate_of'), 'merged_into_id': as_abstract_id('merged_into')}
+
+
+@pytest.mark.usefixtures('affiliated_persons', 'judged_abstract', 'dummy_abstract_file')
+def test_abstract_matches_current_api(dummy_abstract, dummy_event, abstract_manager, token_headers, test_client,
+                                      indico_api, same_json):
     current = indico_api(f'/event/{dummy_event.id}/manage/abstracts/abstracts.json')
     abstract = next(a for a in current['abstracts'] if a['id'] == dummy_abstract.id)
     new = test_client.get(f'/api/v1/events/{dummy_event.id}/abstracts/{dummy_abstract.id}',
                           headers=token_headers).json
-    for field in ('id', 'friendly_id', 'title', 'content', 'state', 'submitted_dt', 'modified_dt', 'judgment_dt',
-                  'submission_comment', 'judgment_comment'):
-        assert new[field] == abstract[field]
-    assert new['submitter']['id'] == abstract['submitter']['id']
-    assert new['judge'] == abstract['judge']
-    assert new['modified_by'] == abstract['modified_by']
-    assert new['accepted_track'] == abstract['accepted_track']
-    assert new['submitted_contrib_type'] == abstract['submitted_contrib_type']
-    assert new['accepted_contrib_type'] == abstract['accepted_contrib_type']
-    assert [t['id'] for t in new['submitted_for_tracks']] == [t['id'] for t in abstract['submitted_for_tracks']]
-    assert [t['id'] for t in new['reviewed_for_tracks']] == [t['id'] for t in abstract['reviewed_for_tracks']]
-    assert new['persons'] == abstract['persons']
-    assert [f['id'] for f in new['files']] == [f['id'] for f in abstract['files']]
-    assert [f['filename'] for f in new['files']] == [f['filename'] for f in abstract['files']]
-    assert [f['md5'] for f in new['files']] == [f['md5'] for f in abstract['files']]
+    same_json(new, abstract, same=ABSTRACT_FIELDS, derived=ABSTRACT_LINKS)
 
 
 def test_duplicate_abstract_matches_current_api(db, dummy_abstract, create_abstract, dummy_event, dummy_user,
-                                                abstract_manager, token_headers, test_client, indico_api):
+                                                abstract_manager, token_headers, test_client, indico_api, same_json):
     other = create_abstract(dummy_event, 'Another abstract', friendly_id=315, submitter=dummy_user)
     dummy_abstract.state = AbstractState.duplicate
     dummy_abstract.duplicate_of = other
@@ -163,14 +188,13 @@ def test_duplicate_abstract_matches_current_api(db, dummy_abstract, create_abstr
     abstract = next(a for a in current['abstracts'] if a['id'] == dummy_abstract.id)
     new = test_client.get(f'/api/v1/events/{dummy_event.id}/abstracts/{dummy_abstract.id}',
                           headers=token_headers).json
-    assert new['state'] == abstract['state']
-    assert new['duplicate_of_id'] == abstract['duplicate_of']['id']
-    assert new['merged_into_id'] == abstract['merged_into']
+    same_json(new, abstract, same=ABSTRACT_FIELDS, derived=ABSTRACT_LINKS)
 
 
-def test_abstract_list_matches_current_api(dummy_abstract, create_abstract, dummy_event, dummy_user,
-                                           abstract_manager, token_headers, test_client, indico_api):
+@pytest.mark.usefixtures('affiliated_persons', 'judged_abstract', 'dummy_abstract_file')
+def test_abstract_list_matches_current_api(dummy_abstract, create_abstract, dummy_event, dummy_user, abstract_manager,
+                                           token_headers, test_client, indico_api, same_json_list):
     create_abstract(dummy_event, 'Another abstract', friendly_id=315, submitter=dummy_user)
     current = indico_api(f'/event/{dummy_event.id}/manage/abstracts/abstracts.json')
-    new = test_client.get(f'/api/v1/events/{dummy_event.id}/abstracts', headers=token_headers).json
-    assert [a['id'] for a in new['results']] == [a['id'] for a in current['abstracts']]
+    new = test_client.get(f'/api/v1/events/{dummy_event.id}/abstracts', headers=token_headers).json['results']
+    same_json_list(new, current['abstracts'], same=ABSTRACT_FIELDS, derived=ABSTRACT_LINKS)

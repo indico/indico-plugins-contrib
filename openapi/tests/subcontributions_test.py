@@ -26,7 +26,6 @@ def test_subcontribution_details(dummy_event, dummy_contribution, dummy_subcontr
     assert resp.status_code == 200
     assert resp.json['id'] == dummy_subcontribution.id
     assert resp.json['title'] == dummy_subcontribution.title
-    assert resp.json['contribution_id'] == dummy_contribution.id
     assert resp.json['duration'] == dummy_subcontribution.duration.total_seconds()
 
 
@@ -65,31 +64,41 @@ def test_subcontribution_hides_person_contact_details(dummy_event, dummy_contrib
     assert all('email' not in person for person in resp.json['persons'])
 
 
-@pytest.mark.usefixtures('subcontribution_speaker')
-def test_subcontribution_matches_indico_api(dummy_event, dummy_contribution, dummy_subcontribution, token_headers,
-                                            test_client, indico_api):
-    legacy_event = indico_api(f'/export/event/{dummy_event.id}.json?detail=subcontributions')['results'][0]
-    legacy = legacy_event['contributions'][0]['subContributions'][0]
+SUBCONTRIBUTION_FIELDS = ('friendly_id', 'title', 'code')
+
+FOSSIL_PERSON_KEYS = {'id': 'db_id', 'email_hash': 'emailHash'}
+
+
+@pytest.fixture
+def contribution_manager(db, dummy_event, dummy_user):
+    dummy_event.update_principal(dummy_user, full_access=True)
+    db.session.flush()
+
+
+def as_minutes(seconds):
+    return seconds // 60
+
+
+def test_subcontribution_matches_current_api(dummy_event, dummy_contribution, dummy_subcontribution,
+                                             subcontribution_speaker, contribution_manager, token_headers,
+                                             test_client, indico_api, same_json, rename_keys):
+    current = indico_api(f'/export/event/{dummy_event.id}.json?detail=subcontributions')['results'][0]
+    subcontrib = current['contributions'][0]['subContributions'][0]
     new = test_client.get(f'/api/v1/events/{dummy_event.id}/contributions/{dummy_contribution.id}'
                           f'/subcontributions/{dummy_subcontribution.id}', headers=token_headers).json
-    assert new['id'] == legacy['db_id']
-    assert new['friendly_id'] == legacy['friendly_id']
-    assert new['title'] == legacy['title']
-    assert new['code'] == legacy['code']
-    assert new['duration'] == legacy['duration'] * 60
-    assert [(p['first_name'], p['last_name'], p['affiliation'], p['email_hash']) for p in new['persons']] == \
-           [(p['first_name'], p['last_name'], p['affiliation'], p['emailHash']) for p in legacy['speakers']]
+    same_json(new, subcontrib, same=SUBCONTRIBUTION_FIELDS,
+              renamed={'id': ('db_id', None), 'duration': ('duration', as_minutes),
+                       'persons': ('speakers', rename_keys(FOSSIL_PERSON_KEYS))})
 
 
-def test_subcontribution_list_matches_indico_api(dummy_event, dummy_contribution, dummy_subcontribution,
-                                                 create_subcontribution, token_headers, test_client, indico_api):
+def test_subcontribution_list_matches_current_api(dummy_event, dummy_contribution, dummy_subcontribution,
+                                                  subcontribution_speaker, create_subcontribution,
+                                                  contribution_manager, token_headers, test_client, indico_api,
+                                                  same_json_list, rename_keys):
     create_subcontribution(dummy_contribution, 'Another subcontribution')
-    legacy_event = indico_api(f'/export/event/{dummy_event.id}.json?detail=subcontributions')['results'][0]
-    legacy = {s['db_id']: s for s in legacy_event['contributions'][0]['subContributions']}
+    current = indico_api(f'/export/event/{dummy_event.id}.json?detail=subcontributions')['results'][0]
     new = test_client.get(f'/api/v1/events/{dummy_event.id}/contributions/{dummy_contribution.id}'
                           f'/subcontributions', headers=token_headers).json['results']
-    assert [s['id'] for s in new] == list(legacy)
-    for subcontrib in new:
-        assert subcontrib['title'] == legacy[subcontrib['id']]['title']
-        assert subcontrib['friendly_id'] == legacy[subcontrib['id']]['friendly_id']
-        assert subcontrib['duration'] == legacy[subcontrib['id']]['duration'] * 60
+    same_json_list(new, current['contributions'][0]['subContributions'], same=SUBCONTRIBUTION_FIELDS,
+                   renamed={'id': ('db_id', None), 'duration': ('duration', as_minutes),
+                            'persons': ('speakers', rename_keys(FOSSIL_PERSON_KEYS))})

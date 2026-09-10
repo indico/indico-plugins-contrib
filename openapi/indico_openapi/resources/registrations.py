@@ -15,11 +15,7 @@ from indico.core.marshmallow import mm
 from indico.modules.events.controllers.base import RHProtectedEventBase
 from indico.modules.events.registration import registration_settings
 from indico.modules.events.registration.models.forms import RegistrationForm
-from indico.modules.events.registration.models.registrations import (
-    Registration,
-    RegistrationState,
-    RegistrationVisibility,
-)
+from indico.modules.events.registration.models.registrations import Registration, RegistrationState
 from indico.modules.events.registration.schemas import RegistrationTagSchema as CoreRegistrationTagSchema
 from indico.web.rh import json_errors
 
@@ -28,8 +24,8 @@ from indico_openapi.resources.base import DescribedFieldsMixin, Endpoint, RHList
 
 PERSONAL_FIELDS = ('first_name', 'last_name', 'email', 'affiliation', 'title', 'address', 'phone', 'country',
                    'position')
-MANAGER_FIELDS = ('state', 'checked_in_dt', 'submitted_dt', 'is_paid', 'price', 'currency', 'formatted_price',
-                  'tags', 'visibility')
+MANAGER_FIELDS = ('state', 'checked_in_dt', 'submitted_dt', 'is_paid', 'price', 'currency',
+                  'formatted_price', 'tags')
 
 
 class RegistrationTagSchema(DescribedFieldsMixin, CoreRegistrationTagSchema):
@@ -42,45 +38,32 @@ class RegistrationTagSchema(DescribedFieldsMixin, CoreRegistrationTagSchema):
 
 
 def personal_data_field(name):
-    return fields.Function(lambda reg: reg.get_personal_data().get(name))
+    return fields.Function(lambda reg: reg.get_personal_data().get(name, ''))
 
 
 class RegistrationFormSchema(DescribedFieldsMixin, mm.SQLAlchemyAutoSchema):
     class Meta:
         model = RegistrationForm
-        fields = ('id', 'event_id', 'title', 'introduction', 'contact_info', 'start_dt', 'end_dt',
-                  'modification_end_dt', 'is_open', 'is_scheduled', 'is_participation', 'require_login', 'require_user',
-                  'moderation_enabled', 'registration_limit', 'registration_count', 'base_price', 'currency')
+        fields = ('id', 'event_id', 'title', 'introduction', 'start_dt', 'end_dt', 'is_open',
+                  'registration_count')
         descriptions = {
             'id': 'Numeric identifier of the registration form, unique across the whole instance.',
             'event_id': 'Identifier of the event the form belongs to.',
             'title': 'Title of the form.',
             'introduction': 'Text shown above the form, as plain text.',
-            'contact_info': 'How to reach the organisers about this registration.',
             'start_dt': 'Moment registrations open, in UTC, or `null` while the form is not scheduled.',
             'end_dt': 'Moment registrations close, in UTC, or `null` when they never do.',
-            'modification_end_dt': 'Moment registrants stop being able to change their answers, in UTC.',
             'is_open': 'Whether registrations are being accepted right now.',
-            'is_scheduled': 'Whether the form has an opening date, which is what makes it show up in the event.',
-            'is_participation': 'Whether this is the participants form of a meeting or lecture.',
-            'require_login': 'Whether registering requires being logged in.',
-            'require_user': 'Whether each registration has to be tied to an Indico account.',
-            'moderation_enabled': 'Whether a manager has to approve each registration.',
-            'registration_limit': 'Maximum number of registrations accepted, or `null` when there is no limit.',
-            'registration_count': 'Number of active registrations. Only present when the event publishes it or the '
-                                  'requesting user can manage registrations.',
-            'base_price': 'Fee everybody pays on top of the fees of the fields they pick, as a decimal string.',
-            'currency': 'ISO 4217 code of the currency prices are expressed in, such as `EUR`.',
+            'registration_count': 'Number of places taken. Only present for managers and for forms publishing '
+                                  'their registration count.',
         }
 
     is_open = fields.Boolean()
-    is_scheduled = fields.Boolean()
-    registration_count = fields.Integer(attribute='active_registration_count')
-    base_price = fields.Decimal(as_string=True)
+    registration_count = fields.Integer(attribute='existing_registrations_count')
 
     @post_dump(pass_original=True)
     def _hide_restricted_data(self, data, regform, **kwargs):
-        if not (self.context['can_manage'] or regform.publish_registration_count):
+        if not self.context['can_manage'] and not regform.publish_registration_count:
             del data['registration_count']
         return data
 
@@ -88,18 +71,18 @@ class RegistrationFormSchema(DescribedFieldsMixin, mm.SQLAlchemyAutoSchema):
 class RegistrationSchema(DescribedFieldsMixin, mm.SQLAlchemyAutoSchema):
     class Meta:
         model = Registration
-        fields = ('id', 'friendly_id', 'event_id', 'registration_form_id', 'full_name', *PERSONAL_FIELDS,
+        fields = ('id', 'event_id', 'registration_form_id', 'full_name', *PERSONAL_FIELDS,
                   'checked_in', *MANAGER_FIELDS)
         descriptions = {
             'id': 'Numeric identifier of the registration, unique across the whole instance.',
-            'friendly_id': 'Number shown to users, unique within the event.',
             'event_id': 'Identifier of the event the person registered for.',
             'registration_form_id': 'Identifier of the form the person registered through.',
-            'full_name': 'Full name of the registrant, in display order.',
+            'full_name': 'Full name of the registrant, in the name format the caller prefers.',
             'first_name': 'First name of the registrant.',
             'last_name': 'Last name of the registrant.',
             'email': 'Email address of the registrant.',
-            'affiliation': 'Organisation the registrant belongs to.',
+            'affiliation': 'Organisation the registrant belongs to, or an empty string when the form '
+                           'does not ask for it.',
             'title': 'Personal title, such as `Dr` or `Prof`.',
             'address': 'Postal address of the registrant.',
             'phone': 'Phone number of the registrant.',
@@ -115,10 +98,9 @@ class RegistrationSchema(DescribedFieldsMixin, mm.SQLAlchemyAutoSchema):
             'currency': 'ISO 4217 code of the currency the price is expressed in, such as `EUR`.',
             'formatted_price': 'Total fee rendered with its currency, such as `10.00 EUR`.',
             'tags': 'Tags the organisers attached to the registration.',
-            'visibility': 'Who the registration is shown to: `nobody`, `participants` or `all`.',
         }
 
-    full_name = fields.String()
+    full_name = fields.String(attribute='display_full_name')
     affiliation = personal_data_field('affiliation')
     title = personal_data_field('title')
     address = personal_data_field('address')
@@ -126,7 +108,6 @@ class RegistrationSchema(DescribedFieldsMixin, mm.SQLAlchemyAutoSchema):
     country = personal_data_field('country')
     position = personal_data_field('position')
     state = fields.Enum(RegistrationState)
-    visibility = fields.Enum(RegistrationVisibility)
     is_paid = fields.Boolean()
     price = fields.Decimal(as_string=True)
     formatted_price = fields.Function(lambda reg: reg.render_price())

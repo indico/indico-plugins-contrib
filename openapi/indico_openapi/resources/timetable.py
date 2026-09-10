@@ -20,24 +20,18 @@ from indico.util.i18n import _
 from indico.web.rh import json_errors
 
 from indico_openapi.resources.base import DescribedFieldsMixin, Endpoint, RHListBase
-from indico_openapi.resources.contributions import SessionBlockReferenceSchema
 
 
 class BreakSchema(DescribedFieldsMixin, mm.SQLAlchemyAutoSchema):
     class Meta:
         model = Break
-        fields = ('id', 'title', 'description', 'duration', 'text_color', 'background_color', 'venue_name',
-                  'room_name', 'address', 'inherit_location')
+        fields = ('description', 'text_color', 'background_color', 'venue_name', 'room_name', 'inherit_location')
         descriptions = {
-            'id': 'Numeric identifier of the break, unique across the whole instance.',
-            'title': 'Title of the break.',
             'description': 'Description of the break, as Markdown.',
-            'duration': 'Length of the break, in seconds.',
             'text_color': 'Colour of the text in the timetable, as `#rrggbb`.',
             'background_color': 'Colour of the background in the timetable, as `#rrggbb`.',
             'venue_name': 'Name of the venue, such as `CERN`.',
             'room_name': 'Name of the room, such as `500/1-001`.',
-            'address': 'Postal address of the venue.',
             'inherit_location': 'Whether the location is taken from the session block or event holding the break.',
         }
 
@@ -45,47 +39,39 @@ class BreakSchema(DescribedFieldsMixin, mm.SQLAlchemyAutoSchema):
     background_color = fields.Function(lambda break_: f'#{break_.colors.background}')
 
 
-class ContributionReferenceSchema(DescribedFieldsMixin, mm.Schema):
-    class Meta:
-        descriptions = {
-            'id': 'Numeric identifier of the contribution, unique across the whole instance.',
-            'friendly_id': 'Number shown to users, unique within the event.',
-            'title': 'Title of the contribution.',
-            'code': 'Programme code assigned to the contribution.',
-        }
-
-    id = fields.Integer()
-    friendly_id = fields.Integer()
-    title = fields.String()
-    code = fields.String()
+def _entry_title(entry):
+    if entry.type == TimetableEntryType.SESSION_BLOCK:
+        return entry.session_block.session.title
+    return entry.object.title
 
 
 class TimetableEntrySchema(DescribedFieldsMixin, mm.SQLAlchemyAutoSchema):
     class Meta:
         model = TimetableEntry
-        fields = ('id', 'type', 'event_id', 'parent_id', 'start_dt', 'end_dt', 'duration', 'session_block',
-                  'contribution', 'break_')
+        fields = ('id', 'type', 'event_id', 'parent_id', 'title', 'start_dt', 'end_dt', 'duration',
+                  'session_block_id', 'contribution_id', 'break_')
         descriptions = {
             'id': 'Numeric identifier of the timetable entry, unique across the whole instance.',
             'type': 'What the entry holds: `session_block`, `contribution` or `break`.',
             'event_id': 'Identifier of the event the entry belongs to.',
             'parent_id': 'Identifier of the session block entry holding this one, or `null` for a top-level entry.',
+            'title': 'Title of what the entry holds. For a session block it is the title of its session.',
             'start_dt': 'Start of the entry, in UTC.',
             'end_dt': 'End of the entry, in UTC.',
             'duration': 'Length of the entry, in seconds.',
-            'session_block': 'Session block scheduled by the entry, or `null` for another type.',
-            'contribution': 'Contribution scheduled by the entry, or `null` for another type. Its details are '
-                            'available under `/events/{event_id}/contributions/{id}`.',
+            'session_block_id': 'Identifier of the session block scheduled by the entry, or `null` for another '
+                                'type. The block is listed under `/events/{event_id}/sessions`.',
+            'contribution_id': 'Identifier of the contribution scheduled by the entry, or `null` for another type. '
+                               'Its details are available under `/events/{event_id}/contributions/{id}`.',
             'break_': 'Break scheduled by the entry, or `null` for another type. Breaks exist only in the '
                       'timetable, so they have no endpoint of their own.',
         }
 
     type = fields.Function(lambda entry: entry.type.name.lower())
+    title = fields.Function(_entry_title)
     start_dt = fields.DateTime()
     end_dt = fields.DateTime()
     duration = fields.TimeDelta()
-    session_block = fields.Nested(SessionBlockReferenceSchema)
-    contribution = fields.Nested(ContributionReferenceSchema)
     break_ = fields.Nested(BreakSchema, data_key='break')
 
 

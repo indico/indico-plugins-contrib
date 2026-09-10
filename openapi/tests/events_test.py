@@ -76,37 +76,41 @@ def test_event_list_filters_by_category(dummy_event, create_category, create_eve
     assert other.id not in listed
 
 
-def test_event_matches_indico_api(dummy_event, token_headers, test_client, indico_api, as_legacy_date):
-    legacy = indico_api(f'/export/event/{dummy_event.id}.json')['results'][0]
+EVENT_FIELDS = ('title', 'description', 'timezone', 'type', 'url', 'location', 'room', 'address', 'keywords',
+                'organizer', 'language')
+
+EVENT_KEYS = {'id': ('id', str), 'category_id': ('categoryId', None), 'category_title': ('category', None),
+              'room_full_name': ('roomFullname', None), 'is_protected': ('hasAnyProtection', None)}
+
+
+def date_keys(as_legacy_date):
+    return {'start_dt': ('startDate', as_legacy_date), 'end_dt': ('endDate', as_legacy_date),
+            'created_dt': ('creationDate', as_legacy_date)}
+
+
+def as_category_chain(current):
+    return [entry['title'] for entry in current['chain']]
+
+
+def with_chain(indico_api):
+    def add(current):
+        return {**current, 'chain': indico_api(f'/category/{current["categoryId"]}/info')['category']['path']}
+
+    return add
+
+
+def test_event_matches_current_api(dummy_event, token_headers, test_client, indico_api, as_legacy_date, same_json):
+    current = with_chain(indico_api)(indico_api(f'/export/event/{dummy_event.id}.json')['results'][0])
     new = test_client.get(f'/api/v1/events/{dummy_event.id}', headers=token_headers).json
-    assert str(new['id']) == legacy['id']
-    assert new['title'] == legacy['title']
-    assert new['description'] == legacy['description']
-    assert new['timezone'] == legacy['timezone']
-    assert new['type'] == legacy['type']
-    assert new['url'] == legacy['url']
-    assert new['category_id'] == legacy['categoryId']
-    assert new['category_title'] == legacy['category']
-    assert new['location'] == legacy['location']
-    assert new['room'] == legacy['room']
-    assert new['room_full_name'] == legacy['roomFullname']
-    assert new['address'] == legacy['address']
-    assert new['keywords'] == legacy['keywords']
-    assert new['organizer'] == legacy['organizer']
-    assert new['language'] == legacy['language']
-    assert new['is_protected'] == legacy['hasAnyProtection']
-    assert as_legacy_date(new['start_dt']) == legacy['startDate']
-    assert as_legacy_date(new['end_dt']) == legacy['endDate']
-    assert as_legacy_date(new['created_dt']) == legacy['creationDate']
+    same_json(new, current, same=EVENT_FIELDS, renamed={**EVENT_KEYS, **date_keys(as_legacy_date)},
+              derived={'category_chain': as_category_chain})
 
 
-def test_event_list_matches_indico_api(dummy_event, create_event, token_headers, test_client, indico_api):
+def test_event_list_matches_current_api(dummy_event, create_event, token_headers, test_client, indico_api,
+                                        as_legacy_date, same_json_list):
     other = create_event(title='Another event')
     ids = f'{dummy_event.id}-{other.id}'
-    legacy = {e['id']: e for e in indico_api(f'/export/event/{ids}.json')['results']}
+    current = [with_chain(indico_api)(event) for event in indico_api(f'/export/event/{ids}.json')['results']]
     new = test_client.get('/api/v1/events', headers=token_headers).json['results']
-    assert {str(e['id']) for e in new} == set(legacy)
-    for event in new:
-        assert event['title'] == legacy[str(event['id'])]['title']
-        assert event['url'] == legacy[str(event['id'])]['url']
-        assert event['timezone'] == legacy[str(event['id'])]['timezone']
+    same_json_list(new, current, same=EVENT_FIELDS, renamed={**EVENT_KEYS, **date_keys(as_legacy_date)},
+                   derived={'category_chain': as_category_chain})

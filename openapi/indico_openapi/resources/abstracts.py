@@ -115,9 +115,13 @@ class AbstractMixin:
     """
 
     EVENT_FEATURE = 'abstracts'
-    # the abstract URLs exist twice, in the management area and in the display
-    # one, and they take the area to link to from the request handler
-    management = False
+
+    @property
+    def management(self):
+        # the abstract URLs exist twice, in the management area and in the display one,
+        # and Indico picks between them from the request handler, so the links we serve
+        # are the ones the caller would follow in the interface
+        return self.event.can_manage(session.user, permission='abstracts')
 
     def _abstract_query(self):
         return Abstract.query.with_parent(self.event).filter_by(is_deleted=False).order_by(Abstract.friendly_id)

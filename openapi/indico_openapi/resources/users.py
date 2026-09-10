@@ -20,12 +20,11 @@ from indico_openapi.schemas import AffiliationSchema, UserReferenceSchema
 
 class UserSchema(DescribedFieldsMixin, CoreUserSchema):
     class Meta(CoreUserSchema.Meta):
-        fields = (*CoreUserSchema.Meta.fields, 'is_admin')
+        fields = CoreUserSchema.Meta.fields
         descriptions = {
             **UserReferenceSchema.Meta.descriptions,
             'affiliation_id': 'Identifier of the predefined affiliation, or `null` when typed by hand.',
             'phone': 'Phone number of the user.',
-            'is_admin': 'Whether the user administers the whole Indico instance.',
         }
 
     affiliation_meta = fields.Nested(AffiliationSchema, attribute='affiliation_link')

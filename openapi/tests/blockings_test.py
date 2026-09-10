@@ -78,26 +78,18 @@ def test_blocking_requires_login(dummy_blocking, test_client):
     assert resp.status_code == 403
 
 
-def test_blocking_matches_current_api(dummy_blocking, token_headers, test_client, indico_api):
+BLOCKING_FIELDS = ('id', 'start_date', 'end_date', 'reason', 'created_by', 'allowed', 'blocked_rooms')
+
+
+def test_blocking_matches_current_api(dummy_blocking, token_headers, test_client, indico_api, same_json):
     current = indico_api(f'/rooms/api/blockings/{dummy_blocking.id}')
     new = test_client.get(f'/api/v1/blockings/{dummy_blocking.id}', headers=token_headers).json
-    assert new['id'] == current['id']
-    assert new['start_date'] == current['start_date']
-    assert new['end_date'] == current['end_date']
-    assert new['reason'] == current['reason']
-    assert new['created_by'] == current['created_by']
-    assert new['allowed'] == current['allowed']
-    for mine, theirs in zip(new['blocked_rooms'], current['blocked_rooms'], strict=True):
-        assert mine['room']['id'] == theirs['room']['id']
-        assert mine['room']['name'] == theirs['room']['name']
-        assert mine['room']['full_name'] == theirs['room']['full_name']
-        assert mine['state'] == theirs['state']
-        assert mine['rejection_reason'] == theirs['rejection_reason']
-        assert mine['rejected_by'] == theirs['rejected_by']
+    same_json(new, current, same=BLOCKING_FIELDS)
 
 
-def test_blocking_list_matches_current_api(dummy_blocking, create_blocking, token_headers, test_client, indico_api):
+def test_blocking_list_matches_current_api(dummy_blocking, create_blocking, token_headers, test_client, indico_api,
+                                           same_json_list):
     create_blocking(reason='Maintenance')
     current = indico_api('/rooms/api/blockings/?timeframe=recent')
-    new = test_client.get('/api/v1/blockings', headers=token_headers).json
-    assert sorted(b['id'] for b in new['results']) == sorted(b['id'] for b in current)
+    new = test_client.get('/api/v1/blockings', headers=token_headers).json['results']
+    same_json_list(new, current, same=BLOCKING_FIELDS)

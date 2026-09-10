@@ -21,22 +21,16 @@ from indico_openapi.resources.base import DescribedFieldsMixin, Endpoint, ListAr
 class CategorySchema(DescribedFieldsMixin, mm.SQLAlchemyAutoSchema):
     class Meta:
         model = Category
-        fields = ('id', 'title', 'description', 'url', 'parent_id', 'chain_titles', 'timezone',
-                  'event_count', 'deep_events_count', 'is_protected')
+        fields = ('id', 'title', 'parent_id', 'chain_titles', 'deep_events_count', 'is_protected')
         descriptions = {
             'id': 'Numeric identifier of the category. The root category is always `0`.',
             'title': 'Title of the category.',
-            'description': 'Description of the category, as HTML.',
-            'url': 'Absolute URL of the category page.',
             'parent_id': 'Identifier of the category holding this one, or `null` for the root category.',
             'chain_titles': 'Titles of every category from the root down to this one, this one included.',
-            'timezone': 'Timezone events created here default to, as an IANA name such as `Europe/Zurich`.',
-            'event_count': 'Number of events held directly in this category.',
             'deep_events_count': 'Number of events held in this category and in every category below it.',
             'is_protected': 'Whether reading the category requires permissions beyond being logged in.',
         }
 
-    url = fields.String(attribute='external_url')
     is_protected = fields.Function(lambda category: category.effective_protection_mode != ProtectionMode.public)
 
 
@@ -47,7 +41,7 @@ class CategoryListArgs(ListArgs):
 
 @json_errors
 class RHCategory(RHDisplayCategoryBase):
-    _category_query_options = (undefer('chain_titles'), undefer('event_count'), undefer('deep_events_count'))
+    _category_query_options = (undefer('chain_titles'), undefer('deep_events_count'))
 
     def _process_GET(self):
         return CategorySchema().jsonify(self.category)
@@ -61,7 +55,7 @@ class RHCategoryList(RHListBase):
     def _query(self, parent_id):
         query = (Category.query
                  .filter(~Category.is_deleted)
-                 .options(undefer('chain_titles'), undefer('event_count'), undefer('deep_events_count')))
+                 .options(undefer('chain_titles'), undefer('deep_events_count')))
         if parent_id is not None:
             query = query.filter(Category.parent_id == parent_id)
         return query.order_by(Category.position, Category.id)
