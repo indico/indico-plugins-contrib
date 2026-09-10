@@ -7,6 +7,7 @@
 
 
 from datetime import timedelta
+from decimal import Decimal
 
 import pytest
 
@@ -31,6 +32,12 @@ def open_regform(db, dummy_regform):
     dummy_regform.end_dt = now_utc() + timedelta(days=1)
     db.session.flush()
     return dummy_regform
+
+
+@pytest.fixture
+def registration_manager(db, dummy_event, dummy_user):
+    dummy_event.update_principal(dummy_user, permissions={'registration'})
+    db.session.flush()
 
 
 @pytest.fixture
@@ -174,3 +181,41 @@ def test_registrations_require_the_feature(db, dummy_event, dummy_regform, token
     assert resp.status_code == 404
     resp = test_client.get(f'/api/v1/events/{dummy_event.id}/registrations', headers=token_headers)
     assert resp.status_code == 404
+
+
+def test_registration_form_matches_current_api(dummy_event, open_regform, registration_manager, token_headers,
+                                               test_client, indico_api):
+    current = next(f for f in indico_api(f'/api/checkin/event/{dummy_event.id}/forms/') if f['id'] == open_regform.id)
+    new = test_client.get(f'/api/v1/events/{dummy_event.id}/registration-forms/{open_regform.id}',
+                          headers=token_headers).json
+    for field in ('id', 'event_id', 'title', 'introduction', 'start_dt', 'end_dt', 'is_open'):
+        assert new[field] == current[field]
+
+
+def test_registration_form_list_matches_current_api(dummy_event, open_regform, create_regform, registration_manager,
+                                                    token_headers, test_client, indico_api):
+    create_regform(dummy_event, 'Another form')
+    current = indico_api(f'/api/checkin/event/{dummy_event.id}/forms/')
+    new = test_client.get(f'/api/v1/events/{dummy_event.id}/registration-forms', headers=token_headers).json
+    assert sorted(f['id'] for f in new['results']) == sorted(f['id'] for f in current)
+
+
+def test_registration_matches_current_api(dummy_event, open_regform, dummy_reg, registration_manager, token_headers,
+                                          test_client, indico_api):
+    current = indico_api(f'/api/checkin/event/{dummy_event.id}/forms/{open_regform.id}/registrations/{dummy_reg.id}')
+    new = test_client.get(f'/api/v1/events/{dummy_event.id}/registrations/{dummy_reg.id}', headers=token_headers).json
+    for field in ('id', 'event_id', 'full_name', 'email', 'state', 'checked_in', 'checked_in_dt', 'is_paid',
+                  'currency', 'formatted_price', 'tags'):
+        assert new[field] == current[field]
+    assert new['registration_form_id'] == current['regform_id']
+    assert new['submitted_dt'] == current['registration_date']
+    assert Decimal(new['price']) == Decimal(str(current['price']))
+
+
+def test_registration_list_matches_current_api(dummy_event, open_regform, dummy_reg, create_registration, outsider,
+                                               registration_manager, token_headers, test_client, indico_api):
+    dummy_event.registrations.append(create_registration(outsider, open_regform))
+    current = indico_api(f'/api/checkin/event/{dummy_event.id}/forms/{open_regform.id}/registrations/')
+    new = test_client.get(f'/api/v1/events/{dummy_event.id}/registrations', headers=token_headers).json
+    assert sorted(r['id'] for r in new['results']) == sorted(r['id'] for r in current)
+    assert sorted(r['email'] for r in new['results']) == sorted(r['email'] for r in current)

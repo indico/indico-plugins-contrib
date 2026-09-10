@@ -20,7 +20,7 @@ pytest_plugins = ['indico.testing.fixtures.oauth', 'indico.testing.fixtures.cont
                   'indico.testing.fixtures.paper',
                   'indico.modules.events.registration.testing.fixtures']
 
-SCOPES = ['read:everything', 'read:legacy_api']
+SCOPES = ['read:everything', 'read:legacy_api', 'registrants']
 
 
 @pytest.fixture
@@ -43,7 +43,7 @@ def outsider_headers(db, dummy_personal_token, outsider):
 
 
 @pytest.fixture
-def legacy_api(test_client, token_headers):
+def indico_api(test_client, token_headers):
     def _get(url):
         resp = test_client.get(url, headers=token_headers)
         assert resp.status_code == 200

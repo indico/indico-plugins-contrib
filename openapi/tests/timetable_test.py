@@ -108,8 +108,8 @@ def test_timetable_entry_of_another_event_is_not_found(dummy_break, create_event
     assert resp.status_code == 404
 
 
-def test_timetable_matches_legacy_api(dummy_event, dummy_break, token_headers, test_client, legacy_api):
-    days = legacy_api(f'/export/timetable/{dummy_event.id}.json')['results'][str(dummy_event.id)]
+def test_timetable_matches_indico_api(dummy_event, dummy_break, token_headers, test_client, indico_api):
+    days = indico_api(f'/export/timetable/{dummy_event.id}.json')['results'][str(dummy_event.id)]
     legacy = next(iter(next(iter(days.values())).values()))
     entry = dummy_break.timetable_entry
     new = test_client.get(f'/api/v1/events/{dummy_event.id}/timetable/{entry.id}', headers=token_headers).json
@@ -128,10 +128,10 @@ def test_timetable_matches_legacy_api(dummy_event, dummy_break, token_headers, t
     assert new['break']['inherit_location'] == legacy['inheritLoc']
 
 
-def test_timetable_list_matches_legacy_api(dummy_event, dummy_break, dummy_session_block, dummy_contribution,
-                                           create_timetable_entry, token_headers, test_client, legacy_api):
+def test_timetable_list_matches_indico_api(dummy_event, dummy_break, dummy_session_block, dummy_contribution,
+                                           create_timetable_entry, token_headers, test_client, indico_api):
     create_timetable_entry(dummy_event, dummy_contribution, now_utc())
-    days = legacy_api(f'/export/timetable/{dummy_event.id}.json')['results'][str(dummy_event.id)]
+    days = indico_api(f'/export/timetable/{dummy_event.id}.json')['results'][str(dummy_event.id)]
     legacy = {}
     for entries in days.values():
         legacy.update(entries)

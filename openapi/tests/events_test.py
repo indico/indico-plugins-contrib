@@ -76,8 +76,8 @@ def test_event_list_filters_by_category(dummy_event, create_category, create_eve
     assert other.id not in listed
 
 
-def test_event_matches_legacy_api(dummy_event, token_headers, test_client, legacy_api, as_legacy_date):
-    legacy = legacy_api(f'/export/event/{dummy_event.id}.json')['results'][0]
+def test_event_matches_indico_api(dummy_event, token_headers, test_client, indico_api, as_legacy_date):
+    legacy = indico_api(f'/export/event/{dummy_event.id}.json')['results'][0]
     new = test_client.get(f'/api/v1/events/{dummy_event.id}', headers=token_headers).json
     assert str(new['id']) == legacy['id']
     assert new['title'] == legacy['title']
@@ -100,10 +100,10 @@ def test_event_matches_legacy_api(dummy_event, token_headers, test_client, legac
     assert as_legacy_date(new['created_dt']) == legacy['creationDate']
 
 
-def test_event_list_matches_legacy_api(dummy_event, create_event, token_headers, test_client, legacy_api):
+def test_event_list_matches_indico_api(dummy_event, create_event, token_headers, test_client, indico_api):
     other = create_event(title='Another event')
     ids = f'{dummy_event.id}-{other.id}'
-    legacy = {e['id']: e for e in legacy_api(f'/export/event/{ids}.json')['results']}
+    legacy = {e['id']: e for e in indico_api(f'/export/event/{ids}.json')['results']}
     new = test_client.get('/api/v1/events', headers=token_headers).json['results']
     assert {str(e['id']) for e in new} == set(legacy)
     for event in new:

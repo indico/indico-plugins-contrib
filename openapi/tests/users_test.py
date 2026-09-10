@@ -86,15 +86,15 @@ def test_user_affiliation(db, dummy_user, token_headers, test_client):
     assert resp.json['affiliation_meta']['name'] == 'CERN'
 
 
-def test_user_matches_legacy_api(dummy_user, token_headers, test_client, legacy_api):
-    legacy = legacy_api(f'/export/user/{dummy_user.id}.json')['results'][0]
+def test_user_matches_indico_api(dummy_user, token_headers, test_client, indico_api):
+    legacy = indico_api(f'/export/user/{dummy_user.id}.json')['results'][0]
     new = test_client.get(f'/api/v1/users/{dummy_user.id}', headers=token_headers).json
     for field in legacy:
         assert new[field] == legacy[field]
 
 
-def test_user_list_matches_legacy_api(dummy_user, token_headers, test_client, legacy_api):
-    legacy = legacy_api(f'/export/user/{dummy_user.id}.json')['results'][0]
+def test_user_list_matches_indico_api(dummy_user, token_headers, test_client, indico_api):
+    legacy = indico_api(f'/export/user/{dummy_user.id}.json')['results'][0]
     results = test_client.get('/api/v1/users', headers=token_headers).json['results']
     listed = next(u for u in results if u['id'] == dummy_user.id)
     for field in legacy:

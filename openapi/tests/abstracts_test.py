@@ -120,3 +120,57 @@ def test_judged_abstract(db, dummy_abstract, dummy_event, dummy_user, token_head
     resp = test_client.get(f'/api/v1/events/{dummy_event.id}/abstracts/{dummy_abstract.id}', headers=token_headers)
     assert resp.json['state'] == 'accepted'
     assert resp.json['judge']['id'] == dummy_user.id
+
+
+@pytest.fixture
+def abstract_manager(db, dummy_event, dummy_user):
+    dummy_event.update_principal(dummy_user, permissions={'abstracts'})
+    db.session.flush()
+
+
+def test_abstract_matches_current_api(dummy_abstract, dummy_abstract_file, dummy_event, abstract_manager,
+                                      token_headers, test_client, indico_api):
+    current = indico_api(f'/event/{dummy_event.id}/manage/abstracts/abstracts.json')
+    abstract = next(a for a in current['abstracts'] if a['id'] == dummy_abstract.id)
+    new = test_client.get(f'/api/v1/events/{dummy_event.id}/abstracts/{dummy_abstract.id}',
+                          headers=token_headers).json
+    for field in ('id', 'friendly_id', 'title', 'content', 'state', 'submitted_dt', 'modified_dt', 'judgment_dt',
+                  'submission_comment', 'judgment_comment'):
+        assert new[field] == abstract[field]
+    assert new['submitter']['id'] == abstract['submitter']['id']
+    assert new['judge'] == abstract['judge']
+    assert new['modified_by'] == abstract['modified_by']
+    assert new['accepted_track'] == abstract['accepted_track']
+    assert new['submitted_contrib_type'] == abstract['submitted_contrib_type']
+    assert new['accepted_contrib_type'] == abstract['accepted_contrib_type']
+    assert [t['id'] for t in new['submitted_for_tracks']] == [t['id'] for t in abstract['submitted_for_tracks']]
+    assert [t['id'] for t in new['reviewed_for_tracks']] == [t['id'] for t in abstract['reviewed_for_tracks']]
+    assert new['persons'] == abstract['persons']
+    assert [f['id'] for f in new['files']] == [f['id'] for f in abstract['files']]
+    assert [f['filename'] for f in new['files']] == [f['filename'] for f in abstract['files']]
+    assert [f['md5'] for f in new['files']] == [f['md5'] for f in abstract['files']]
+
+
+def test_duplicate_abstract_matches_current_api(db, dummy_abstract, create_abstract, dummy_event, dummy_user,
+                                                abstract_manager, token_headers, test_client, indico_api):
+    other = create_abstract(dummy_event, 'Another abstract', friendly_id=315, submitter=dummy_user)
+    dummy_abstract.state = AbstractState.duplicate
+    dummy_abstract.duplicate_of = other
+    dummy_abstract.judge = dummy_user
+    dummy_abstract.judgment_dt = now_utc()
+    db.session.flush()
+    current = indico_api(f'/event/{dummy_event.id}/manage/abstracts/abstracts.json')
+    abstract = next(a for a in current['abstracts'] if a['id'] == dummy_abstract.id)
+    new = test_client.get(f'/api/v1/events/{dummy_event.id}/abstracts/{dummy_abstract.id}',
+                          headers=token_headers).json
+    assert new['state'] == abstract['state']
+    assert new['duplicate_of_id'] == abstract['duplicate_of']['id']
+    assert new['merged_into_id'] == abstract['merged_into']
+
+
+def test_abstract_list_matches_current_api(dummy_abstract, create_abstract, dummy_event, dummy_user,
+                                           abstract_manager, token_headers, test_client, indico_api):
+    create_abstract(dummy_event, 'Another abstract', friendly_id=315, submitter=dummy_user)
+    current = indico_api(f'/event/{dummy_event.id}/manage/abstracts/abstracts.json')
+    new = test_client.get(f'/api/v1/events/{dummy_event.id}/abstracts', headers=token_headers).json
+    assert [a['id'] for a in new['results']] == [a['id'] for a in current['abstracts']]

@@ -110,8 +110,8 @@ def test_person_of_another_event_is_not_found(dummy_event_person, create_event, 
 
 
 @pytest.mark.usefixtures('event_chair')
-def test_person_matches_legacy_api(dummy_event, dummy_event_person, token_headers, test_client, legacy_api):
-    legacy = legacy_api(f'/export/event/{dummy_event.id}.json')['results'][0]['chairs'][0]
+def test_person_matches_indico_api(dummy_event, dummy_event_person, token_headers, test_client, indico_api):
+    legacy = indico_api(f'/export/event/{dummy_event.id}.json')['results'][0]['chairs'][0]
     new = test_client.get(f'/api/v1/events/{dummy_event.id}/persons/{dummy_event_person.id}',
                           headers=token_headers).json
     assert new['id'] == legacy['person_id']
@@ -123,8 +123,8 @@ def test_person_matches_legacy_api(dummy_event, dummy_event_person, token_header
 
 
 @pytest.mark.usefixtures('event_chair')
-def test_person_list_matches_legacy_api(dummy_event, dummy_event_person, token_headers, test_client, legacy_api):
-    legacy = {c['person_id']: c for c in legacy_api(f'/export/event/{dummy_event.id}.json')['results'][0]['chairs']}
+def test_person_list_matches_indico_api(dummy_event, dummy_event_person, token_headers, test_client, indico_api):
+    legacy = {c['person_id']: c for c in indico_api(f'/export/event/{dummy_event.id}.json')['results'][0]['chairs']}
     new = test_client.get(f'/api/v1/events/{dummy_event.id}/persons', headers=token_headers).json['results']
     chairs = [p for p in new if 'chairperson' in p['roles']]
     assert {p['id'] for p in chairs} == set(legacy)
