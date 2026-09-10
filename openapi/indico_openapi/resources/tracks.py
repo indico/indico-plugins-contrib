@@ -29,7 +29,7 @@ class TrackGroupReferenceSchema(DescribedFieldsMixin, TrackGroupSchema):
 
 class TrackSchema(DescribedFieldsMixin, CoreTrackSchema):
     class Meta(CoreTrackSchema.Meta):
-        fields = (*CoreTrackSchema.Meta.fields, 'track_group', 'default_session_id')
+        fields = (*CoreTrackSchema.Meta.fields, 'track_group')
         descriptions = {
             'id': 'Numeric identifier of the track, unique across the whole instance.',
             'title': 'Title of the track.',
@@ -38,7 +38,6 @@ class TrackSchema(DescribedFieldsMixin, CoreTrackSchema):
             'position': 'Place of the track in the programme, starting at 1.',
             'track_group_id': 'Identifier of the group holding the track, or `null` when it belongs to none.',
             'track_group': 'Group holding the track, or `null` when it belongs to none.',
-            'default_session_id': 'Session new contributions of this track are assigned to by default.',
         }
 
     track_group = fields.Nested(TrackGroupReferenceSchema)

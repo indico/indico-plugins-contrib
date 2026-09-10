@@ -65,29 +65,36 @@ def test_track_of_another_event_is_not_found(dummy_track, create_event, token_he
     assert resp.status_code == 404
 
 
-def test_track_matches_current_api(dummy_event, dummy_track, token_headers, test_client, indico_api):
+TRACK_FIELDS = ('id', 'title', 'code', 'description', 'position', 'track_group_id')
+
+
+def as_track_group(current):
+    groups = {group['id']: {'id': group['id'], 'title': group['title']} for group in current['track_groups']}
+    return lambda track: groups.get(track['track_group_id'])
+
+
+def test_track_matches_current_api(dummy_event, dummy_track, dummy_track_group, token_headers, test_client,
+                                   indico_api, same_json):
     current = indico_api(f'/event/{dummy_event.id}/program.json')
     track = next(t for t in current['tracks'] if t['id'] == dummy_track.id)
     new = test_client.get(f'/api/v1/events/{dummy_event.id}/tracks/{dummy_track.id}', headers=token_headers).json
-    assert new['id'] == track['id']
-    assert new['title'] == track['title']
-    assert new['code'] == track['code']
-    assert new['description'] == track['description']
-    assert new['position'] == track['position']
-    assert new['track_group_id'] == track['track_group_id']
+    same_json(new, track, same=TRACK_FIELDS, derived={'track_group': as_track_group(current)})
 
 
-def test_track_group_matches_current_api(dummy_event, dummy_track, dummy_track_group, token_headers, test_client,
-                                         indico_api):
+def test_track_without_group_matches_current_api(db, dummy_event, dummy_track, token_headers, test_client,
+                                                 indico_api, same_json):
+    dummy_track.track_group = None
+    db.session.flush()
     current = indico_api(f'/event/{dummy_event.id}/program.json')
-    group = next(g for g in current['track_groups'] if g['id'] == dummy_track_group.id)
-    new = test_client.get(f'/api/v1/events/{dummy_event.id}/tracks/{dummy_track.id}',
-                          headers=token_headers).json['track_group']
-    assert new['id'] == group['id']
-    assert new['title'] == group['title']
+    track = next(t for t in current['tracks'] if t['id'] == dummy_track.id)
+    new = test_client.get(f'/api/v1/events/{dummy_event.id}/tracks/{dummy_track.id}', headers=token_headers).json
+    same_json(new, track, same=TRACK_FIELDS, derived={'track_group': as_track_group(current)})
 
 
-def test_track_list_matches_current_api(dummy_event, dummy_track, token_headers, test_client, indico_api):
+def test_track_list_matches_current_api(db, dummy_event, dummy_track, token_headers, test_client, indico_api,
+                                        same_json_list):
+    db.session.add(Track(event=dummy_event, title='Another track', code='AT'))
+    db.session.flush()
     current = indico_api(f'/event/{dummy_event.id}/program.json')
-    new = test_client.get(f'/api/v1/events/{dummy_event.id}/tracks', headers=token_headers).json
-    assert [t['id'] for t in new['results']] == [t['id'] for t in current['tracks']]
+    new = test_client.get(f'/api/v1/events/{dummy_event.id}/tracks', headers=token_headers).json['results']
+    same_json_list(new, current['tracks'], same=TRACK_FIELDS, derived={'track_group': as_track_group(current)})

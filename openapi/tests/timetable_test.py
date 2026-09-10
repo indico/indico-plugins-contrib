@@ -9,7 +9,6 @@
 from datetime import datetime, timedelta
 
 import pytest
-import pytz
 
 from indico.core.db.sqlalchemy.protection import ProtectionMode
 from indico.modules.events.contributions import contribution_settings
@@ -26,11 +25,6 @@ def dummy_break(db, dummy_event, create_timetable_entry):
     return break_
 
 
-def as_timetable_date(value, tz_name):
-    local = datetime.fromisoformat(value).astimezone(pytz.timezone(tz_name))
-    return {'date': local.strftime('%Y-%m-%d'), 'time': local.strftime('%H:%M:%S'), 'tz': tz_name}
-
-
 def test_timetable_list(dummy_event, dummy_break, token_headers, test_client):
     resp = test_client.get(f'/api/v1/events/{dummy_event.id}/timetable', headers=token_headers)
     assert resp.status_code == 200
@@ -39,10 +33,10 @@ def test_timetable_list(dummy_event, dummy_break, token_headers, test_client):
     assert entry['type'] == 'break'
     assert entry['parent_id'] is None
     assert entry['duration'] == dummy_break.duration.total_seconds()
-    assert entry['break']['title'] == 'Coffee'
+    assert entry['title'] == 'Coffee'
     assert entry['break']['background_color'] == f'#{dummy_break.colors.background}'
-    assert entry['contribution'] is None
-    assert entry['session_block'] is None
+    assert entry['contribution_id'] is None
+    assert entry['session_block_id'] is None
 
 
 def test_timetable_entry_details(dummy_event, dummy_contribution, create_timetable_entry, token_headers, test_client):
@@ -51,8 +45,8 @@ def test_timetable_entry_details(dummy_event, dummy_contribution, create_timetab
     assert resp.status_code == 200
     assert resp.json['id'] == entry.id
     assert resp.json['type'] == 'contribution'
-    assert resp.json['contribution']['id'] == dummy_contribution.id
-    assert resp.json['contribution']['title'] == dummy_contribution.title
+    assert resp.json['contribution_id'] == dummy_contribution.id
+    assert resp.json['title'] == dummy_contribution.title
 
 
 def test_timetable_lists_nested_entries(dummy_event, dummy_session_block, dummy_contribution,
@@ -66,7 +60,7 @@ def test_timetable_lists_nested_entries(dummy_event, dummy_session_block, dummy_
     entries = {e['id']: e for e in resp.json['results']}
     assert set(entries) == {block_entry.id, child.id}
     assert entries[block_entry.id]['parent_id'] is None
-    assert entries[block_entry.id]['session_block']['id'] == dummy_session_block.id
+    assert entries[block_entry.id]['session_block_id'] == dummy_session_block.id
     assert entries[child.id]['parent_id'] == block_entry.id
 
 
@@ -108,37 +102,85 @@ def test_timetable_entry_of_another_event_is_not_found(dummy_break, create_event
     assert resp.status_code == 404
 
 
-def test_timetable_matches_indico_api(dummy_event, dummy_break, token_headers, test_client, indico_api):
+ENTRY_TYPES = {'Session': 'session_block', 'Contribution': 'contribution', 'Break': 'break'}
+
+BREAK_KEYS = {'venue_name': 'location', 'room_name': 'room', 'inherit_location': 'inheritLoc',
+              'text_color': 'textColor', 'background_color': 'color'}
+
+
+def flatten(days):
+    entries = {}
+    for day in days.values():
+        for key, entry in day.items():
+            entries[key] = entry
+            entries.update(entry.get('entries') or {})
+    return entries
+
+
+def as_type(current):
+    return ENTRY_TYPES[current['entryType']]
+
+
+def as_parent_id(current):
+    return current['sessionSlotEntryId'] if current['entryType'] != 'Session' else None
+
+
+def as_session_block_id(current):
+    return current['sessionSlotId'] if current['entryType'] == 'Session' else None
+
+
+def as_contribution_id(current):
+    return current['contributionId'] if current['entryType'] == 'Contribution' else None
+
+
+def as_break(current):
+    return {BREAK_KEYS.get(key, key): value for key, value in current.items()} if current else None
+
+
+def as_minutes(seconds):
+    return seconds / 60
+
+
+DERIVED = {'type': as_type, 'parent_id': as_parent_id, 'session_block_id': as_session_block_id,
+           'contribution_id': as_contribution_id}
+
+
+def entry_keys(as_timetable_date):
+    return {'event_id': ('conferenceId', None), 'duration': ('duration', as_minutes),
+            'start_dt': ('startDate', as_timetable_date), 'end_dt': ('endDate', as_timetable_date),
+            'break': ('break', as_break), 'id': ('entry_id', None)}
+
+
+@pytest.fixture
+def as_timetable_date(dummy_event):
+    tz = dummy_event.display_tzinfo
+
+    def _convert(value):
+        local = datetime.fromisoformat(value).astimezone(tz)
+        return {'date': local.strftime('%Y-%m-%d'), 'time': local.strftime('%H:%M:%S'), 'tz': str(tz)}
+
+    return _convert
+
+
+def as_current(entry):
+    return {**entry, 'entry_id': int(entry['id'][1:]),
+            'break': entry if entry['entryType'] == 'Break' else None}
+
+
+def test_timetable_entry_matches_current_api(dummy_event, dummy_break, token_headers, test_client, indico_api,
+                                             as_timetable_date, same_json):
     days = indico_api(f'/export/timetable/{dummy_event.id}.json')['results'][str(dummy_event.id)]
-    legacy = next(iter(next(iter(days.values())).values()))
     entry = dummy_break.timetable_entry
+    current = as_current(flatten(days)[f'b{entry.id}'])
     new = test_client.get(f'/api/v1/events/{dummy_event.id}/timetable/{entry.id}', headers=token_headers).json
-    assert f'b{new["id"]}' == legacy['id']
-    assert new['type'] == 'break'
-    assert new['event_id'] == legacy['conferenceId']
-    assert new['duration'] == legacy['duration'] * 60
-    assert as_timetable_date(new['start_dt'], legacy['startDate']['tz']) == legacy['startDate']
-    assert as_timetable_date(new['end_dt'], legacy['endDate']['tz']) == legacy['endDate']
-    assert new['break']['title'] == legacy['title']
-    assert new['break']['description'] == legacy['description']
-    assert new['break']['background_color'] == legacy['color']
-    assert new['break']['text_color'] == legacy['textColor']
-    assert new['break']['venue_name'] == legacy['location']
-    assert new['break']['room_name'] == legacy['room']
-    assert new['break']['inherit_location'] == legacy['inheritLoc']
+    same_json(new, current, same=('title',), renamed=entry_keys(as_timetable_date), derived=DERIVED)
 
 
-def test_timetable_list_matches_indico_api(dummy_event, dummy_break, dummy_session_block, dummy_contribution,
-                                           create_timetable_entry, token_headers, test_client, indico_api):
-    create_timetable_entry(dummy_event, dummy_contribution, now_utc())
+def test_timetable_matches_current_api(dummy_event, dummy_break, dummy_session_block, dummy_contribution,
+                                       create_timetable_entry, token_headers, test_client, indico_api,
+                                       as_timetable_date, same_json_list):
+    create_timetable_entry(dummy_event, dummy_contribution, now_utc(), parent=dummy_session_block.timetable_entry)
     days = indico_api(f'/export/timetable/{dummy_event.id}.json')['results'][str(dummy_event.id)]
-    legacy = {}
-    for entries in days.values():
-        legacy.update(entries)
+    current = [as_current(entry) for entry in flatten(days).values()]
     new = test_client.get(f'/api/v1/events/{dummy_event.id}/timetable', headers=token_headers).json['results']
-    prefixes = {'session_block': 's', 'contribution': 'c', 'break': 'b'}
-    assert {f'{prefixes[e["type"]]}{e["id"]}' for e in new} == set(legacy)
-    for entry in new:
-        key = f'{prefixes[entry["type"]]}{entry["id"]}'
-        assert entry['duration'] == legacy[key]['duration'] * 60
-        assert as_timetable_date(entry['start_dt'], legacy[key]['startDate']['tz']) == legacy[key]['startDate']
+    same_json_list(new, current, same=('title',), renamed=entry_keys(as_timetable_date), derived=DERIVED)

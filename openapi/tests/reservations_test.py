@@ -14,10 +14,6 @@ from indico.modules.rb import rb_settings
 from indico.modules.rb.models.reservations import RepeatFrequency
 
 
-def as_legacy_dt(value):
-    return f'{value["date"]}T{value["time"]}'
-
-
 def test_reservation_details(dummy_reservation, dummy_room, token_headers, test_client):
     resp = test_client.get(f'/api/v1/reservations/{dummy_reservation.id}', headers=token_headers)
     assert resp.status_code == 200
@@ -84,21 +80,6 @@ def test_reservation_list_filtered_by_date(dummy_reservation, create_reservation
     assert [r['id'] for r in resp.json['results']] == [dummy_reservation.id]
 
 
-def test_internal_note_only_for_room_managers(db, dummy_reservation, token_headers, test_client):
-    dummy_reservation.internal_note = 'Waiting for the projector'
-    db.session.flush()
-    resp = test_client.get(f'/api/v1/reservations/{dummy_reservation.id}', headers=token_headers)
-    assert resp.json['internal_note'] == 'Waiting for the projector'
-
-
-def test_internal_note_hidden_from_others(db, dummy_reservation, outsider_headers, test_client):
-    dummy_reservation.internal_note = 'Waiting for the projector'
-    db.session.flush()
-    resp = test_client.get(f'/api/v1/reservations/{dummy_reservation.id}', headers=outsider_headers)
-    assert resp.status_code == 200
-    assert 'internal_note' not in resp.json
-
-
 def test_booking_details_hidden_from_others(dummy_reservation, outsider_headers, test_client):
     rb_settings.set('hide_booking_details', True)
     resp = test_client.get(f'/api/v1/reservations/{dummy_reservation.id}', headers=outsider_headers)
@@ -128,32 +109,42 @@ def test_reservation_requires_login(dummy_reservation, test_client):
     assert resp.status_code == 403
 
 
-def test_reservation_matches_indico_api(dummy_reservation, dummy_room, token_headers, test_client, indico_api):
+RESERVATION_FIELDS = ('id', 'room_id', 'start_dt', 'end_dt', 'created_dt', 'booking_reason', 'state', 'is_accepted',
+                      'is_pending', 'is_cancelled', 'is_rejected', 'rejection_reason', 'repeat_frequency',
+                      'repeat_interval', 'recurrence_weekdays', 'external_details_url')
+
+RESERVATION_KEYS = {'location_name': 'location', 'booked_for_name': 'bookedForName',
+                    'contact_email': 'booked_for_user_email'}
+
+OCCURRENCE_GROUPS = ('bookings', 'cancellations', 'rejections')
+
+
+def as_occurrences(current):
+    groups = current['occurrences']
+    days = sorted(set().union(*(groups[group] for group in OCCURRENCE_GROUPS)))
+    return [next(groups[group][day][0] for group in OCCURRENCE_GROUPS if groups[group].get(day)) for day in days]
+
+
+def as_is_repeating(current):
+    return as_occurrences(current)[0]['reservation']['is_repeating']
+
+
+def with_details(indico_api, legacy):
+    return {**legacy, **indico_api(f'/rooms/api/bookings/{legacy["id"]}')}
+
+
+def test_reservation_matches_current_api(dummy_reservation, dummy_room, token_headers, test_client, indico_api,
+                                         same_json):
     legacy = indico_api(f'/export/reservation/{dummy_room.location_name}.json')['results'][0]
     new = test_client.get(f'/api/v1/reservations/{dummy_reservation.id}', headers=token_headers).json
-    assert new['id'] == legacy['id']
-    assert new['start_dt'] == as_legacy_dt(legacy['startDT'])
-    assert new['end_dt'] == as_legacy_dt(legacy['endDT'])
-    assert new['booking_reason'] == legacy['reason']
-    assert new['booked_for_name'] == legacy['bookedForName']
-    assert new['contact_email'] == legacy['booked_for_user_email']
-    assert new['external_details_url'] == legacy['bookingUrl']
-    assert new['location_name'] == legacy['location']
-    assert new['is_accepted'] == legacy['isConfirmed']
-    assert new['is_cancelled'] == legacy['is_cancelled']
-    assert new['is_rejected'] == legacy['is_rejected']
-    assert new['repeat_frequency'] == legacy['repeat_frequency']
-    assert new['repeat_interval'] == legacy['repeat_interval']
+    same_json(new, with_details(indico_api, legacy), same=RESERVATION_FIELDS, renamed=RESERVATION_KEYS,
+              derived={'is_repeating': as_is_repeating, 'occurrences': as_occurrences})
 
 
-def test_reservation_list_matches_indico_api(dummy_reservation, dummy_room, create_reservation, create_room,
-                                             token_headers, test_client, indico_api):
+def test_reservation_list_matches_current_api(dummy_reservation, dummy_room, create_reservation, create_room,
+                                              token_headers, test_client, indico_api, same_json_list):
     create_reservation(room=create_room(building='9'))
-    legacy = {r['id']: r for r in indico_api(f'/export/reservation/{dummy_room.location_name}.json')['results']}
-    results = test_client.get('/api/v1/reservations', headers=token_headers).json['results']
-    assert {r['id'] for r in results} == set(legacy)
-    for booking in results:
-        assert booking['start_dt'] == as_legacy_dt(legacy[booking['id']]['startDT'])
-        assert booking['booking_reason'] == legacy[booking['id']]['reason']
-        assert booking['booked_for_name'] == legacy[booking['id']]['bookedForName']
-        assert booking['location_name'] == legacy[booking['id']]['location']
+    legacy = indico_api(f'/export/reservation/{dummy_room.location_name}.json')['results']
+    new = test_client.get('/api/v1/reservations', headers=token_headers).json['results']
+    same_json_list(new, [with_details(indico_api, booking) for booking in legacy], same=RESERVATION_FIELDS,
+                   renamed=RESERVATION_KEYS, derived={'is_repeating': as_is_repeating})

@@ -62,22 +62,20 @@ def test_location_requires_login(dummy_location, test_client):
     assert resp.status_code == 403
 
 
+LOCATION_FIELDS = ('id', 'name')
+
+
 def test_location_matches_current_api(dummy_location, dummy_room, create_room, token_headers, test_client,
-                                      indico_api):
+                                      indico_api, same_json):
     create_room(building='9')
     current = next(loc for loc in indico_api('/rooms/api/locations') if loc['id'] == dummy_location.id)
     new = test_client.get(f'/api/v1/locations/{dummy_location.id}', headers=token_headers).json
-    assert new['id'] == current['id']
-    assert new['name'] == current['name']
-    assert [r['id'] for r in new['rooms']] == [r['id'] for r in current['rooms']]
-    assert [r['name'] for r in new['rooms']] == [r['name'] for r in current['rooms']]
-    assert [r['full_name'] for r in new['rooms']] == [r['full_name'] for r in current['rooms']]
+    same_json(new, current, same=(*LOCATION_FIELDS, 'rooms'))
 
 
 def test_location_list_matches_current_api(dummy_location, dummy_room, create_location, create_room, token_headers,
-                                           test_client, indico_api):
+                                           test_client, indico_api, same_json_list):
     create_room(location=create_location('Other'))
     current = indico_api('/rooms/api/locations')
-    new = test_client.get('/api/v1/locations', headers=token_headers).json
-    assert [loc['id'] for loc in new['results']] == [loc['id'] for loc in current]
-    assert [loc['name'] for loc in new['results']] == [loc['name'] for loc in current]
+    new = test_client.get('/api/v1/locations', headers=token_headers).json['results']
+    same_json_list(new, current, same=LOCATION_FIELDS)

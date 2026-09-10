@@ -80,42 +80,28 @@ def test_contribution_list_hides_person_contact_details(dummy_event, dummy_contr
     assert all('email' not in person for person in persons)
 
 
-@pytest.mark.usefixtures('contribution_speaker')
-def test_contribution_matches_indico_api(dummy_event, dummy_contribution, token_headers, test_client, indico_api,
-                                         as_legacy_date):
-    legacy = indico_api(f'/export/event/{dummy_event.id}.json?detail=contributions')['results'][0]['contributions'][0]
+CONTRIBUTION_FIELDS = ('id', 'friendly_id', 'title', 'description', 'code', 'board_number', 'keywords', 'duration',
+                       'start_dt', 'end_dt', 'inherit_location', 'venue_name', 'room_name', 'address', 'abstract_id',
+                       'track', 'session', 'session_block', 'type', 'persons', 'custom_fields')
+
+
+@pytest.fixture
+def event_manager(db, dummy_event, dummy_user):
+    dummy_event.update_principal(dummy_user, full_access=True)
+    db.session.flush()
+
+
+def test_contribution_matches_current_api(dummy_event, dummy_contribution, contribution_speaker, event_manager,
+                                          token_headers, test_client, indico_api, same_json):
+    current = indico_api(f'/event/{dummy_event.id}/contributions/{dummy_contribution.id}.json')
     new = test_client.get(f'/api/v1/events/{dummy_event.id}/contributions/{dummy_contribution.id}',
                           headers=token_headers).json
-    assert new['id'] == legacy['db_id']
-    assert new['friendly_id'] == legacy['friendly_id']
-    assert new['title'] == legacy['title']
-    assert new['description'] == legacy['description']
-    assert new['code'] == legacy['code']
-    assert new['board_number'] == legacy['board_number']
-    assert new['keywords'] == legacy['keywords']
-    assert new['duration'] == legacy['duration'] * 60
-    assert new['venue_name'] == legacy['location']
-    assert new['room_name'] == legacy['roomFullname']
-    assert (new['track'] or {}).get('title') == legacy['track']
-    assert (new['session'] or {}).get('title') == legacy['session']
-    assert (new['type'] or {}).get('name') == legacy['type']
-    assert as_legacy_date(new['start_dt']) == legacy['startDate']
-    assert as_legacy_date(new['end_dt']) == legacy['endDate']
-    speakers = [p for p in new['persons'] if p['is_speaker']]
-    assert [(p['first_name'], p['last_name'], p['affiliation'], p['email_hash']) for p in speakers] == \
-           [(p['first_name'], p['last_name'], p['affiliation'], p['emailHash']) for p in legacy['speakers']]
-    authors = [p for p in new['persons'] if p['author_type'] == 'primary']
-    assert [p['email_hash'] for p in authors] == [p['emailHash'] for p in legacy['primaryauthors']]
+    same_json(new, current, same=CONTRIBUTION_FIELDS)
 
 
-def test_contribution_list_matches_indico_api(dummy_event, dummy_contribution, create_contribution, token_headers,
-                                              test_client, indico_api):
+def test_contribution_list_matches_current_api(dummy_event, dummy_contribution, create_contribution, event_manager,
+                                               token_headers, test_client, indico_api, same_json_list):
     create_contribution(dummy_event, 'Another contribution')
-    legacy = {c['db_id']: c for c in
-              indico_api(f'/export/event/{dummy_event.id}.json?detail=contributions')['results'][0]['contributions']}
+    current = indico_api(f'/event/{dummy_event.id}/manage/contributions/contributions.json')
     new = test_client.get(f'/api/v1/events/{dummy_event.id}/contributions', headers=token_headers).json['results']
-    assert {c['id'] for c in new} == set(legacy)
-    for contrib in new:
-        assert contrib['title'] == legacy[contrib['id']]['title']
-        assert contrib['friendly_id'] == legacy[contrib['id']]['friendly_id']
-        assert contrib['duration'] == legacy[contrib['id']]['duration'] * 60
+    same_json_list(new, current, same=CONTRIBUTION_FIELDS)

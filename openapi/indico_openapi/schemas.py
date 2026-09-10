@@ -6,7 +6,7 @@
 # MIT License see the LICENSE file for more details.
 
 
-from marshmallow import fields
+from marshmallow import fields, post_dump
 
 from indico.modules.events.contributions.models.persons import SubContributionPersonLink
 from indico.modules.events.contributions.schemas import (
@@ -40,6 +40,11 @@ class AffiliationSchema(DescribedFieldsMixin, CoreAffiliationSchema):
     country_name = fields.String()
 
 
+class AffiliationReferenceSchema(AffiliationSchema):
+    class Meta(AffiliationSchema.Meta):
+        fields = ('id', 'name', 'code', 'street', 'postcode', 'city', 'country_code', 'country_name')
+
+
 class UserReferenceSchema(DescribedFieldsMixin, BasicUserSchema):
     class Meta(BasicUserSchema.Meta):
         descriptions = {
@@ -55,7 +60,7 @@ class UserReferenceSchema(DescribedFieldsMixin, BasicUserSchema):
             'avatar_url': 'URL of the profile picture, relative to the Indico instance.',
         }
 
-    affiliation_meta = fields.Nested(AffiliationSchema, attribute='affiliation_link')
+    affiliation_meta = fields.Nested(AffiliationReferenceSchema, attribute='affiliation_link')
 
 
 class CustomFieldValueSchema(DescribedFieldsMixin, ContributionFieldValueSchema):
@@ -111,5 +116,10 @@ class ContributionPersonSchema(DescribedFieldsMixin, ContributionPersonLinkSchem
 class SubContributionPersonSchema(ContributionPersonSchema):
     class Meta(ContributionPersonSchema.Meta):
         model = SubContributionPersonLink
-        fields = ('id', 'person_id', 'email', 'email_hash', 'first_name', 'last_name', 'full_name', 'title',
-                  'affiliation', 'affiliation_link', 'address', 'phone')
+        fields = ('id', 'person_id', 'email', 'email_hash', 'first_name', 'last_name', 'affiliation')
+
+    @post_dump
+    def _hide_sensitive_data(self, data, **kwargs):
+        if self.context.get('hide_restricted_data'):
+            del data['email']
+        return data

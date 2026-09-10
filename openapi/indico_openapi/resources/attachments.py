@@ -7,7 +7,7 @@
 
 
 from flask import request, session
-from marshmallow import fields
+from marshmallow import fields, post_dump
 from werkzeug.exceptions import Forbidden
 
 from indico.core.db import db
@@ -22,6 +22,10 @@ from indico_openapi.resources.base import DescribedFieldsMixin, Endpoint, RHList
 from indico_openapi.resources.contributions import RHContribution
 from indico_openapi.resources.sessions import RHSession
 from indico_openapi.resources.subcontributions import RHSubContribution
+
+
+FILE_FIELDS = ('filename', 'content_type', 'size', 'checksum')
+LINK_FIELDS = ('link_url',)
 
 
 def _file_attribute(name):
@@ -54,11 +58,11 @@ class AttachmentSchema(DescribedFieldsMixin, mm.SQLAlchemyAutoSchema):
             'modified_dt': 'Moment the attachment was last modified, in UTC.',
             'is_protected': 'Whether reading the attachment requires permissions beyond those of its folder.',
             'download_url': 'Absolute URL to download the file, or to follow the link.',
-            'link_url': 'Target of a link attachment, or `null` for a file.',
-            'filename': 'Name of the uploaded file, or `null` for a link.',
-            'content_type': 'MIME type of the uploaded file, such as `application/pdf`, or `null` for a link.',
-            'size': 'Size of the uploaded file in bytes, or `null` for a link.',
-            'checksum': 'MD5 hash of the uploaded file, or `null` for a link.',
+            'link_url': 'Target of the attachment. Only present for a link.',
+            'filename': 'Name of the uploaded file. Only present for a file.',
+            'content_type': 'MIME type of the uploaded file, such as `application/pdf`. Only present for a file.',
+            'size': 'Size of the uploaded file in bytes. Only present for a file.',
+            'checksum': 'MD5 hash of the uploaded file. Only present for a file.',
             'folder': 'Folder holding the attachment.',
         }
 
@@ -68,6 +72,12 @@ class AttachmentSchema(DescribedFieldsMixin, mm.SQLAlchemyAutoSchema):
     size = _file_attribute('size')
     checksum = _file_attribute('md5')
     folder = fields.Nested(AttachmentFolderReferenceSchema)
+
+    @post_dump
+    def _drop_fields_of_the_other_type(self, data, **kwargs):
+        for key in (LINK_FIELDS if data['type'] == AttachmentType.file.name else FILE_FIELDS):
+            del data[key]
+        return data
 
 
 class AttachmentMixin:

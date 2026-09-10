@@ -64,27 +64,36 @@ def test_room_requires_login(dummy_room, test_client):
     assert resp.status_code == 403
 
 
-def test_room_matches_indico_api(dummy_room, token_headers, test_client, indico_api):
-    legacy = indico_api(f'/export/room/{dummy_room.location_name}/{dummy_room.id}.json')['results'][0]
+ROOM_FIELDS = ('id', 'name', 'full_name', 'verbose_name', 'location_id', 'location_name', 'site', 'building',
+               'floor', 'number', 'division', 'capacity', 'surface_area', 'latitude', 'longitude', 'telephone',
+               'key_location', 'comments', 'owner_name', 'is_public', 'is_reservable',
+               'reservations_need_confirmation', 'max_advance_days', 'has_photo', 'map_url')
+
+
+def as_equipment_ids(indico_api):
+    ids = {eq['name']: eq['id'] for eq in indico_api('/rooms/api/equipment')}
+    return lambda names: sorted(ids[name] for name in names)
+
+
+def test_room_matches_current_api(db, dummy_room, create_equipment_type, token_headers, test_client, indico_api,
+                                  same_json):
+    dummy_room.available_equipment.append(create_equipment_type('Video conference'))
+    db.session.flush()
+    current = indico_api(f'/rooms/api/rooms/{dummy_room.id}')
+    current['available_equipment'].sort()
     new = test_client.get(f'/api/v1/rooms/{dummy_room.id}', headers=token_headers).json
-    assert new['id'] == legacy['id']
-    assert new['name'] == legacy['name']
-    assert new['full_name'] == legacy['fullName']
-    assert new['location_name'] == legacy['location']
-    assert new['building'] == legacy['building']
-    assert new['floor'] == legacy['floor']
-    assert new['number'] == legacy['roomNr']
-    assert new['latitude'] == legacy['latitude']
-    assert new['longitude'] == legacy['longitude']
+    same_json(new, current, same=ROOM_FIELDS,
+              renamed={'available_equipment': ('available_equipment', as_equipment_ids(indico_api))})
 
 
-def test_room_list_matches_indico_api(dummy_room, create_room, token_headers, test_client, indico_api):
-    other = create_room(building='9')
-    ids = '-'.join(str(room.id) for room in (dummy_room, other))
-    legacy = {r['id']: r for r in indico_api(f'/export/room/{dummy_room.location_name}/{ids}.json')['results']}
-    results = test_client.get('/api/v1/rooms', headers=token_headers).json['results']
-    assert {r['id'] for r in results} == set(legacy)
-    for room in results:
-        assert room['full_name'] == legacy[room['id']]['fullName']
-        assert room['building'] == legacy[room['id']]['building']
-        assert room['location_name'] == legacy[room['id']]['location']
+def test_room_list_matches_current_api(db, dummy_room, create_room, create_equipment_type, token_headers, test_client,
+                                       indico_api, same_json_list):
+    dummy_room.available_equipment.append(create_equipment_type('Video conference'))
+    create_room(building='9')
+    db.session.flush()
+    current = indico_api('/rooms/api/rooms/')
+    for room in current:
+        room['available_equipment'].sort()
+    new = test_client.get('/api/v1/rooms', headers=token_headers).json['results']
+    same_json_list(new, current, same=ROOM_FIELDS,
+                   renamed={'available_equipment': ('available_equipment', as_equipment_ids(indico_api))})

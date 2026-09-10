@@ -46,8 +46,7 @@ def test_person_details(dummy_event, dummy_event_person, event_chair, token_head
     assert resp.json['id'] == dummy_event_person.id
     assert resp.json['first_name'] == dummy_event_person.first_name
     assert resp.json['last_name'] == dummy_event_person.last_name
-    assert resp.json['full_name'] == dummy_event_person.full_name
-    assert resp.json['identifier'] == dummy_event_person.identifier
+    assert resp.json['affiliation'] == dummy_event_person.affiliation
     assert resp.json['roles'] == ['chairperson']
 
 
@@ -109,26 +108,55 @@ def test_person_of_another_event_is_not_found(dummy_event_person, create_event, 
     assert resp.status_code == 404
 
 
-@pytest.mark.usefixtures('event_chair')
-def test_person_matches_indico_api(dummy_event, dummy_event_person, token_headers, test_client, indico_api):
-    legacy = indico_api(f'/export/event/{dummy_event.id}.json')['results'][0]['chairs'][0]
+PERSON_FIELDS = ('first_name', 'last_name', 'affiliation', 'email')
+
+ROLE_ORDER = ('chairperson', 'convener', 'speaker', 'author')
+
+
+def as_people(event, sessions):
+    people = {}
+
+    def collect(fossils, role):
+        for fossil in fossils:
+            people.setdefault(fossil['person_id'], {**fossil, 'roles': set()})['roles'].add(role)
+
+    collect(event['chairs'], 'chairperson')
+    for contribution in event['contributions']:
+        collect(contribution['speakers'], 'speaker')
+        collect(contribution['primaryauthors'], 'author')
+        collect(contribution['coauthors'], 'author')
+    for fossil in sessions:
+        collect(fossil['session']['sessionConveners'], 'convener')
+    for fossil in people.values():
+        fossil['roles'] = sorted(fossil['roles'], key=ROLE_ORDER.index)
+    return people
+
+
+@pytest.fixture
+def event_manager(db, dummy_event, dummy_user):
+    dummy_event.update_principal(dummy_user, full_access=True)
+    db.session.flush()
+
+
+@pytest.fixture
+def current_people(dummy_event, indico_api):
+    event = indico_api(f'/export/event/{dummy_event.id}.json?detail=contributions')['results'][0]
+    sessions = indico_api(f'/export/event/{dummy_event.id}.json?detail=sessions')['results'][0]['sessions']
+    return as_people(event, sessions)
+
+
+@pytest.mark.usefixtures('event_chair', 'event_manager')
+def test_person_matches_current_api(dummy_event, dummy_event_person, current_people, token_headers, test_client,
+                                    same_json):
     new = test_client.get(f'/api/v1/events/{dummy_event.id}/persons/{dummy_event_person.id}',
                           headers=token_headers).json
-    assert new['id'] == legacy['person_id']
-    assert new['first_name'] == legacy['first_name']
-    assert new['last_name'] == legacy['last_name']
-    assert new['affiliation'] == legacy['affiliation']
-    assert new['email_hash'] == legacy['emailHash']
-    assert new.get('email') == legacy.get('email')
+    same_json(new, current_people[dummy_event_person.id], same=(*PERSON_FIELDS, 'roles'),
+              renamed={'id': ('person_id', None), 'email_hash': ('emailHash', None)})
 
 
-@pytest.mark.usefixtures('event_chair')
-def test_person_list_matches_indico_api(dummy_event, dummy_event_person, token_headers, test_client, indico_api):
-    legacy = {c['person_id']: c for c in indico_api(f'/export/event/{dummy_event.id}.json')['results'][0]['chairs']}
+@pytest.mark.usefixtures('event_chair', 'event_manager')
+def test_person_list_matches_current_api(dummy_event, contribution_author, block_convener, current_people,
+                                         token_headers, test_client, same_json_list):
     new = test_client.get(f'/api/v1/events/{dummy_event.id}/persons', headers=token_headers).json['results']
-    chairs = [p for p in new if 'chairperson' in p['roles']]
-    assert {p['id'] for p in chairs} == set(legacy)
-    for person in chairs:
-        assert person['first_name'] == legacy[person['id']]['first_name']
-        assert person['last_name'] == legacy[person['id']]['last_name']
-        assert person['email_hash'] == legacy[person['id']]['emailHash']
+    same_json_list(new, list(current_people.values()), same=(*PERSON_FIELDS, 'roles'),
+                   renamed={'id': ('person_id', None), 'email_hash': ('emailHash', None)})

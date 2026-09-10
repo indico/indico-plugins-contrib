@@ -21,19 +21,15 @@ from indico_openapi.schemas import SubContributionPersonSchema
 class SubContributionSchema(DescribedFieldsMixin, mm.SQLAlchemyAutoSchema):
     class Meta:
         model = SubContribution
-        fields = ('id', 'title', 'description', 'friendly_id', 'code', 'position', 'duration',
-                  'contribution_id', 'persons')
+        fields = ('id', 'title', 'friendly_id', 'code', 'duration', 'persons')
         descriptions = {
             'id': 'Numeric identifier of the subcontribution, unique across the whole instance.',
             'title': 'Title of the subcontribution.',
-            'description': 'Description of the subcontribution, as HTML.',
             'friendly_id': 'Number shown to users, unique within the parent contribution.',
             'code': 'Programme code assigned to the subcontribution.',
-            'position': 'Place of the subcontribution in the list of its contribution, starting at 1.',
             'duration': 'Length of the subcontribution, in seconds.',
-            'contribution_id': 'Identifier of the contribution the subcontribution belongs to.',
-            'persons': 'Speakers of the subcontribution. Email, phone and address are only present '
-                       'for users who can manage the contribution.',
+            'persons': 'Speakers of the subcontribution. Email is only present for users who can '
+                       'manage the contribution.',
         }
 
     persons = fields.List(fields.Nested(SubContributionPersonSchema), attribute='person_links')

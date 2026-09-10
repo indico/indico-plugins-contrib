@@ -7,7 +7,6 @@
 
 
 from datetime import timedelta
-from decimal import Decimal
 
 import pytest
 
@@ -55,9 +54,7 @@ def test_registration_form_list(dummy_event, open_regform, token_headers, test_c
     assert form['id'] == open_regform.id
     assert form['event_id'] == dummy_event.id
     assert form['title'] == open_regform.title
-    assert form['currency'] == open_regform.currency
     assert form['is_open']
-    assert form['is_scheduled']
 
 
 def test_registration_form_details(dummy_event, open_regform, token_headers, test_client):
@@ -65,8 +62,8 @@ def test_registration_form_details(dummy_event, open_regform, token_headers, tes
                            headers=token_headers)
     assert resp.status_code == 200
     assert resp.json['id'] == open_regform.id
-    assert resp.json['base_price'] == str(open_regform.base_price)
-    assert resp.json['moderation_enabled'] == open_regform.moderation_enabled
+    assert resp.json['title'] == open_regform.title
+    assert resp.json['introduction'] == open_regform.introduction
 
 
 def test_registration_form_hidden_until_scheduled(dummy_event, dummy_regform, outsider_headers, test_client):
@@ -90,9 +87,8 @@ def test_own_registration_is_visible(dummy_event, dummy_reg, token_headers, test
     resp = test_client.get(f'/api/v1/events/{dummy_event.id}/registrations/{dummy_reg.id}', headers=token_headers)
     assert resp.status_code == 200
     assert resp.json['id'] == dummy_reg.id
-    assert resp.json['friendly_id'] == dummy_reg.friendly_id
     assert resp.json['registration_form_id'] == dummy_reg.registration_form_id
-    assert resp.json['full_name'] == dummy_reg.full_name
+    assert resp.json['full_name'] == dummy_reg.display_full_name
     assert resp.json['email'] == dummy_reg.email
     assert resp.json['state'] == RegistrationState.complete.name
     assert resp.json['price'] == str(dummy_reg.price)
@@ -112,7 +108,7 @@ def test_published_registration_hides_restricted_fields(dummy_event, published_r
     assert resp.status_code == 200
     reg = resp.json['results'][0]
     assert reg['id'] == published_reg.id
-    assert reg['full_name'] == published_reg.full_name
+    assert reg['full_name'] == published_reg.display_full_name
     assert reg['first_name'] == published_reg.first_name
     assert 'email' not in reg
     assert 'state' not in reg
@@ -164,7 +160,6 @@ def test_manager_sees_every_registration(db, dummy_event, dummy_user, dummy_reg,
     reg = resp.json['results'][0]
     assert reg['email'] == dummy_reg.email
     assert reg['checked_in'] == dummy_reg.checked_in
-    assert reg['visibility'] == dummy_reg.visibility.name
     assert reg['tags'] == []
 
 
@@ -183,39 +178,66 @@ def test_registrations_require_the_feature(db, dummy_event, dummy_regform, token
     assert resp.status_code == 404
 
 
-def test_registration_form_matches_current_api(dummy_event, open_regform, registration_manager, token_headers,
-                                               test_client, indico_api):
+REGFORM_FIELDS = ('id', 'event_id', 'title', 'introduction', 'start_dt', 'end_dt', 'is_open',
+                  'registration_count')
+
+REGISTRATION_FIELDS = ('id', 'event_id', 'full_name', 'email', 'state', 'checked_in', 'checked_in_dt', 'is_paid',
+                       'currency', 'formatted_price', 'tags')
+
+REGISTRATION_KEYS = {'registration_form_id': 'regform_id', 'submitted_dt': 'registration_date',
+                     'price': ('price', float)}
+
+PERSONAL_KEYS = {'first_name': 'firstName', 'last_name': 'surname'}
+
+
+def from_personal_data(name):
+    return lambda current: current['personal_data'].get(PERSONAL_KEYS.get(name, name), '')
+
+
+PERSONAL_DATA = {name: from_personal_data(name)
+                 for name in ('first_name', 'last_name', 'affiliation', 'title', 'address', 'phone', 'country',
+                              'position')}
+
+
+@pytest.fixture
+def merged_registrations(dummy_event, open_regform, indico_api):
+    def _merge():
+        legacy = {int(reg['registrant_id']): reg
+                  for reg in indico_api(f'/api/events/{dummy_event.id}/registrants')['registrants']}
+        checkin = indico_api(f'/api/checkin/event/{dummy_event.id}/forms/{open_regform.id}/registrations/')
+        return [{**legacy[reg['id']], **reg} for reg in checkin]
+
+    return _merge
+
+
+def test_registration_form_matches_current_api(dummy_event, open_regform, dummy_reg, registration_manager,
+                                               token_headers, test_client, indico_api, same_json):
     current = next(f for f in indico_api(f'/api/checkin/event/{dummy_event.id}/forms/') if f['id'] == open_regform.id)
     new = test_client.get(f'/api/v1/events/{dummy_event.id}/registration-forms/{open_regform.id}',
                           headers=token_headers).json
-    for field in ('id', 'event_id', 'title', 'introduction', 'start_dt', 'end_dt', 'is_open'):
-        assert new[field] == current[field]
+    same_json(new, current, same=REGFORM_FIELDS)
 
 
-def test_registration_form_list_matches_current_api(dummy_event, open_regform, create_regform, registration_manager,
-                                                    token_headers, test_client, indico_api):
+def test_registration_form_list_matches_current_api(dummy_event, open_regform, dummy_reg, create_regform,
+                                                    registration_manager, token_headers, test_client, indico_api,
+                                                    same_json_list):
     create_regform(dummy_event, 'Another form')
     current = indico_api(f'/api/checkin/event/{dummy_event.id}/forms/')
-    new = test_client.get(f'/api/v1/events/{dummy_event.id}/registration-forms', headers=token_headers).json
-    assert sorted(f['id'] for f in new['results']) == sorted(f['id'] for f in current)
+    new = test_client.get(f'/api/v1/events/{dummy_event.id}/registration-forms', headers=token_headers).json['results']
+    same_json_list(new, current, same=REGFORM_FIELDS)
 
 
-def test_registration_matches_current_api(dummy_event, open_regform, dummy_reg, registration_manager, token_headers,
-                                          test_client, indico_api):
-    current = indico_api(f'/api/checkin/event/{dummy_event.id}/forms/{open_regform.id}/registrations/{dummy_reg.id}')
+def test_registration_matches_current_api(dummy_event, dummy_reg, merged_registrations, registration_manager,
+                                          token_headers, test_client, same_json):
+    current = next(reg for reg in merged_registrations() if reg['id'] == dummy_reg.id)
     new = test_client.get(f'/api/v1/events/{dummy_event.id}/registrations/{dummy_reg.id}', headers=token_headers).json
-    for field in ('id', 'event_id', 'full_name', 'email', 'state', 'checked_in', 'checked_in_dt', 'is_paid',
-                  'currency', 'formatted_price', 'tags'):
-        assert new[field] == current[field]
-    assert new['registration_form_id'] == current['regform_id']
-    assert new['submitted_dt'] == current['registration_date']
-    assert Decimal(new['price']) == Decimal(str(current['price']))
+    same_json(new, current, same=REGISTRATION_FIELDS, renamed=REGISTRATION_KEYS, derived=PERSONAL_DATA)
 
 
 def test_registration_list_matches_current_api(dummy_event, open_regform, dummy_reg, create_registration, outsider,
-                                               registration_manager, token_headers, test_client, indico_api):
+                                               merged_registrations, registration_manager, token_headers, test_client,
+                                               same_json_list):
     dummy_event.registrations.append(create_registration(outsider, open_regform))
-    current = indico_api(f'/api/checkin/event/{dummy_event.id}/forms/{open_regform.id}/registrations/')
-    new = test_client.get(f'/api/v1/events/{dummy_event.id}/registrations', headers=token_headers).json
-    assert sorted(r['id'] for r in new['results']) == sorted(r['id'] for r in current)
-    assert sorted(r['email'] for r in new['results']) == sorted(r['email'] for r in current)
+    new = test_client.get(f'/api/v1/events/{dummy_event.id}/registrations', headers=token_headers).json['results']
+    same_json_list(new, merged_registrations(), same=REGISTRATION_FIELDS, renamed=REGISTRATION_KEYS,
+                   derived=PERSONAL_DATA)

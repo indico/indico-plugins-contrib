@@ -13,44 +13,27 @@ from werkzeug.exceptions import Forbidden
 from indico.core.marshmallow import mm
 from indico.modules.events.controllers.base import RHProtectedEventBase
 from indico.modules.events.notes.models.notes import EventNote
-from indico.modules.events.notes.schemas import EventNoteSchema
 from indico.web.flask.util import url_for
 from indico.web.rh import json_errors
 
 from indico_openapi.resources.base import DescribedFieldsMixin, Endpoint, RHListBase
 
 
-class NoteRevisionSchema(DescribedFieldsMixin, EventNoteSchema):
-    class Meta(EventNoteSchema.Meta):
-        descriptions = {
-            'id': 'Numeric identifier of the revision.',
-            'created_dt': 'Moment the revision was written, in UTC.',
-            'source': 'Content as typed by its author, in the format given by `render_mode`.',
-            'html': 'Content rendered as HTML, with unsafe markup stripped out.',
-            'render_mode': 'Format of `source`: `html` or `markdown`.',
-            'note_author': 'Full name of the user who wrote the revision.',
-        }
-
-
 class NoteSchema(DescribedFieldsMixin, mm.SQLAlchemyAutoSchema):
     class Meta:
         model = EventNote
-        fields = ('id', 'link_type', 'event_id', 'session_id', 'contribution_id', 'subcontribution_id',
-                  'url', 'current_revision')
+        fields = ('url', 'html', 'modified_dt', 'author_id')
         descriptions = {
-            'id': 'Numeric identifier of the note, unique across the whole instance.',
-            'link_type': 'Kind of object the note is written on: `event`, `session`, `contribution` or '
-                         '`subcontribution`.',
-            'event_id': 'Identifier of the event the note lives in.',
-            'session_id': 'Identifier of the session the note is written on, or `null`.',
-            'contribution_id': 'Identifier of the contribution the note is written on, or `null`.',
-            'subcontribution_id': 'Identifier of the subcontribution the note is written on, or `null`.',
             'url': 'Absolute URL of the note page.',
-            'current_revision': 'Latest revision of the note, which is the one being displayed.',
+            'html': 'Content of the note, as HTML.',
+            'modified_dt': 'Moment the note was last modified, in UTC.',
+            'author_id': 'Identifier of the user who wrote the content being displayed.',
         }
 
     url = fields.Function(lambda note: url_for('event_notes.view', note, _external=True))
-    current_revision = fields.Nested(NoteRevisionSchema)
+    html = fields.String()
+    modified_dt = fields.DateTime(attribute='current_revision.created_dt')
+    author_id = fields.Integer(attribute='current_revision.user_id')
 
 
 @json_errors

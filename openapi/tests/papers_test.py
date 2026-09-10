@@ -136,50 +136,58 @@ def paper_manager(db, dummy_event, dummy_user):
     db.session.flush()
 
 
-def test_paper_matches_current_api(dummy_event, dummy_contribution, dummy_paper_revision, dummy_paper_file,
-                                   paper_manager, token_headers, test_client, indico_api):
-    current = indico_api(f'/event/{dummy_event.id}/manage/papers/assignment-list/export-json')
-    paper = next(p for p in current['papers'] if p['contribution']['id'] == dummy_contribution.id)
-    new = test_client.get(f'/api/v1/events/{dummy_event.id}/contributions/{dummy_contribution.id}/paper',
-                          headers=token_headers).json
-    assert new['state'] == paper['state']['name']
-    assert new['is_in_final_state'] == paper['is_in_final_state']
-    assert new['contribution']['id'] == paper['contribution']['id']
-    assert new['contribution']['title'] == paper['contribution']['title']
-    assert new['contribution']['friendly_id'] == paper['contribution']['friendly_id']
-    for mine, theirs in zip(new['revisions'], paper['revisions'], strict=True):
-        for field in ('id', 'number', 'state', 'submitted_dt', 'judgment_dt', 'judgment_comment', 'is_last_revision'):
-            assert mine[field] == theirs[field]
-        assert mine['submitter']['id'] == theirs['submitter']['id']
-        assert (mine['judge'] or {}).get('id') == (theirs['judge'] or {}).get('id')
-        assert (mine['spotlight_file'] or {}).get('id') == (theirs['spotlight_file'] or {}).get('id')
-        assert [f['id'] for f in mine['files']] == [f['id'] for f in theirs['files']]
-        assert [f['filename'] for f in mine['files']] == [f['filename'] for f in theirs['files']]
-        assert [f['download_url'] for f in mine['files']] == [f['download_url'] for f in theirs['files']]
+PAPER_FIELDS = ('contribution', 'is_in_final_state')
 
 
-def test_judged_paper_matches_current_api(db, dummy_event, dummy_contribution, dummy_paper_revision, dummy_user,
-                                          paper_manager, token_headers, test_client, indico_api):
+def as_state_name(current):
+    return current['state']['name']
+
+
+def as_revision_count(current):
+    return len(current['revisions'])
+
+
+def as_last_revision(current):
+    return next(revision for revision in current['revisions'] if revision['is_last_revision'])
+
+
+PAPER_DERIVED = {'state': as_state_name, 'revision_count': as_revision_count}
+
+
+@pytest.fixture
+def judged_paper(db, dummy_paper_revision, dummy_user):
     dummy_paper_revision.state = PaperRevisionState.accepted
     dummy_paper_revision.judge = dummy_user
     dummy_paper_revision.judgment_dt = now_utc()
     dummy_paper_revision.judgment_comment = 'Good enough'
     db.session.flush()
+
+
+def test_paper_matches_current_api(dummy_event, dummy_contribution, dummy_paper_revision, dummy_paper_file,
+                                   paper_manager, token_headers, test_client, indico_api, same_json):
     current = indico_api(f'/event/{dummy_event.id}/manage/papers/assignment-list/export-json')
     paper = next(p for p in current['papers'] if p['contribution']['id'] == dummy_contribution.id)
     new = test_client.get(f'/api/v1/events/{dummy_event.id}/contributions/{dummy_contribution.id}/paper',
                           headers=token_headers).json
-    assert new['state'] == paper['state']['name']
-    assert new['is_in_final_state'] == paper['is_in_final_state']
-    assert new['revisions'][0]['judge']['id'] == paper['revisions'][0]['judge']['id']
-    assert new['revisions'][0]['judgment_dt'] == paper['revisions'][0]['judgment_dt']
-    assert new['revisions'][0]['judgment_comment'] == paper['revisions'][0]['judgment_comment']
+    same_json(new, paper, same=(*PAPER_FIELDS, 'revisions'), derived=PAPER_DERIVED)
 
 
-def test_paper_list_matches_current_api(dummy_event, dummy_contribution, dummy_paper_revision, create_contribution,
-                                        paper_manager, token_headers, test_client, indico_api):
+@pytest.mark.usefixtures('judged_paper')
+def test_judged_paper_matches_current_api(dummy_event, dummy_contribution, dummy_paper_file, paper_manager,
+                                          token_headers, test_client, indico_api, same_json):
+    current = indico_api(f'/event/{dummy_event.id}/manage/papers/assignment-list/export-json')
+    paper = next(p for p in current['papers'] if p['contribution']['id'] == dummy_contribution.id)
+    new = test_client.get(f'/api/v1/events/{dummy_event.id}/contributions/{dummy_contribution.id}/paper',
+                          headers=token_headers).json
+    same_json(new, paper, same=(*PAPER_FIELDS, 'revisions'), derived=PAPER_DERIVED)
+
+
+def test_paper_list_matches_current_api(dummy_event, dummy_contribution, dummy_paper_revision, dummy_paper_file,
+                                        create_contribution, paper_manager, token_headers, test_client, indico_api,
+                                        same_json_list):
     create_contribution(dummy_event, 'No paper here')
     current = indico_api(f'/event/{dummy_event.id}/manage/papers/assignment-list/export-json')
-    new = test_client.get(f'/api/v1/events/{dummy_event.id}/papers', headers=token_headers).json
-    assert (sorted(p['contribution']['id'] for p in new['results']) ==
-            sorted(p['contribution']['id'] for p in current['papers']))
+    new = test_client.get(f'/api/v1/events/{dummy_event.id}/papers', headers=token_headers).json['results']
+    same_json_list(new, current['papers'], same=PAPER_FIELDS,
+                   derived={**PAPER_DERIVED, 'last_revision': as_last_revision},
+                   key=lambda paper: paper['contribution']['id'])

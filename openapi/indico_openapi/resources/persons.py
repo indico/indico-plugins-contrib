@@ -21,7 +21,6 @@ from indico.modules.events.persons.schemas import EventPersonSchema as CoreEvent
 from indico.web.rh import json_errors
 
 from indico_openapi.resources.base import DescribedFieldsMixin, Endpoint, RHListBase
-from indico_openapi.schemas import AffiliationSchema
 
 
 ROLE_ORDER = ('chairperson', 'convener', 'speaker', 'author')
@@ -29,30 +28,18 @@ ROLE_ORDER = ('chairperson', 'convener', 'speaker', 'author')
 
 class EventPersonSchema(DescribedFieldsMixin, CoreEventPersonSchema):
     class Meta(CoreEventPersonSchema.Meta):
-        fields = ('id', 'identifier', 'first_name', 'last_name', 'full_name', 'title', 'affiliation',
-                  'affiliation_id', 'affiliation_link', 'email', 'email_hash', 'phone', 'address',
-                  'user_identifier', 'roles')
+        fields = ('id', 'first_name', 'last_name', 'affiliation', 'email', 'email_hash', 'roles')
         descriptions = {
             'id': 'Numeric identifier of the person within the event, shared by everything they take part in.',
-            'identifier': 'Identifier of the person as used by Indico ACLs, such as `EventPerson:42`.',
             'first_name': 'First name of the person.',
             'last_name': 'Last name of the person.',
-            'full_name': 'Full name of the person, in display order.',
-            'title': 'Personal title, such as `Dr` or `Prof`.',
             'affiliation': 'Affiliation as free text, which is what gets displayed.',
-            'affiliation_id': 'Identifier of the predefined affiliation, or `null` when typed by hand.',
-            'affiliation_link': 'Predefined affiliation the text was taken from, or `null` when typed by hand.',
             'email': 'Email address. Only present for users who can manage the event.',
             'email_hash': 'MD5 hash of the email address, so an avatar can be fetched without exposing the address.',
-            'phone': 'Phone number. Only present for users who can manage the event.',
-            'address': 'Postal address. Only present for users who can manage the event.',
-            'user_identifier': 'Identifier of the Indico account behind the person, or `null` when there is none.',
             'roles': 'What the person does in the event: `chairperson`, `convener`, `speaker` or `author`. '
                      'Only roles the requesting user can see are listed.',
         }
 
-    full_name = fields.String()
-    affiliation_link = fields.Nested(AffiliationSchema)
     email_hash = fields.Function(lambda p: hashlib.md5(p.email.encode()).hexdigest() if p.email else None)
     roles = fields.Function(lambda p, context: sorted(context['roles'][p.id], key=ROLE_ORDER.index))
 
@@ -60,8 +47,6 @@ class EventPersonSchema(DescribedFieldsMixin, CoreEventPersonSchema):
     def _hide_sensitive_data(self, data, **kwargs):
         if self.context.get('hide_restricted_data'):
             del data['email']
-            del data['address']
-            del data['phone']
         return data
 
 

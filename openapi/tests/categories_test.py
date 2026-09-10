@@ -47,17 +47,30 @@ def test_category_list_filters_by_parent(dummy_category, token_headers, test_cli
     assert {c['id'] for c in resp.json['results']} == {dummy_category.id}
 
 
-def test_category_matches_indico_api(dummy_category, dummy_event, token_headers, test_client, indico_api):
-    legacy = indico_api(f'/export/categ/{dummy_category.id}.json')
-    path = legacy['additionalInfo']['eventCategories'][0]['path']
-    entry = next(p for p in path if p.get('id') == dummy_category.id)
+CATEGORY_FIELDS = ('id', 'title', 'is_protected')
+
+
+def as_chain_titles(current):
+    return [entry['title'] for entry in current['path']]
+
+
+def as_parent_id(current):
+    return current['parent_path'][-1]['id'] if current['parent_path'] else None
+
+
+def test_category_matches_current_api(dummy_category, dummy_event, token_headers, test_client, indico_api, same_json):
+    current = indico_api(f'/category/{dummy_category.id}/info')['category']
     new = test_client.get(f'/api/v1/categories/{dummy_category.id}', headers=token_headers).json
-    assert new['title'] == entry['name']
-    assert new['url'] == entry['url']
-    assert new['chain_titles'] == [p['name'] for p in path if 'name' in p]
+    same_json(new, current, same=CATEGORY_FIELDS, renamed={'deep_events_count': ('deep_event_count', None)},
+              derived={'chain_titles': as_chain_titles, 'parent_id': as_parent_id})
 
 
-def test_category_events_match_indico_api(dummy_category, dummy_event, token_headers, test_client, indico_api):
-    legacy = indico_api(f'/export/categ/{dummy_category.id}.json')['results']
-    new = test_client.get(f'/api/v1/events?category_id={dummy_category.id}', headers=token_headers).json
-    assert {str(e['id']) for e in new['results']} == {e['id'] for e in legacy}
+def test_category_list_matches_current_api(dummy_category, dummy_event, create_category, token_headers, test_client,
+                                           indico_api, same_json_list):
+    create_category(1, title='Another category', parent=dummy_category.parent)
+    parent = indico_api(f'/category/{dummy_category.parent_id}/info')
+    current = parent['subcategories']
+    new = test_client.get(f'/api/v1/categories?parent_id={dummy_category.parent_id}',
+                          headers=token_headers).json['results']
+    same_json_list(new, current, same=CATEGORY_FIELDS, renamed={'deep_events_count': ('deep_event_count', None)},
+                   derived={'chain_titles': as_chain_titles, 'parent_id': as_parent_id})
