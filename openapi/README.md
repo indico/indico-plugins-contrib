@@ -36,6 +36,8 @@ of being reported as an error.
 | `/api/v1/events/<event_id>/surveys` | List the surveys of an event |
 | `/api/v1/events/<event_id>/surveys/<survey_id>` | Survey details |
 | `/api/v1/events/<event_id>/surveys/<survey_id>/submissions` | List the submitted answers of a survey |
+| `/api/v1/events/<event_id>/agreements` | List the agreements an event asked for |
+| `/api/v1/events/<event_id>/agreements/<agreement_id>` | Agreement details |
 | `/api/v1/events/<event_id>/notes` | List the notes of an event and of everything inside it |
 | `/api/v1/events/<event_id>/notes/<note_id>` | Note details |
 | `/api/v1/events/<event_id>/attachments` | List the attachments of an event |
@@ -88,6 +90,12 @@ JSON.
 
 Tracks, registrations, abstracts, papers, surveys, locations and blockings have
 no counterpart in the legacy API, so there is nothing to compare them against.
+
+Agreements are the one entity both APIs serve without a parity test. The legacy
+endpoint answers with the people an agreement definition asks to sign, and those
+definitions come from plugins, so there is nobody to list unless a plugin
+providing one is installed. This API returns the agreements the event actually
+stored, which is what the management interface lists.
 
 ## Pagination
 
