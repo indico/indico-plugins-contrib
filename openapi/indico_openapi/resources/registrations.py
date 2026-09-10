@@ -159,6 +159,8 @@ class RegistrationMixin:
     a participant themselves and on the consent each registrant gave.
     """
 
+    EVENT_FEATURE = 'registration'
+
     def _process_args(self):
         RHProtectedEventBase._process_args(self)
         self.can_manage = self.event.can_manage(session.user, permission='registration')

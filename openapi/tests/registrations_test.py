@@ -10,12 +10,19 @@ from datetime import timedelta
 
 import pytest
 
+from indico.modules.events.features.util import set_feature_enabled
 from indico.modules.events.registration.models.registrations import (
     PublishRegistrationsMode,
     RegistrationState,
     RegistrationVisibility,
 )
 from indico.util.date_time import now_utc
+
+
+@pytest.fixture(autouse=True)
+def registration_enabled(db, dummy_event):
+    set_feature_enabled(dummy_event, 'registration', True)
+    db.session.flush()
 
 
 @pytest.fixture
@@ -157,4 +164,13 @@ def test_manager_sees_every_registration(db, dummy_event, dummy_user, dummy_reg,
 def test_registration_of_another_event_is_not_found(dummy_reg, create_event, token_headers, test_client):
     other = create_event()
     resp = test_client.get(f'/api/v1/events/{other.id}/registrations/{dummy_reg.id}', headers=token_headers)
+    assert resp.status_code == 404
+
+
+def test_registrations_require_the_feature(db, dummy_event, dummy_regform, token_headers, test_client):
+    set_feature_enabled(dummy_event, 'registration', False)
+    db.session.flush()
+    resp = test_client.get(f'/api/v1/events/{dummy_event.id}/registration-forms', headers=token_headers)
+    assert resp.status_code == 404
+    resp = test_client.get(f'/api/v1/events/{dummy_event.id}/registrations', headers=token_headers)
     assert resp.status_code == 404
