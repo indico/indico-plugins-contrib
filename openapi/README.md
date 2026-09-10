@@ -122,6 +122,44 @@ per role, 450 to 500 when it also needs several endpoints of its own.
 | Groups | Group membership is user data under another name, and local groups can be mapped to an external provider whose members Indico does not store. | 150 |
 | Instance administration | Settings, announcements, news, legal texts, authentication, OAuth applications, IP networks and the search service are either instance configuration or a view over the entities above. | 600 or more |
 
+### Where Indico serves them today
+
+None of the fourteen is invisible over GET. Every one of them can be read
+without a POST, either as JSON or as a rendered page, so the question is never
+whether the data is reachable but in what shape and to whom.
+
+| Entity | Read over GET | Shape |
+| --- | --- | --- |
+| Paper and abstract reviews, ratings and comments | `/event/<event_id>/manage/abstracts/abstracts.json`, `/event/<event_id>/manage/papers/assignment-list/export-json`, and the abstract and paper pages | JSON, but only as a whole-event dump sent as a file attachment and only to managers. The per-role view of a single review is HTML. |
+| Editing | `/event/<event_id>/editing/api/...` and the editable timeline of each contribution | JSON. It already is a REST API, written for its own React frontend. |
+| Payment transactions | The registration summary for the registrant, the registration details for the manager | HTML only. The check-in API exposes the date of the last successful transaction and nothing else of it. |
+| Event logs | `/event/<event_id>/manage/logs/api/logs`, and the same route under a category, a user and the instance | JSON, with the filters the log interface uses. |
+| Reminders | `/event/<event_id>/manage/reminders/` | HTML only. |
+| Event roles | `/event/<event_id>/manage/roles/api/roles` and `<role_id>/members.csv` | JSON. |
+| Service requests | `/event/<event_id>/manage/requests/` and `/event/<event_id>/manage/requests/<type>/` | HTML only. |
+| Videoconference rooms | `/event/<event_id>/videoconference/` and the management page | HTML only. |
+| Receipts and designer templates | `/event/<event_id>/manage/receipts/templates`, the same path plus `/images`, `/receipts/default-templates/<name>`, and `<template_id>/data` for designer templates | JSON. |
+| Static sites and event series | `/event/<event_id>/manage/tools/static/` for the list, `/event/series/<series_id>` for the series | A static site is HTML plus a ZIP download. A series is JSON. |
+| Event layout and features | `/event/<event_id>/manage/layout/` and `/event/<event_id>/manage/features/` | HTML only, plus the rendered stylesheet, logo, images and custom pages. |
+| Files | `/files/<uuid>` and `/files/<uuid>/download` | JSON. |
+| Groups | `/admin/groups/<provider>/<group_id>/` and `/groups/api/search` | Search is JSON. The group page and its member list are HTML. |
+| Instance administration | The pages under `/admin/` | HTML forms, except `/admin/logs/api/logs` and `/admin/version-check`. |
+
+The ones that can only be read as HTML today are payment transactions,
+reminders, service requests, videoconference rooms, static sites, event layout
+and features, group membership and instance settings. The reason is the same for
+all of them: they are management surfaces rendered from a template, never asked
+for by a machine. The ones that already answer JSON do it for one caller each,
+either a React page of the interface or a manager downloading a file, so their
+payloads are shaped after that caller instead of a public contract, and none of
+them is versioned or documented.
+
+Event logs are the closest to ready of the group. They already answer JSON over
+GET, they are checked as a management surface, and the interface reads them with
+filters by date, by kind of entry and by free text. Any endpoint added here would
+have to carry the same filtering, otherwise a caller has to download the whole
+audit trail of an event to find one entry.
+
 Two entities are served with a field left out on purpose: an agreement never
 exposes its signing token, since holding it is enough to answer on behalf of the
 person who was asked to sign, and a survey submission never exposes its
