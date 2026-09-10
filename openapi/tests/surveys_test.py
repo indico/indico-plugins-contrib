@@ -191,3 +191,31 @@ def test_survey_submissions_are_manager_only(dummy_survey, dummy_submission, dum
     resp = test_client.get(f'/api/v1/events/{dummy_event.id}/surveys/{dummy_survey.id}/submissions',
                            headers=outsider_headers)
     assert resp.status_code == 403
+
+
+def test_survey_questionnaire_matches_current_api(dummy_survey, dummy_event, survey_manager, token_headers,
+                                                  test_client, indico_api):
+    current = indico_api(f'/event/{dummy_event.id}/manage/surveys/{dummy_survey.id}/questionnaire/survey.json')
+    section = current['sections'][0]
+    new = test_client.get(f'/api/v1/events/{dummy_event.id}/surveys/{dummy_survey.id}', headers=token_headers).json
+    for mine, theirs in zip(new['questions'], section['content'], strict=True):
+        assert mine['section_title'] == section['title']
+        assert mine['title'] == theirs['title']
+        assert mine['description'] == theirs['description']
+        assert mine['field_type'] == theirs['field_type']
+        assert mine['is_required'] == theirs['is_required']
+        assert mine['field_data'] == theirs['field_data']
+
+
+def test_survey_question_order_matches_current_api(db, dummy_survey, dummy_event, survey_manager, token_headers,
+                                                   test_client, indico_api):
+    section = SurveySection(survey=dummy_survey, title='Extra', display_as_section=True, position=0)
+    SurveyQuestion(survey=dummy_survey, parent=section, title='Anything else?', field_type='text', is_required=False,
+                   position=1, field_data={})
+    db.session.flush()
+    current = indico_api(f'/event/{dummy_event.id}/manage/surveys/{dummy_survey.id}/questionnaire/survey.json')
+    expected = [q['title'] for s in current['sections'] for q in s['content']]
+    new = test_client.get(f'/api/v1/events/{dummy_event.id}/surveys/{dummy_survey.id}', headers=token_headers).json
+    assert [q['title'] for q in new['questions']] == expected
+    assert [q['section_title'] for q in new['questions']] == [s['title'] for s in current['sections']
+                                                              for _ in s['content']]

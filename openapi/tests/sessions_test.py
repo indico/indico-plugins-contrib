@@ -59,9 +59,9 @@ def test_session_of_another_event_is_not_found(dummy_session, create_event, toke
     assert resp.status_code == 404
 
 
-def test_session_matches_legacy_api(dummy_event, dummy_session, dummy_session_block, token_headers, test_client,
-                                    legacy_api, as_legacy_date):
-    legacy_block = legacy_api(f'/export/event/{dummy_event.id}/session/{dummy_session.id}.json')['results'][0]
+def test_session_matches_indico_api(dummy_event, dummy_session, dummy_session_block, token_headers, test_client,
+                                    indico_api, as_legacy_date):
+    legacy_block = indico_api(f'/export/event/{dummy_event.id}/session/{dummy_session.id}.json')['results'][0]
     legacy = legacy_block['session']
     new = test_client.get(f'/api/v1/events/{dummy_event.id}/sessions/{dummy_session.id}', headers=token_headers).json
     assert new['id'] == legacy['db_id']
@@ -85,13 +85,13 @@ def test_session_matches_legacy_api(dummy_event, dummy_session, dummy_session_bl
     assert as_legacy_date(block['end_dt']) == legacy_block['endDate']
 
 
-def test_session_list_matches_legacy_api(dummy_event, dummy_session, dummy_session_block, create_session,
-                                         create_session_block, token_headers, test_client, legacy_api):
+def test_session_list_matches_indico_api(dummy_event, dummy_session, dummy_session_block, create_session,
+                                         create_session_block, token_headers, test_client, indico_api):
     other = create_session(dummy_event, 'Another session')
     create_session_block(other, 'Another block', timedelta(minutes=30), now_utc())
     ids = f'{dummy_session.id}-{other.id}'
     legacy = {b['session']['db_id']: b['session']
-              for b in legacy_api(f'/export/event/{dummy_event.id}/session/{ids}.json')['results']}
+              for b in indico_api(f'/export/event/{dummy_event.id}/session/{ids}.json')['results']}
     new = test_client.get(f'/api/v1/events/{dummy_event.id}/sessions', headers=token_headers).json['results']
     assert {s['id'] for s in new} == set(legacy)
     for sess in new:

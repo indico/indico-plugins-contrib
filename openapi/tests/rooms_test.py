@@ -64,8 +64,8 @@ def test_room_requires_login(dummy_room, test_client):
     assert resp.status_code == 403
 
 
-def test_room_matches_legacy_api(dummy_room, token_headers, test_client, legacy_api):
-    legacy = legacy_api(f'/export/room/{dummy_room.location_name}/{dummy_room.id}.json')['results'][0]
+def test_room_matches_indico_api(dummy_room, token_headers, test_client, indico_api):
+    legacy = indico_api(f'/export/room/{dummy_room.location_name}/{dummy_room.id}.json')['results'][0]
     new = test_client.get(f'/api/v1/rooms/{dummy_room.id}', headers=token_headers).json
     assert new['id'] == legacy['id']
     assert new['name'] == legacy['name']
@@ -78,10 +78,10 @@ def test_room_matches_legacy_api(dummy_room, token_headers, test_client, legacy_
     assert new['longitude'] == legacy['longitude']
 
 
-def test_room_list_matches_legacy_api(dummy_room, create_room, token_headers, test_client, legacy_api):
+def test_room_list_matches_indico_api(dummy_room, create_room, token_headers, test_client, indico_api):
     other = create_room(building='9')
     ids = '-'.join(str(room.id) for room in (dummy_room, other))
-    legacy = {r['id']: r for r in legacy_api(f'/export/room/{dummy_room.location_name}/{ids}.json')['results']}
+    legacy = {r['id']: r for r in indico_api(f'/export/room/{dummy_room.location_name}/{ids}.json')['results']}
     results = test_client.get('/api/v1/rooms', headers=token_headers).json['results']
     assert {r['id'] for r in results} == set(legacy)
     for room in results:

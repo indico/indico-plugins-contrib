@@ -66,9 +66,9 @@ def test_subcontribution_hides_person_contact_details(dummy_event, dummy_contrib
 
 
 @pytest.mark.usefixtures('subcontribution_speaker')
-def test_subcontribution_matches_legacy_api(dummy_event, dummy_contribution, dummy_subcontribution, token_headers,
-                                            test_client, legacy_api):
-    legacy_event = legacy_api(f'/export/event/{dummy_event.id}.json?detail=subcontributions')['results'][0]
+def test_subcontribution_matches_indico_api(dummy_event, dummy_contribution, dummy_subcontribution, token_headers,
+                                            test_client, indico_api):
+    legacy_event = indico_api(f'/export/event/{dummy_event.id}.json?detail=subcontributions')['results'][0]
     legacy = legacy_event['contributions'][0]['subContributions'][0]
     new = test_client.get(f'/api/v1/events/{dummy_event.id}/contributions/{dummy_contribution.id}'
                           f'/subcontributions/{dummy_subcontribution.id}', headers=token_headers).json
@@ -81,10 +81,10 @@ def test_subcontribution_matches_legacy_api(dummy_event, dummy_contribution, dum
            [(p['first_name'], p['last_name'], p['affiliation'], p['emailHash']) for p in legacy['speakers']]
 
 
-def test_subcontribution_list_matches_legacy_api(dummy_event, dummy_contribution, dummy_subcontribution,
-                                                 create_subcontribution, token_headers, test_client, legacy_api):
+def test_subcontribution_list_matches_indico_api(dummy_event, dummy_contribution, dummy_subcontribution,
+                                                 create_subcontribution, token_headers, test_client, indico_api):
     create_subcontribution(dummy_contribution, 'Another subcontribution')
-    legacy_event = legacy_api(f'/export/event/{dummy_event.id}.json?detail=subcontributions')['results'][0]
+    legacy_event = indico_api(f'/export/event/{dummy_event.id}.json?detail=subcontributions')['results'][0]
     legacy = {s['db_id']: s for s in legacy_event['contributions'][0]['subContributions']}
     new = test_client.get(f'/api/v1/events/{dummy_event.id}/contributions/{dummy_contribution.id}'
                           f'/subcontributions', headers=token_headers).json['results']

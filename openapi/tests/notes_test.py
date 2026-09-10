@@ -74,21 +74,21 @@ def test_note_of_another_event_is_not_found(dummy_note, create_event, token_head
     assert resp.status_code == 404
 
 
-def test_note_matches_legacy_api(dummy_event, dummy_note, token_headers, test_client, legacy_api):
-    legacy = legacy_api(f'/export/note/{dummy_event.id}.json')['results']
+def test_note_matches_indico_api(dummy_event, dummy_note, token_headers, test_client, indico_api):
+    legacy = indico_api(f'/export/note/{dummy_event.id}.json')['results']
     new = test_client.get(f'/api/v1/events/{dummy_event.id}/notes/{dummy_note.id}', headers=token_headers).json
     assert new['url'] == legacy['url']
     assert new['current_revision']['html'] == legacy['html']
     assert new['current_revision']['created_dt'] == legacy['modified_dt']
 
 
-def test_note_list_matches_legacy_api(dummy_event, dummy_note, dummy_contribution, create_note, token_headers,
-                                      test_client, legacy_api):
+def test_note_list_matches_indico_api(dummy_event, dummy_note, dummy_contribution, create_note, token_headers,
+                                      test_client, indico_api):
     contrib_note = create_note(dummy_contribution, '<p>Contribution minutes</p>')
     contrib_url = f'/export/note/{dummy_event.id}/contribution/{dummy_contribution.id}.json'
     legacy = {
-        dummy_note.id: legacy_api(f'/export/note/{dummy_event.id}.json')['results'],
-        contrib_note.id: legacy_api(contrib_url)['results'],
+        dummy_note.id: indico_api(f'/export/note/{dummy_event.id}.json')['results'],
+        contrib_note.id: indico_api(contrib_url)['results'],
     }
     new = test_client.get(f'/api/v1/events/{dummy_event.id}/notes', headers=token_headers).json['results']
     assert {n['id'] for n in new} == set(legacy)

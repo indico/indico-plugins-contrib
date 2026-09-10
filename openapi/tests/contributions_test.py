@@ -81,9 +81,9 @@ def test_contribution_list_hides_person_contact_details(dummy_event, dummy_contr
 
 
 @pytest.mark.usefixtures('contribution_speaker')
-def test_contribution_matches_legacy_api(dummy_event, dummy_contribution, token_headers, test_client, legacy_api,
+def test_contribution_matches_indico_api(dummy_event, dummy_contribution, token_headers, test_client, indico_api,
                                          as_legacy_date):
-    legacy = legacy_api(f'/export/event/{dummy_event.id}.json?detail=contributions')['results'][0]['contributions'][0]
+    legacy = indico_api(f'/export/event/{dummy_event.id}.json?detail=contributions')['results'][0]['contributions'][0]
     new = test_client.get(f'/api/v1/events/{dummy_event.id}/contributions/{dummy_contribution.id}',
                           headers=token_headers).json
     assert new['id'] == legacy['db_id']
@@ -108,11 +108,11 @@ def test_contribution_matches_legacy_api(dummy_event, dummy_contribution, token_
     assert [p['email_hash'] for p in authors] == [p['emailHash'] for p in legacy['primaryauthors']]
 
 
-def test_contribution_list_matches_legacy_api(dummy_event, dummy_contribution, create_contribution, token_headers,
-                                              test_client, legacy_api):
+def test_contribution_list_matches_indico_api(dummy_event, dummy_contribution, create_contribution, token_headers,
+                                              test_client, indico_api):
     create_contribution(dummy_event, 'Another contribution')
     legacy = {c['db_id']: c for c in
-              legacy_api(f'/export/event/{dummy_event.id}.json?detail=contributions')['results'][0]['contributions']}
+              indico_api(f'/export/event/{dummy_event.id}.json?detail=contributions')['results'][0]['contributions']}
     new = test_client.get(f'/api/v1/events/{dummy_event.id}/contributions', headers=token_headers).json['results']
     assert {c['id'] for c in new} == set(legacy)
     for contrib in new:

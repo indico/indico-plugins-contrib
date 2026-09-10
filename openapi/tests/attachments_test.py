@@ -87,8 +87,8 @@ def test_protected_attachment_details_denied(db, dummy_event, dummy_attachment, 
     assert resp.status_code == 403
 
 
-def test_event_attachment_matches_legacy_api(dummy_event, dummy_attachment, token_headers, test_client, legacy_api):
-    legacy_folder = legacy_api(f'/export/attachments/{dummy_event.id}.json')['results']['folders'][0]
+def test_event_attachment_matches_indico_api(dummy_event, dummy_attachment, token_headers, test_client, indico_api):
+    legacy_folder = indico_api(f'/export/attachments/{dummy_event.id}.json')['results']['folders'][0]
     legacy = legacy_folder['attachments'][0]
     new = test_client.get(f'/api/v1/events/{dummy_event.id}/attachments/{dummy_attachment.id}',
                           headers=token_headers).json
@@ -110,9 +110,9 @@ def test_event_attachment_matches_legacy_api(dummy_event, dummy_attachment, toke
     assert new['folder']['is_protected'] == legacy_folder['is_protected']
 
 
-def test_event_attachment_list_matches_legacy_api(dummy_event, dummy_attachment, token_headers, test_client,
-                                                  legacy_api):
-    legacy_folders = legacy_api(f'/export/attachments/{dummy_event.id}.json')['results']['folders']
+def test_event_attachment_list_matches_indico_api(dummy_event, dummy_attachment, token_headers, test_client,
+                                                  indico_api):
+    legacy_folders = indico_api(f'/export/attachments/{dummy_event.id}.json')['results']['folders']
     legacy = {a['id']: a for folder in legacy_folders for a in folder['attachments']}
     new = test_client.get(f'/api/v1/events/{dummy_event.id}/attachments', headers=token_headers).json['results']
     assert {a['id'] for a in new} == set(legacy)
@@ -122,9 +122,9 @@ def test_event_attachment_list_matches_legacy_api(dummy_event, dummy_attachment,
         assert attachment['modified_dt'] == legacy[attachment['id']]['modified_dt']
 
 
-def test_contribution_attachment_matches_legacy_api(dummy_event, dummy_contribution, dummy_link, token_headers,
-                                                    test_client, legacy_api):
-    legacy_folder = (legacy_api(f'/export/attachments/{dummy_event.id}/contribution/{dummy_contribution.id}.json')
+def test_contribution_attachment_matches_indico_api(dummy_event, dummy_contribution, dummy_link, token_headers,
+                                                    test_client, indico_api):
+    legacy_folder = (indico_api(f'/export/attachments/{dummy_event.id}/contribution/{dummy_contribution.id}.json')
                      ['results']['folders'][0])
     legacy = legacy_folder['attachments'][0]
     new = test_client.get(f'/api/v1/events/{dummy_event.id}/contributions/{dummy_contribution.id}'

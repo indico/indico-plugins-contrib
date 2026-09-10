@@ -47,8 +47,8 @@ def test_category_list_filters_by_parent(dummy_category, token_headers, test_cli
     assert {c['id'] for c in resp.json['results']} == {dummy_category.id}
 
 
-def test_category_matches_legacy_api(dummy_category, dummy_event, token_headers, test_client, legacy_api):
-    legacy = legacy_api(f'/export/categ/{dummy_category.id}.json')
+def test_category_matches_indico_api(dummy_category, dummy_event, token_headers, test_client, indico_api):
+    legacy = indico_api(f'/export/categ/{dummy_category.id}.json')
     path = legacy['additionalInfo']['eventCategories'][0]['path']
     entry = next(p for p in path if p.get('id') == dummy_category.id)
     new = test_client.get(f'/api/v1/categories/{dummy_category.id}', headers=token_headers).json
@@ -57,7 +57,7 @@ def test_category_matches_legacy_api(dummy_category, dummy_event, token_headers,
     assert new['chain_titles'] == [p['name'] for p in path if 'name' in p]
 
 
-def test_category_events_match_legacy_api(dummy_category, dummy_event, token_headers, test_client, legacy_api):
-    legacy = legacy_api(f'/export/categ/{dummy_category.id}.json')['results']
+def test_category_events_match_indico_api(dummy_category, dummy_event, token_headers, test_client, indico_api):
+    legacy = indico_api(f'/export/categ/{dummy_category.id}.json')['results']
     new = test_client.get(f'/api/v1/events?category_id={dummy_category.id}', headers=token_headers).json
     assert {str(e['id']) for e in new['results']} == {e['id'] for e in legacy}

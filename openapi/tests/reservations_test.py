@@ -128,8 +128,8 @@ def test_reservation_requires_login(dummy_reservation, test_client):
     assert resp.status_code == 403
 
 
-def test_reservation_matches_legacy_api(dummy_reservation, dummy_room, token_headers, test_client, legacy_api):
-    legacy = legacy_api(f'/export/reservation/{dummy_room.location_name}.json')['results'][0]
+def test_reservation_matches_indico_api(dummy_reservation, dummy_room, token_headers, test_client, indico_api):
+    legacy = indico_api(f'/export/reservation/{dummy_room.location_name}.json')['results'][0]
     new = test_client.get(f'/api/v1/reservations/{dummy_reservation.id}', headers=token_headers).json
     assert new['id'] == legacy['id']
     assert new['start_dt'] == as_legacy_dt(legacy['startDT'])
@@ -146,10 +146,10 @@ def test_reservation_matches_legacy_api(dummy_reservation, dummy_room, token_hea
     assert new['repeat_interval'] == legacy['repeat_interval']
 
 
-def test_reservation_list_matches_legacy_api(dummy_reservation, dummy_room, create_reservation, create_room,
-                                             token_headers, test_client, legacy_api):
+def test_reservation_list_matches_indico_api(dummy_reservation, dummy_room, create_reservation, create_room,
+                                             token_headers, test_client, indico_api):
     create_reservation(room=create_room(building='9'))
-    legacy = {r['id']: r for r in legacy_api(f'/export/reservation/{dummy_room.location_name}.json')['results']}
+    legacy = {r['id']: r for r in indico_api(f'/export/reservation/{dummy_room.location_name}.json')['results']}
     results = test_client.get('/api/v1/reservations', headers=token_headers).json['results']
     assert {r['id'] for r in results} == set(legacy)
     for booking in results:
