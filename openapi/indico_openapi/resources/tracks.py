@@ -20,11 +20,10 @@ from indico_openapi.resources.base import DescribedFieldsMixin, Endpoint, RHList
 
 class TrackGroupReferenceSchema(DescribedFieldsMixin, TrackGroupSchema):
     class Meta(TrackGroupSchema.Meta):
-        fields = ('id', 'title', 'code')
+        fields = ('id', 'title')
         descriptions = {
             'id': 'Numeric identifier of the track group.',
             'title': 'Title of the track group.',
-            'code': 'Programme code assigned to the track group.',
         }
 
 
