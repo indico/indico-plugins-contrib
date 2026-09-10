@@ -33,6 +33,9 @@ of being reported as an error.
 | `/api/v1/events/<event_id>/abstracts/<abstract_id>` | Abstract details |
 | `/api/v1/events/<event_id>/papers` | List the papers of an event |
 | `/api/v1/events/<event_id>/contributions/<contrib_id>/paper` | Paper of a contribution |
+| `/api/v1/events/<event_id>/surveys` | List the surveys of an event |
+| `/api/v1/events/<event_id>/surveys/<survey_id>` | Survey details |
+| `/api/v1/events/<event_id>/surveys/<survey_id>/submissions` | List the submitted answers of a survey |
 | `/api/v1/events/<event_id>/notes` | List the notes of an event and of everything inside it |
 | `/api/v1/events/<event_id>/notes/<note_id>` | Note details |
 | `/api/v1/events/<event_id>/attachments` | List the attachments of an event |
@@ -83,8 +86,8 @@ JSON.
 | Rooms | `/export/room/<location>/<room_ids>.json` |
 | Reservations | `/export/reservation/<location>.json` |
 
-Tracks, registrations, abstracts, papers, locations and blockings have no
-counterpart in the legacy API, so there is nothing to compare them against.
+Tracks, registrations, abstracts, papers, surveys, locations and blockings have
+no counterpart in the legacy API, so there is nothing to compare them against.
 
 ## Pagination
 
