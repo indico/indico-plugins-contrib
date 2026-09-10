@@ -11,6 +11,7 @@ from marshmallow import fields, post_dump
 
 from indico.modules.rb.controllers import RHRoomBookingBase
 from indico.modules.rb.models.locations import Location
+from indico.modules.rb.models.rooms import Room
 from indico.modules.rb.schemas import LocationsSchema as CoreLocationSchema
 from indico.util.string import natural_sort_key
 from indico.web.rh import json_errors
@@ -45,11 +46,15 @@ class LocationMixin:
     """Access checks shared by the location endpoints.
 
     Locations are never access-restricted, so anybody allowed into the room
-    booking system sees all of them. Deleted locations are never returned.
+    booking system sees all of them. A location is only served while it holds
+    at least one room that is not deleted, so an empty one is as good as gone.
     """
 
     def _location_query(self):
-        return Location.query.filter(~Location.is_deleted).order_by(Location.name, Location.id)
+        return (Location.query
+                .filter(~Location.is_deleted,
+                        Room.query.filter(Room.location_id == Location.id, ~Room.is_deleted).exists())
+                .order_by(Location.name, Location.id))
 
 
 @json_errors

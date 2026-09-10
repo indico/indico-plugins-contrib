@@ -24,15 +24,18 @@ def test_location_details_sorts_rooms(dummy_location, dummy_room, create_room, t
     assert [r['id'] for r in resp.json['rooms']] == [dummy_room.id, other.id]
 
 
-def test_location_details_skips_deleted_rooms(db, dummy_location, dummy_room, token_headers, test_client):
+def test_location_details_skips_deleted_rooms(db, dummy_location, dummy_room, create_room, token_headers,
+                                              test_client):
+    other = create_room(building='9')
     dummy_room.is_deleted = True
     db.session.flush()
     resp = test_client.get(f'/api/v1/locations/{dummy_location.id}', headers=token_headers)
-    assert resp.json['rooms'] == []
+    assert [r['id'] for r in resp.json['rooms']] == [other.id]
 
 
-def test_location_list(dummy_location, create_location, token_headers, test_client):
+def test_location_list(dummy_location, dummy_room, create_location, create_room, token_headers, test_client):
     other = create_location('Other')
+    create_room(location=other)
     resp = test_client.get('/api/v1/locations', headers=token_headers)
     assert resp.status_code == 200
     assert [loc['id'] for loc in resp.json['results']] == [other.id, dummy_location.id]
@@ -40,7 +43,16 @@ def test_location_list(dummy_location, create_location, token_headers, test_clie
     assert 'rooms' not in resp.json['results'][0]
 
 
-def test_deleted_location_is_not_found(db, dummy_location, token_headers, test_client):
+def test_location_without_rooms_is_not_found(db, dummy_location, dummy_room, token_headers, test_client):
+    dummy_room.is_deleted = True
+    db.session.flush()
+    resp = test_client.get(f'/api/v1/locations/{dummy_location.id}', headers=token_headers)
+    assert resp.status_code == 404
+    resp = test_client.get('/api/v1/locations', headers=token_headers)
+    assert resp.json['results'] == []
+
+
+def test_deleted_location_is_not_found(db, dummy_location, dummy_room, token_headers, test_client):
     dummy_location.is_deleted = True
     db.session.flush()
     resp = test_client.get(f'/api/v1/locations/{dummy_location.id}', headers=token_headers)
@@ -49,7 +61,7 @@ def test_deleted_location_is_not_found(db, dummy_location, token_headers, test_c
     assert resp.json['results'] == []
 
 
-def test_location_requires_booking_access(dummy_location, dummy_user, outsider_headers, test_client):
+def test_location_requires_booking_access(dummy_location, dummy_room, dummy_user, outsider_headers, test_client):
     rb_settings.acls.add_principal('authorized_principals', dummy_user)
     resp = test_client.get(f'/api/v1/locations/{dummy_location.id}', headers=outsider_headers)
     assert resp.status_code == 403
@@ -57,7 +69,7 @@ def test_location_requires_booking_access(dummy_location, dummy_user, outsider_h
     assert resp.status_code == 403
 
 
-def test_location_requires_login(dummy_location, test_client):
+def test_location_requires_login(dummy_location, dummy_room, test_client):
     resp = test_client.get(f'/api/v1/locations/{dummy_location.id}')
     assert resp.status_code == 403
 
