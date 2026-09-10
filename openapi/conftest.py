@@ -6,10 +6,11 @@
 # MIT License see the LICENSE file for more details.
 
 from datetime import datetime
-from operator import itemgetter
 
 import pytest
 import pytz
+from parity import compare, compare_list
+from parity import rename_keys as _rename_keys
 
 from indico.core.config import config
 from indico.modules.users.models.affiliations import Affiliation
@@ -78,75 +79,16 @@ def as_legacy_date():
     return _convert
 
 
-MISSING = '<not served by the current API>'
-
-
-def _reduce(mine, theirs):
-    if isinstance(mine, dict) and isinstance(theirs, dict):
-        return {key: (_reduce(value, theirs[key]) if key in theirs else MISSING) for key, value in mine.items()}
-    if isinstance(mine, list) and isinstance(theirs, list) and len(mine) == len(theirs):
-        return [_reduce(value, other) for value, other in zip(mine, theirs, strict=True)]
-    return theirs
-
-
-def _spec(renamed, key):
-    spec = renamed.get(key, key)
-    return spec if isinstance(spec, tuple) else (spec, None)
-
-
-def _compare(ours, theirs, same, renamed, derived):
-    assert set(ours) == set(same) | set(renamed) | set(derived)
-    mine, expected = {}, {}
-    for key in same:
-        mine[key] = ours[key]
-        expected[key] = theirs.get(key, MISSING)
-    for key in renamed:
-        their_key, convert = _spec(renamed, key)
-        mine[key] = convert(ours[key]) if convert else ours[key]
-        expected[key] = theirs.get(their_key, MISSING)
-    for key, compute in derived.items():
-        mine[key] = ours[key]
-        expected[key] = compute(theirs)
-    assert mine == {key: _reduce(mine[key], value) for key, value in expected.items()}
-
-
 @pytest.fixture
 def same_json():
-    def _same(ours, theirs, same=(), renamed=None, derived=None):
-        _compare(ours, theirs, same, renamed or {}, derived or {})
-
-    return _same
-
-
-def _key_getters(renamed, key):
-    if callable(key):
-        return key, key
-    their_key, convert = _spec(renamed, key)
-    ours = (lambda obj: convert(obj[key])) if convert else itemgetter(key)
-    return ours, itemgetter(their_key)
+    return compare
 
 
 @pytest.fixture
 def same_json_list():
-    def _same(ours, theirs, same=(), renamed=None, derived=None, key='id'):
-        renamed = renamed or {}
-        our_key, their_key = _key_getters(renamed, key)
-        theirs_by_key = {their_key(obj): obj for obj in theirs}
-        assert len(theirs_by_key) == len(theirs) == len(ours)
-        for obj in ours:
-            _compare(obj, theirs_by_key[our_key(obj)], same, renamed, derived or {})
-
-    return _same
+    return compare_list
 
 
 @pytest.fixture
 def rename_keys():
-    def _rename(mapping):
-        def convert(value):
-            if isinstance(value, list):
-                return [convert(item) for item in value]
-            return {mapping.get(key, key): item for key, item in value.items()}
-
-        return convert
-
-    return _rename
+    return _rename_keys
