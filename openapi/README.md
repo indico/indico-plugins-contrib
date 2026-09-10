@@ -66,6 +66,47 @@ of being reported as an error.
 | `/api/v1/openapi.json` | OpenAPI v3 document |
 | `/api/v1/docs` | Swagger UI |
 
+## Entities not covered
+
+Everything Indico stores as event or room booking content is served: events,
+categories, contributions, subcontributions, sessions, timetable entries,
+tracks, event persons, registration forms, registrations, abstracts, papers,
+surveys and their submissions, agreements, notes, attachments, locations, rooms,
+bookings, blockings and users.
+
+What is left out, and why:
+
+| Entity | Why |
+| --- | --- |
+| Paper and abstract reviews, ratings and comments | Reviewing is written under the assumption that only the people in the process read it, and each role sees a different part of the same review. Exposing it through an API means reimplementing those rules rather than reusing them. |
+| Editing (`events/editing`) | The editing workflow is reviewing material under another name: revisions, review comments and file type settings. It also already has its own REST API, used by its React frontend. |
+| Payment transactions | A transaction stores the raw answer of a payment provider, which is neither documented by Indico nor safe to publish field by field. The registration already says whether it is paid. |
+| Event logs | The log is an audit trail of every management action, including the values that changed. It is written for forensics and read in the interface with filters this API has no equivalent for. |
+| Reminders | Scheduled emails are a management setting, not content: what they produce is an email, and what they hold is a recipient list and a message. |
+| Event roles | Roles only exist to name groups of users inside the ACL of an event. Who may see what is already applied to every response, so listing the ACL adds nothing a caller can act on. |
+| Service requests (`events/requests`) | Request types are provided by plugins, so an instance without plugins has none, and the payload of each one is defined by its own plugin. |
+| Videoconference rooms | Same reason: the room type and everything in it comes from a plugin such as Zoom, and the core model only keeps the link. |
+| Receipts and designer templates | Both are document templates plus the files they render. They are management tooling, and the rendered documents are reached through the registration they belong to. |
+| Static sites and event series | A static site is a build job with a ZIP file as its result. A series is a grouping with no data of its own beyond the events it holds, which are served already. |
+| Event layout and features | Menu entries, stylesheets, images and feature toggles describe how an event page looks, not what the event is. |
+| Files | Uploaded files are never standalone: each one is reached through the attachment, paper or registration field that owns it, and those carry the access checks. |
+| Groups | Group membership is user data under another name, and local groups can be mapped to an external provider whose members Indico does not store. |
+| Instance administration | Settings, announcements, news, legal texts, authentication, OAuth applications, IP networks and the search service are either instance configuration or a view over the entities above. |
+
+Two entities are served with a field left out on purpose: an agreement never
+exposes its signing token, since holding it is enough to answer on behalf of the
+person who was asked to sign, and a survey submission never exposes its
+respondent, anonymous or not.
+
+Responses reuse Indico's own marshmallow schemas wherever core has one that
+describes the object. Several objects are only ever rendered from a template, or
+sent as a payload shaped for one React page, or described by a schema that only
+loads a submitted form: attachments and their folders, categories, notes,
+registration forms, registrations, session types, subcontributions, timetable
+entries, breaks, surveys, survey questions and agreements. Those are declared
+here as automatic schemas over the model, so their field names and types still
+come from Indico rather than from a hand-written mapping.
+
 ## Parity with the legacy export API
 
 Every entity that the legacy export API (`/export/...`) also serves has a test
