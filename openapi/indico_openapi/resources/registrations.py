@@ -16,25 +16,16 @@ from indico.modules.events.controllers.base import RHProtectedEventBase
 from indico.modules.events.registration import registration_settings
 from indico.modules.events.registration.models.forms import RegistrationForm
 from indico.modules.events.registration.models.registrations import Registration, RegistrationState
-from indico.modules.events.registration.schemas import RegistrationTagSchema as CoreRegistrationTagSchema
 from indico.web.rh import json_errors
 
 from indico_openapi.resources.base import DescribedFieldsMixin, Endpoint, RHListBase
+from indico_openapi.schemas import RegistrationTagSchema
 
 
 PERSONAL_FIELDS = ('first_name', 'last_name', 'email', 'affiliation', 'title', 'address', 'phone', 'country',
                    'position')
 MANAGER_FIELDS = ('state', 'checked_in_dt', 'submitted_dt', 'is_paid', 'price', 'currency',
                   'formatted_price', 'tags')
-
-
-class RegistrationTagSchema(DescribedFieldsMixin, CoreRegistrationTagSchema):
-    class Meta(CoreRegistrationTagSchema.Meta):
-        descriptions = {
-            'id': 'Numeric identifier of the tag, unique across the whole instance.',
-            'title': 'Name of the tag.',
-            'color': 'Colour the tag is shown in, as a colour name such as `blue`.',
-        }
 
 
 def personal_data_field(name):

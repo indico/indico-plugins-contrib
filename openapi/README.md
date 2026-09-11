@@ -40,6 +40,8 @@ of being reported as an error.
 | `/api/v1/events/<event_id>/agreements/<agreement_id>` | Agreement details |
 | `/api/v1/events/<event_id>/roles` | List the roles of an event |
 | `/api/v1/events/<event_id>/roles/<role_id>` | Event role details |
+| `/api/v1/events/<event_id>/reminders` | List the reminders of an event |
+| `/api/v1/events/<event_id>/reminders/<reminder_id>` | Reminder details |
 | `/api/v1/events/<event_id>/notes` | List the notes of an event and of everything inside it |
 | `/api/v1/events/<event_id>/notes/<note_id>` | Note details |
 | `/api/v1/events/<event_id>/attachments` | List the attachments of an event |
@@ -81,31 +83,32 @@ checks are reused, so they cost nothing here.
 
 | Entity | Why it is served | Code | Tests |
 | --- | --- | --- | --- |
-| Events | Everything else hangs off an event, and its dates, description, location and category are what a caller asks for first. | 96 | 112 |
-| Categories | The tree events are organised in, needed to walk from the instance root down to a single event. | 75 | 63 |
-| Contributions | The talks of an event, with their speakers, times and room. The entity most often read from outside. | 155 | 121 |
-| Subcontributions | The parts a contribution is split into, each with its own speakers and material. | 82 | 95 |
-| Sessions | The blocks contributions are grouped in, with their own conveners, location and colours. | 112 | 100 |
-| Timetable | The schedule itself, the only view that says when each contribution, session block and break happens. | 148 | 144 |
-| Tracks | The programme an event is divided into. Abstracts and contributions point at it. | 75 | 93 |
-| Event persons | Speakers, chairs, conveners and authors, with the affiliation each one was entered with. | 157 | 134 |
-| Registration forms and registrations | What an event asks registrants for, whether it is open, who registered, in what state and for what price. | 273 | 221 |
-| Abstracts | The submissions to a call for abstracts, with their state, tracks, authors and files. | 154 | 176 |
-| Papers | The files submitted for a contribution, with every revision and the judgment of each one. | 157 | 185 |
-| Surveys and submissions | The questionnaires an event runs, question by question, and the answers it collected. | 210 | 221 |
-| Agreements | Who an event asked to sign something and who answered. | 112 | 111 |
-| Event roles | The groups of users an event grants permissions to, and the people holding each one. | 99 | 110 |
-| Notes | The minutes attached to an event, a session, a contribution or a subcontribution. | 93 | 98 |
-| Attachments | The material and links attached to any of those, and the folders holding them. | 215 | 137 |
-| Locations | The places rooms belong to. | 81 | 83 |
-| Rooms | The rooms that can be booked, with their capacity, equipment and managers. | 109 | 90 |
-| Reservations | The bookings of those rooms, with their occurrences. | 156 | 159 |
-| Blockings | The periods a room cannot be booked, and who may still book it. | 99 | 103 |
-| Users | The people the instance knows, plus the identity of the caller. | 90 | 101 |
+| Events | Everything else hangs off an event, and its dates, description, location and category are what a caller asks for first. | 96 | 116 |
+| Categories | The tree events are organised in, needed to walk from the instance root down to a single event. | 69 | 76 |
+| Contributions | The talks of an event, with their speakers, times and room. The entity most often read from outside. | 155 | 101 |
+| Subcontributions | The parts a contribution is split into, each with its own speakers and material. | 78 | 98 |
+| Sessions | The blocks contributions are grouped in, with their own conveners, location and colours. | 93 | 104 |
+| Timetable | The schedule itself, the only view that says when each contribution, session block and break happens. | 134 | 186 |
+| Tracks | The programme an event is divided into. Abstracts and contributions point at it. | 74 | 100 |
+| Event persons | Speakers, chairs, conveners and authors, with the affiliation each one was entered with. | 142 | 156 |
+| Registration forms and registrations | What an event asks registrants for, whether it is open, who registered, in what state and for what price. | 245 | 243 |
+| Abstracts | The submissions to a call for abstracts, with their state, tracks, authors and files. | 158 | 200 |
+| Papers | The files submitted for a contribution, with every revision and the judgment of each one. | 157 | 193 |
+| Surveys and submissions | The questionnaires an event runs, question by question, and the answers it collected. | 210 | 193 |
+| Agreements | Who an event asked to sign something and who answered. | 112 | 105 |
+| Event roles | The groups of users an event grants permissions to, and the people holding each one. | 99 | 104 |
+| Reminders | The emails an event has scheduled for its participants, with their recipient filters and their message. | 140 | 101 |
+| Notes | The minutes attached to an event, a session, a contribution or a subcontribution. | 76 | 89 |
+| Attachments | The material and links attached to any of those, and the folders holding them. | 225 | 126 |
+| Locations | The places rooms belong to. | 86 | 93 |
+| Rooms | The rooms that can be booked, with their capacity, equipment and managers. | 109 | 99 |
+| Reservations | The bookings of those rooms, with their occurrences. | 153 | 150 |
+| Blockings | The periods a room cannot be booked, and who may still book it. | 99 | 95 |
+| Users | The people the instance knows, plus the identity of the caller. | 89 | 101 |
 | Files | The files uploaded to the instance, with the name, type and size of each one. | 77 | 65 |
 | Groups | The groups of users the instance itself defines, and the members of each one. | 99 | 85 |
-| Shared code (spec, Swagger UI, pagination, schema helpers) | Paid once: the OpenAPI document, the docs page, the list envelope and the field description machinery every resource above builds on. | 426 | 49 |
-| **Total** | | **3350** | **2856** |
+| Shared code (spec, Swagger UI, pagination, schema helpers) | Paid once: the OpenAPI document, the docs page, the list envelope and the field description machinery every resource above builds on. | 446 | 49 |
+| **Total** | | **3421** | **3028** |
 
 ## Entities not covered
 
@@ -120,7 +123,6 @@ per role, 450 to 500 when it also needs several endpoints of its own.
 | Editing (`events/editing`) | The editing workflow is reviewing material under another name: revisions, review comments and file type settings. It also already has its own REST API, used by its React frontend. | 500 to 600 |
 | Payment transactions | A transaction stores the raw answer of a payment provider, which is neither documented by Indico nor safe to publish field by field. The registration already says whether it is paid. | 150, plus one payload per provider |
 | Event logs | The log is an audit trail of every management action, including the values that changed. It is written for forensics and read in the interface with filters this API has no equivalent for. | 250 to 300 |
-| Reminders | Scheduled emails are a management setting, not content: what they produce is an email, and what they hold is a recipient list and a message. | 150 |
 | Service requests (`events/requests`) | Request types are provided by plugins, so an instance without plugins has none, and the payload of each one is defined by its own plugin. | 150, plus one payload per plugin |
 | Videoconference rooms | Same reason: the room type and everything in it comes from a plugin such as Zoom, and the core model only keeps the link. | 150, plus one payload per plugin |
 | Receipts and designer templates | Both are document templates plus the files they render. They are management tooling, and the rendered documents are reached through the registration they belong to. | 300 to 350 |
@@ -130,7 +132,7 @@ per role, 450 to 500 when it also needs several endpoints of its own.
 
 ### Where Indico serves them today
 
-None of the eleven is invisible over GET. Every one of them can be read
+None of the ten is invisible over GET. Every one of them can be read
 without a POST, either as JSON or as a rendered page, so the question is never
 whether the data is reachable but in what shape and to whom.
 
@@ -140,7 +142,6 @@ whether the data is reachable but in what shape and to whom.
 | Editing | `/event/<event_id>/editing/api/...` and the editable timeline of each contribution | JSON. It already is a REST API, written for its own React frontend. |
 | Payment transactions | The registration summary for the registrant, the registration details for the manager | HTML only. The check-in API exposes the date of the last successful transaction and nothing else of it. |
 | Event logs | `/event/<event_id>/manage/logs/api/logs`, and the same route under a category, a user and the instance | JSON, with the filters the log interface uses. |
-| Reminders | `/event/<event_id>/manage/reminders/` | HTML only. |
 | Service requests | `/event/<event_id>/manage/requests/` and `/event/<event_id>/manage/requests/<type>/` | HTML only. |
 | Videoconference rooms | `/event/<event_id>/videoconference/` and the management page | HTML only. |
 | Receipts and designer templates | `/event/<event_id>/manage/receipts/templates`, the same path plus `/images`, `/receipts/default-templates/<name>`, and `<template_id>/data` for designer templates | JSON. |
@@ -148,11 +149,10 @@ whether the data is reachable but in what shape and to whom.
 | Event layout and features | `/event/<event_id>/manage/layout/` and `/event/<event_id>/manage/features/` | HTML only, plus the rendered stylesheet, logo, images and custom pages. |
 | Instance administration | The pages under `/admin/` | HTML forms, except `/admin/logs/api/logs` and `/admin/version-check`. |
 
-The ones that can only be read as HTML today are payment transactions,
-reminders, service requests, videoconference rooms, static sites, event layout
-and features and instance settings. The reason is the same for
-all of them: they are management surfaces rendered from a template, never asked
-for by a machine. The ones that already answer JSON do it for one caller each,
+The ones that can only be read as HTML today are payment transactions, service
+requests, videoconference rooms, static sites, event layout and features and
+instance settings. The reason is the same for all of them: they are management
+surfaces rendered from a template, never asked for by a machine. The ones that already answer JSON do it for one caller each,
 either a React page of the interface or a manager downloading a file, so their
 payloads are shaped after that caller instead of a public contract, and none of
 them is versioned or documented.
@@ -254,13 +254,14 @@ the event keeps the default name format, since the check-in API renders a
 registrant the way the event configured it and this API always answers
 `Firstname Lastname`.
 
-Survey submissions and agreements are the two entities served without a parity
-test. The interface only exports submissions as CSV or Excel, behind a POST, so
-the survey test compares the questionnaire instead. For agreements, the legacy
-endpoint answers with the people an agreement definition asks to sign, and those
-definitions come from plugins, so there is nobody to list unless a plugin
+Survey submissions, agreements and reminders are the entities served without a
+parity test. The interface only exports submissions as CSV or Excel, behind a
+POST, so the survey test compares the questionnaire instead. For agreements, the
+legacy endpoint answers with the people an agreement definition asks to sign, and
+those definitions come from plugins, so there is nobody to list unless a plugin
 providing one is installed. This API returns the agreements the event actually
-stored, which is what the management interface lists.
+stored, which is what the management interface lists. Reminders are only ever
+rendered as a management page, so there is no payload to compare against.
 
 ## Pagination
 
