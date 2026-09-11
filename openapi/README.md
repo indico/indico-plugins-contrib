@@ -46,6 +46,8 @@ of being reported as an error.
 | `/api/v1/events/<event_id>/logs/<entry_id>` | Log entry details |
 | `/api/v1/events/<event_id>/payments` | List the payments of an event |
 | `/api/v1/events/<event_id>/payments/<payment_id>` | Payment details |
+| `/api/v1/events/<event_id>/requests` | List the services an event asked for |
+| `/api/v1/events/<event_id>/requests/<request_id>` | Service request details |
 | `/api/v1/events/<event_id>/notes` | List the notes of an event and of everything inside it |
 | `/api/v1/events/<event_id>/notes/<note_id>` | Note details |
 | `/api/v1/events/<event_id>/attachments` | List the attachments of an event |
@@ -104,6 +106,7 @@ checks are reused, so they cost nothing here.
 | Reminders | The emails an event has scheduled for its participants, with their recipient filters and their message. | 140 | 101 |
 | Event logs | Every management action an event recorded, with the values that changed, which is the only account of who did what. | 158 | 182 |
 | Payments | What each registrant was charged, through which provider, and whether the payment went through. | 112 | 129 |
+| Service requests | The services an event asked the instance to provide, in what state each request is, and who accepted or rejected it. | 131 | 157 |
 | Notes | The minutes attached to an event, a session, a contribution or a subcontribution. | 76 | 89 |
 | Attachments | The material and links attached to any of those, and the folders holding them. | 225 | 126 |
 | Locations | The places rooms belong to. | 86 | 93 |
@@ -114,7 +117,7 @@ checks are reused, so they cost nothing here.
 | Files | The files uploaded to the instance, with the name, type and size of each one. | 77 | 65 |
 | Groups | The groups of users the instance itself defines, and the members of each one. | 99 | 85 |
 | Shared code (spec, Swagger UI, pagination, schema helpers) | Paid once: the OpenAPI document, the docs page, the list envelope and the field description machinery every resource above builds on. | 446 | 49 |
-| **Total** | | **3691** | **3339** |
+| **Total** | | **3822** | **3496** |
 
 ## Entities not covered
 
@@ -127,7 +130,6 @@ per role, 450 to 500 when it also needs several endpoints of its own.
 | --- | --- | --- |
 | Paper and abstract reviews, ratings and comments | Reviewing is written under the assumption that only the people in the process read it, and each role sees a different part of the same review. Exposing it through an API means reimplementing those rules rather than reusing them. | 600 to 700 |
 | Editing (`events/editing`) | The editing workflow is reviewing material under another name: revisions, review comments and file type settings. It also already has its own REST API, used by its React frontend. | 500 to 600 |
-| Service requests (`events/requests`) | Request types are provided by plugins, so an instance without plugins has none, and the payload of each one is defined by its own plugin. | 150, plus one payload per plugin |
 | Videoconference rooms | Same reason: the room type and everything in it comes from a plugin such as Zoom, and the core model only keeps the link. | 150, plus one payload per plugin |
 | Receipts and designer templates | Both are document templates plus the files they render. They are management tooling, and the rendered documents are reached through the registration they belong to. | 300 to 350 |
 | Static sites and event series | A static site is a build job with a ZIP file as its result. A series is a grouping with no data of its own beyond the events it holds, which are served already. | 200 |
@@ -136,7 +138,7 @@ per role, 450 to 500 when it also needs several endpoints of its own.
 
 ### Where Indico serves them today
 
-None of the eight is invisible over GET. Every one of them can be read
+None of the seven is invisible over GET. Every one of them can be read
 without a POST, either as JSON or as a rendered page, so the question is never
 whether the data is reachable but in what shape and to whom.
 
@@ -144,16 +146,14 @@ whether the data is reachable but in what shape and to whom.
 | --- | --- | --- |
 | Paper and abstract reviews, ratings and comments | `/event/<event_id>/manage/abstracts/abstracts.json`, `/event/<event_id>/manage/papers/assignment-list/export-json`, and the abstract and paper pages | JSON, but only as a whole-event dump sent as a file attachment and only to managers. The per-role view of a single review is HTML. |
 | Editing | `/event/<event_id>/editing/api/...` and the editable timeline of each contribution | JSON. It already is a REST API, written for its own React frontend. |
-| Service requests | `/event/<event_id>/manage/requests/` and `/event/<event_id>/manage/requests/<type>/` | HTML only. |
 | Videoconference rooms | `/event/<event_id>/videoconference/` and the management page | HTML only. |
 | Receipts and designer templates | `/event/<event_id>/manage/receipts/templates`, the same path plus `/images`, `/receipts/default-templates/<name>`, and `<template_id>/data` for designer templates | JSON. |
 | Static sites and event series | `/event/<event_id>/manage/tools/static/` for the list, `/event/series/<series_id>` for the series | A static site is HTML plus a ZIP download. A series is JSON. |
 | Event layout and features | `/event/<event_id>/manage/layout/` and `/event/<event_id>/manage/features/` | HTML only, plus the rendered stylesheet, logo, images and custom pages. |
 | Instance administration | The pages under `/admin/` | HTML forms, except `/admin/logs/api/logs` and `/admin/version-check`. |
 
-The ones that can only be read as HTML today are service requests,
-videoconference rooms, static sites, event layout and features and instance
-settings. The reason is the same for all of them: they are management
+The ones that can only be read as HTML today are videoconference rooms,
+static sites, event layout and features and instance settings. The reason is the same for all of them: they are management
 surfaces rendered from a template, never asked for by a machine. The ones that already answer JSON do it for one caller each,
 either a React page of the interface or a manager downloading a file, so their
 payloads are shaped after that caller instead of a public contract, and none of
@@ -198,6 +198,18 @@ Indico, so there is no contract to document, and it carries whatever the provide
 chose to send back about the payer. The list takes the registration and the state
 as filters, so a caller can ask for the payments of one registrant, or for the
 ones that did not go through, without reading every payment of the event.
+
+A service request is served to the managers of the event and to the people
+running the service that was asked for, which is the audience the request pages
+serve as well: managing a request type is enough to reach the requests of that
+type in any event, and of no other type. The list is filtered to the types whose
+definition is loaded, so the rows an uninstalled plugin left behind stay
+invisible, as they are in the interface. What it does serve beyond the interface
+is history: the management page shows only the latest request of each type, while
+the list answers with every request an event ever sent, which is what makes the
+type and the state worth having as filters. The values the manager filled in are
+served as they were stored, since the fields are defined by the plugin providing
+the request type and Indico has no say in them.
 
 Responses reuse Indico's own marshmallow schemas wherever core has one that
 describes the object. Several objects are only ever rendered from a template, or
@@ -271,7 +283,8 @@ the event keeps the default name format, since the check-in API renders a
 registrant the way the event configured it and this API always answers
 `Firstname Lastname`.
 
-Survey submissions, agreements, reminders and payments are the entities served
+Survey submissions, agreements, reminders, payments and service requests are the
+entities served
 without a parity test. The interface only exports submissions as CSV or Excel, behind a
 POST, so the survey test compares the questionnaire instead. For agreements, the
 legacy endpoint answers with the people an agreement definition asks to sign, and
@@ -280,7 +293,8 @@ providing one is installed. This API returns the agreements the event actually
 stored, which is what the management interface lists. Reminders are only ever
 rendered as a management page, so there is no payload to compare against, and a
 payment is rendered into the registration page by the very plugin that handled
-it, so there is none either.
+it, so there is none either. Service requests are only ever rendered as a
+management page too, one form per request type, each of them provided by a plugin.
 
 ## Pagination
 
