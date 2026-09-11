@@ -6,16 +6,7 @@
 # MIT License see the LICENSE file for more details.
 
 
-import pytest
-
 from indico.modules.users.models.affiliations import Affiliation
-
-
-@pytest.fixture
-def admin_headers(db, dummy_user, token_headers):
-    dummy_user.is_admin = True
-    db.session.flush()
-    return token_headers
 
 
 def test_current_user(dummy_user, token_headers, test_client):

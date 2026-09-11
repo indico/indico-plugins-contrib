@@ -57,6 +57,13 @@ def outsider_headers(db, dummy_personal_token, outsider):
 
 
 @pytest.fixture
+def admin_headers(db, dummy_user, token_headers):
+    dummy_user.is_admin = True
+    db.session.flush()
+    return token_headers
+
+
+@pytest.fixture
 def indico_api(test_client, token_headers):
     def _get(url):
         resp = test_client.get(url, headers=token_headers)
