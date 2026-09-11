@@ -133,12 +133,6 @@ def as_people(event, sessions):
 
 
 @pytest.fixture
-def event_manager(db, dummy_event, dummy_user):
-    dummy_event.update_principal(dummy_user, full_access=True)
-    db.session.flush()
-
-
-@pytest.fixture
 def current_people(dummy_event, indico_api):
     event = indico_api(f'/export/event/{dummy_event.id}.json?detail=contributions')['results'][0]
     sessions = indico_api(f'/export/event/{dummy_event.id}.json?detail=sessions')['results'][0]['sessions']

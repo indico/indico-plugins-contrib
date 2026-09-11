@@ -29,12 +29,6 @@ def dummy_role(create_role, dummy_user):
     return create_role('Dummy role', 'DUM', members=[dummy_user])
 
 
-@pytest.fixture
-def event_manager(db, dummy_event, dummy_user):
-    dummy_event.update_principal(dummy_user, full_access=True)
-    db.session.flush()
-
-
 @pytest.mark.usefixtures('event_manager')
 def test_role_details(dummy_event, dummy_role, dummy_user, token_headers, test_client):
     resp = test_client.get(f'/api/v1/events/{dummy_event.id}/roles/{dummy_role.id}', headers=token_headers)

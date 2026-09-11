@@ -69,18 +69,12 @@ SUBCONTRIBUTION_FIELDS = ('friendly_id', 'title', 'code')
 FOSSIL_PERSON_KEYS = {'id': 'db_id', 'email_hash': 'emailHash'}
 
 
-@pytest.fixture
-def contribution_manager(db, dummy_event, dummy_user):
-    dummy_event.update_principal(dummy_user, full_access=True)
-    db.session.flush()
-
-
 def as_minutes(seconds):
     return seconds // 60
 
 
 def test_subcontribution_matches_current_api(dummy_event, dummy_contribution, dummy_subcontribution,
-                                             subcontribution_speaker, contribution_manager, token_headers,
+                                             subcontribution_speaker, event_manager, token_headers,
                                              test_client, indico_api, same_json, rename_keys):
     current = indico_api(f'/export/event/{dummy_event.id}.json?detail=subcontributions')['results'][0]
     subcontrib = current['contributions'][0]['subContributions'][0]
@@ -93,7 +87,7 @@ def test_subcontribution_matches_current_api(dummy_event, dummy_contribution, du
 
 def test_subcontribution_list_matches_current_api(dummy_event, dummy_contribution, dummy_subcontribution,
                                                   subcontribution_speaker, create_subcontribution,
-                                                  contribution_manager, token_headers, test_client, indico_api,
+                                                  event_manager, token_headers, test_client, indico_api,
                                                   same_json_list, rename_keys):
     create_subcontribution(dummy_contribution, 'Another subcontribution')
     current = indico_api(f'/export/event/{dummy_event.id}.json?detail=subcontributions')['results'][0]
