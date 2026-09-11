@@ -38,6 +38,8 @@ of being reported as an error.
 | `/api/v1/events/<event_id>/surveys/<survey_id>/submissions` | List the submitted answers of a survey |
 | `/api/v1/events/<event_id>/agreements` | List the agreements an event asked for |
 | `/api/v1/events/<event_id>/agreements/<agreement_id>` | Agreement details |
+| `/api/v1/events/<event_id>/roles` | List the roles of an event |
+| `/api/v1/events/<event_id>/roles/<role_id>` | Event role details |
 | `/api/v1/events/<event_id>/notes` | List the notes of an event and of everything inside it |
 | `/api/v1/events/<event_id>/notes/<note_id>` | Note details |
 | `/api/v1/events/<event_id>/attachments` | List the attachments of an event |
@@ -88,6 +90,7 @@ checks are reused, so they cost nothing here.
 | Papers | The files submitted for a contribution, with every revision and the judgment of each one. | 157 | 185 |
 | Surveys and submissions | The questionnaires an event runs, question by question, and the answers it collected. | 210 | 221 |
 | Agreements | Who an event asked to sign something and who answered. | 112 | 111 |
+| Event roles | The groups of users an event grants permissions to, and the people holding each one. | 110 | 110 |
 | Notes | The minutes attached to an event, a session, a contribution or a subcontribution. | 93 | 98 |
 | Attachments | The material and links attached to any of those, and the folders holding them. | 215 | 137 |
 | Locations | The places rooms belong to. | 81 | 83 |
@@ -96,7 +99,7 @@ checks are reused, so they cost nothing here.
 | Blockings | The periods a room cannot be booked, and who may still book it. | 99 | 103 |
 | Users | The people the instance knows, plus the identity of the caller. | 90 | 101 |
 | Shared code (spec, Swagger UI, pagination, schema helpers) | Paid once: the OpenAPI document, the docs page, the list envelope and the field description machinery every resource above builds on. | 421 | 49 |
-| **Total** | | **3070** | **2596** |
+| **Total** | | **3180** | **2706** |
 
 ## Entities not covered
 
@@ -112,7 +115,6 @@ per role, 450 to 500 when it also needs several endpoints of its own.
 | Payment transactions | A transaction stores the raw answer of a payment provider, which is neither documented by Indico nor safe to publish field by field. The registration already says whether it is paid. | 150, plus one payload per provider |
 | Event logs | The log is an audit trail of every management action, including the values that changed. It is written for forensics and read in the interface with filters this API has no equivalent for. | 250 to 300 |
 | Reminders | Scheduled emails are a management setting, not content: what they produce is an email, and what they hold is a recipient list and a message. | 150 |
-| Event roles | Roles only exist to name groups of users inside the ACL of an event. Who may see what is already applied to every response, so listing the ACL adds nothing a caller can act on. | 150 |
 | Service requests (`events/requests`) | Request types are provided by plugins, so an instance without plugins has none, and the payload of each one is defined by its own plugin. | 150, plus one payload per plugin |
 | Videoconference rooms | Same reason: the room type and everything in it comes from a plugin such as Zoom, and the core model only keeps the link. | 150, plus one payload per plugin |
 | Receipts and designer templates | Both are document templates plus the files they render. They are management tooling, and the rendered documents are reached through the registration they belong to. | 300 to 350 |
@@ -124,7 +126,7 @@ per role, 450 to 500 when it also needs several endpoints of its own.
 
 ### Where Indico serves them today
 
-None of the fourteen is invisible over GET. Every one of them can be read
+None of the thirteen is invisible over GET. Every one of them can be read
 without a POST, either as JSON or as a rendered page, so the question is never
 whether the data is reachable but in what shape and to whom.
 
@@ -135,7 +137,6 @@ whether the data is reachable but in what shape and to whom.
 | Payment transactions | The registration summary for the registrant, the registration details for the manager | HTML only. The check-in API exposes the date of the last successful transaction and nothing else of it. |
 | Event logs | `/event/<event_id>/manage/logs/api/logs`, and the same route under a category, a user and the instance | JSON, with the filters the log interface uses. |
 | Reminders | `/event/<event_id>/manage/reminders/` | HTML only. |
-| Event roles | `/event/<event_id>/manage/roles/api/roles` and `<role_id>/members.csv` | JSON. |
 | Service requests | `/event/<event_id>/manage/requests/` and `/event/<event_id>/manage/requests/<type>/` | HTML only. |
 | Videoconference rooms | `/event/<event_id>/videoconference/` and the management page | HTML only. |
 | Receipts and designer templates | `/event/<event_id>/manage/receipts/templates`, the same path plus `/images`, `/receipts/default-templates/<name>`, and `<template_id>/data` for designer templates | JSON. |
@@ -214,6 +215,12 @@ current interface itself calls:
 | Surveys | `/event/<event_id>/manage/surveys/<survey_id>/questionnaire/survey.json` |
 | Locations | `/rooms/api/locations` |
 | Blockings | `/rooms/api/blockings/` |
+| Event roles | `/event/<event_id>/manage/roles/api/roles/` and `/event/<event_id>/manage/api/event-roles` |
+
+Event roles are the one entity whose comparison needs two endpoints at once:
+the management API serves the members of a role but not its id, and the
+protection API the id but not the members, so the test compares
+against both payloads joined on the code each of them orders by.
 
 One value is left out of those comparisons because the two APIs mean different
 things by it: the check-in API counts every registration a form holds, while
