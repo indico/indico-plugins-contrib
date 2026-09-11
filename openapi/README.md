@@ -48,6 +48,8 @@ of being reported as an error.
 | `/api/v1/events/<event_id>/payments/<payment_id>` | Payment details |
 | `/api/v1/events/<event_id>/requests` | List the services an event asked for |
 | `/api/v1/events/<event_id>/requests/<request_id>` | Service request details |
+| `/api/v1/events/<event_id>/videoconference-rooms` | List the videoconferences of an event |
+| `/api/v1/events/<event_id>/videoconference-rooms/<vc_room_id>` | Videoconference details |
 | `/api/v1/events/<event_id>/notes` | List the notes of an event and of everything inside it |
 | `/api/v1/events/<event_id>/notes/<note_id>` | Note details |
 | `/api/v1/events/<event_id>/attachments` | List the attachments of an event |
@@ -107,6 +109,7 @@ checks are reused, so they cost nothing here.
 | Event logs | Every management action an event recorded, with the values that changed, which is the only account of who did what. | 158 | 182 |
 | Payments | What each registrant was charged, through which provider, and whether the payment went through. | 112 | 129 |
 | Service requests | The services an event asked the instance to provide, in what state each request is, and who accepted or rejected it. | 131 | 157 |
+| Videoconferences | The videoconference rooms attached to an event, a contribution or a session block, and whether the service still has each one. | 115 | 155 |
 | Notes | The minutes attached to an event, a session, a contribution or a subcontribution. | 76 | 89 |
 | Attachments | The material and links attached to any of those, and the folders holding them. | 225 | 126 |
 | Locations | The places rooms belong to. | 86 | 93 |
@@ -117,7 +120,7 @@ checks are reused, so they cost nothing here.
 | Files | The files uploaded to the instance, with the name, type and size of each one. | 77 | 65 |
 | Groups | The groups of users the instance itself defines, and the members of each one. | 99 | 85 |
 | Shared code (spec, Swagger UI, pagination, schema helpers) | Paid once: the OpenAPI document, the docs page, the list envelope and the field description machinery every resource above builds on. | 446 | 49 |
-| **Total** | | **3822** | **3496** |
+| **Total** | | **3937** | **3651** |
 
 ## Entities not covered
 
@@ -130,7 +133,6 @@ per role, 450 to 500 when it also needs several endpoints of its own.
 | --- | --- | --- |
 | Paper and abstract reviews, ratings and comments | Reviewing is written under the assumption that only the people in the process read it, and each role sees a different part of the same review. Exposing it through an API means reimplementing those rules rather than reusing them. | 600 to 700 |
 | Editing (`events/editing`) | The editing workflow is reviewing material under another name: revisions, review comments and file type settings. It also already has its own REST API, used by its React frontend. | 500 to 600 |
-| Videoconference rooms | Same reason: the room type and everything in it comes from a plugin such as Zoom, and the core model only keeps the link. | 150, plus one payload per plugin |
 | Receipts and designer templates | Both are document templates plus the files they render. They are management tooling, and the rendered documents are reached through the registration they belong to. | 300 to 350 |
 | Static sites and event series | A static site is a build job with a ZIP file as its result. A series is a grouping with no data of its own beyond the events it holds, which are served already. | 200 |
 | Event layout and features | Menu entries, stylesheets, images and feature toggles describe how an event page looks, not what the event is. | 200 |
@@ -138,7 +140,7 @@ per role, 450 to 500 when it also needs several endpoints of its own.
 
 ### Where Indico serves them today
 
-None of the seven is invisible over GET. Every one of them can be read
+None of the six is invisible over GET. Every one of them can be read
 without a POST, either as JSON or as a rendered page, so the question is never
 whether the data is reachable but in what shape and to whom.
 
@@ -146,14 +148,13 @@ whether the data is reachable but in what shape and to whom.
 | --- | --- | --- |
 | Paper and abstract reviews, ratings and comments | `/event/<event_id>/manage/abstracts/abstracts.json`, `/event/<event_id>/manage/papers/assignment-list/export-json`, and the abstract and paper pages | JSON, but only as a whole-event dump sent as a file attachment and only to managers. The per-role view of a single review is HTML. |
 | Editing | `/event/<event_id>/editing/api/...` and the editable timeline of each contribution | JSON. It already is a REST API, written for its own React frontend. |
-| Videoconference rooms | `/event/<event_id>/videoconference/` and the management page | HTML only. |
 | Receipts and designer templates | `/event/<event_id>/manage/receipts/templates`, the same path plus `/images`, `/receipts/default-templates/<name>`, and `<template_id>/data` for designer templates | JSON. |
 | Static sites and event series | `/event/<event_id>/manage/tools/static/` for the list, `/event/series/<series_id>` for the series | A static site is HTML plus a ZIP download. A series is JSON. |
 | Event layout and features | `/event/<event_id>/manage/layout/` and `/event/<event_id>/manage/features/` | HTML only, plus the rendered stylesheet, logo, images and custom pages. |
 | Instance administration | The pages under `/admin/` | HTML forms, except `/admin/logs/api/logs` and `/admin/version-check`. |
 
-The ones that can only be read as HTML today are videoconference rooms,
-static sites, event layout and features and instance settings. The reason is the same for all of them: they are management
+The ones that can only be read as HTML today are static sites, event layout
+and features and instance settings. The reason is the same for all of them: they are management
 surfaces rendered from a template, never asked for by a machine. The ones that already answer JSON do it for one caller each,
 either a React page of the interface or a manager downloading a file, so their
 payloads are shaped after that caller instead of a public contract, and none of
@@ -210,6 +211,16 @@ the list answers with every request an event ever sent, which is what makes the
 type and the state worth having as filters. The values the manager filled in are
 served as they were stored, since the fields are defined by the plugin providing
 the request type and Indico has no say in them.
+
+A videoconference is served to whoever can see the event, which is the audience
+of the page listing them, and its managers also get the two kinds the page hides:
+the rooms marked as hidden and the ones the service no longer has, both of which
+the management page keeps showing. A room whose plugin is not installed is served
+to nobody, as it is dropped from both pages. What the plugin stored about the room
+is left out of the payload, the same way the provider answer of a payment is: its
+shape belongs to each plugin, and it holds the credentials to join, which the
+interface only ever renders into a button. What is left is the part Indico owns,
+which is the name of the room, the service it lives in and what it is attached to.
 
 Responses reuse Indico's own marshmallow schemas wherever core has one that
 describes the object. Several objects are only ever rendered from a template, or
@@ -283,8 +294,8 @@ the event keeps the default name format, since the check-in API renders a
 registrant the way the event configured it and this API always answers
 `Firstname Lastname`.
 
-Survey submissions, agreements, reminders, payments and service requests are the
-entities served
+Survey submissions, agreements, reminders, payments, service requests and
+videoconferences are the entities served
 without a parity test. The interface only exports submissions as CSV or Excel, behind a
 POST, so the survey test compares the questionnaire instead. For agreements, the
 legacy endpoint answers with the people an agreement definition asks to sign, and
@@ -294,7 +305,9 @@ stored, which is what the management interface lists. Reminders are only ever
 rendered as a management page, so there is no payload to compare against, and a
 payment is rendered into the registration page by the very plugin that handled
 it, so there is none either. Service requests are only ever rendered as a
-management page too, one form per request type, each of them provided by a plugin.
+management page too, one form per request type, each of them provided by a plugin,
+and a videoconference is rendered by the plugin holding it, into the event page
+and into the management table.
 
 ## Pagination
 
