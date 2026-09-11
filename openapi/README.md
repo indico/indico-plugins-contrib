@@ -29,6 +29,12 @@ of being reported as an error.
 | `/api/v1/events/<event_id>/registration-forms/<regform_id>` | Registration form details |
 | `/api/v1/events/<event_id>/registrations` | List the registrations of an event |
 | `/api/v1/events/<event_id>/registrations/<registration_id>` | Registration details |
+| `/api/v1/events/<event_id>/document-templates` | List the document templates available to an event |
+| `/api/v1/events/<event_id>/document-templates/<template_id>` | Document template details |
+| `/api/v1/events/<event_id>/registrations/<registration_id>/documents` | List the documents generated for a registration |
+| `/api/v1/events/<event_id>/registrations/<registration_id>/documents/<file_id>` | Document details |
+| `/api/v1/events/<event_id>/designer-templates` | List the badge and poster templates available to an event |
+| `/api/v1/events/<event_id>/designer-templates/<template_id>` | Badge or poster template details |
 | `/api/v1/events/<event_id>/abstracts` | List the abstracts of an event |
 | `/api/v1/events/<event_id>/abstracts/<abstract_id>` | Abstract details |
 | `/api/v1/events/<event_id>/papers` | List the papers of an event |
@@ -126,6 +132,8 @@ checks are reused, so they cost nothing here.
 | Event series | The groupings several events are presented as one through, with the title pattern and the links they share. | 78 | 109 |
 | Event layout | The menu of an event page, the custom pages hanging off it, the images uploaded for it and the settings saying how the page is rendered. | 305 | 316 |
 | Event features | Which optional parts of Indico an event has turned on, out of the ones its type allows. | 61 | 60 |
+| Document templates and documents | The templates an event renders invoices and certificates from, the fields each one asks for, and the documents already generated for a registration. | 219 | 298 |
+| Designer templates | The badge and poster templates an event draws tickets from, with the drawing itself and the images it places on it. | 128 | 143 |
 | Notes | The minutes attached to an event, a session, a contribution or a subcontribution. | 76 | 89 |
 | Attachments | The material and links attached to any of those, and the folders holding them. | 225 | 126 |
 | Locations | The places rooms belong to. | 86 | 93 |
@@ -136,7 +144,7 @@ checks are reused, so they cost nothing here.
 | Files | The files uploaded to the instance, with the name, type and size of each one. | 77 | 65 |
 | Groups | The groups of users the instance itself defines, and the members of each one. | 99 | 85 |
 | Shared code (spec, Swagger UI, pagination, schema helpers) | Paid once: the OpenAPI document, the docs page, the list envelope and the field description machinery every resource above builds on. | 457 | 49 |
-| **Total** | | **4487** | **4223** |
+| **Total** | | **4834** | **4664** |
 
 ## Entities not covered
 
@@ -149,12 +157,11 @@ per role, 450 to 500 when it also needs several endpoints of its own.
 | --- | --- | --- |
 | Paper and abstract reviews, ratings and comments | Reviewing is written under the assumption that only the people in the process read it, and each role sees a different part of the same review. Exposing it through an API means reimplementing those rules rather than reusing them. | 600 to 700 |
 | Editing (`events/editing`) | The editing workflow is reviewing material under another name: revisions, review comments and file type settings. It also already has its own REST API, used by its React frontend. | 500 to 600 |
-| Receipts and designer templates | Both are document templates plus the files they render. They are management tooling, and the rendered documents are reached through the registration they belong to. | 300 to 350 |
 | Instance administration | Settings, announcements, news, legal texts, authentication, OAuth applications, IP networks and the search service are either instance configuration or a view over the entities above. | 600 or more |
 
 ### Where Indico serves them today
 
-None of the four is invisible over GET. Every one of them can be read
+None of the three is invisible over GET. Every one of them can be read
 without a POST, either as JSON or as a rendered page, so the question is never
 whether the data is reachable but in what shape and to whom.
 
@@ -162,7 +169,6 @@ whether the data is reachable but in what shape and to whom.
 | --- | --- | --- |
 | Paper and abstract reviews, ratings and comments | `/event/<event_id>/manage/abstracts/abstracts.json`, `/event/<event_id>/manage/papers/assignment-list/export-json`, and the abstract and paper pages | JSON, but only as a whole-event dump sent as a file attachment and only to managers. The per-role view of a single review is HTML. |
 | Editing | `/event/<event_id>/editing/api/...` and the editable timeline of each contribution | JSON. It already is a REST API, written for its own React frontend. |
-| Receipts and designer templates | `/event/<event_id>/manage/receipts/templates`, the same path plus `/images`, `/receipts/default-templates/<name>`, and `<template_id>/data` for designer templates | JSON. |
 | Instance administration | The pages under `/admin/` | HTML forms, except `/admin/logs/api/logs` and `/admin/version-check`. |
 
 Instance settings are the one entity that can only be read as HTML today: they are a
@@ -251,12 +257,39 @@ list leaves out what the type of the event does not allow, the same rows that
 page hides, so it answers with the features the event can actually turn on, and
 the images need their own feature to be on, as the image manager does.
 
+Document templates are served to whoever manages the registrations of an event,
+the audience of the interface listing them, and the scope is the one that
+interface offers: the templates of the event plus the ones it inherits from its
+categories, with the defaults the event set already applied. The HTML body, the
+stylesheet and the raw metadata of a template are left out, since core only
+serves them to the editor writing them and they say how a document is drawn
+rather than what it asks for. The documents themselves hang off the registration
+they were generated for, so a registrant reaches their own without managing
+anything, and gets only the published ones, which is the rule the registration
+page applies; a manager also gets the unpublished ones, and each payload carries
+the download URL of the caller's own interface. The values a document was
+rendered with are left out: they are a snapshot of the registration taken when it
+was generated, and the registration has endpoints of its own. The document
+endpoints need the registration feature to be on, as the page serving them does,
+while the template endpoints need no feature at all, since core gates the
+receipts interface on nothing but the permission.
+
+Designer templates are served to the managers of the event alone, as the designer
+is the only interface listing them, over the same scope of the event plus its
+categories, filtered through the signal the designer page gives plugins to hide a
+template. What the editor reads is what is served: the title, the drawing, the
+background and the images its items reference, with the URLs left relative as
+core writes them. Whether a template is a ticket, whether it can be cloned and
+which registration form it is linked to are left out, as they are settings only
+the management page acts on.
+
 Responses reuse Indico's own marshmallow schemas wherever core has one that
 describes the object. Several objects are only ever rendered from a template, or
 sent as a payload shaped for one React page, or described by a schema that only
 loads a submitted form: attachments and their folders, categories, notes,
 registration forms, registrations, session types, subcontributions, timetable
-entries, breaks, surveys, survey questions and agreements. Those are declared
+entries, breaks, surveys, survey questions, agreements, generated documents and
+designer templates. Those are declared
 here as automatic schemas over the model, so their field names and types still
 come from Indico rather than from a hand-written mapping.
 
@@ -305,6 +338,8 @@ current interface itself calls:
 | Event roles | `/event/<event_id>/manage/roles/api/roles/` and `/event/<event_id>/manage/api/event-roles` |
 | Event logs | `/event/<event_id>/manage/logs/api/logs` |
 | Event series | `/event-series/<series_id>` |
+| Document templates | `/event/<event_id>/manage/receipts/templates` |
+| Designer templates | `/event/<event_id>/manage/designer/<template_id>/data` |
 
 Event roles are the one entity whose comparison needs two endpoints at once:
 the management API serves the members of a role but not its id, and the
@@ -325,8 +360,8 @@ registrant the way the event configured it and this API always answers
 `Firstname Lastname`.
 
 Survey submissions, agreements, reminders, payments, service requests,
-videoconferences, offline copies, event layout and event features are the
-entities served without a parity test. The interface only exports submissions as CSV or Excel, behind a
+videoconferences, offline copies, event layout, event features and the documents
+generated for a registration are the entities served without a parity test. The interface only exports submissions as CSV or Excel, behind a
 POST, so the survey test compares the questionnaire instead. For agreements, the
 legacy endpoint answers with the people an agreement definition asks to sign, and
 those definitions come from plugins, so there is nobody to list unless a plugin
@@ -340,7 +375,12 @@ and a videoconference is rendered by the plugin holding it, into the event page
 and into the management table. An offline copy is listed on a management page as
 well, with nothing behind its link but the ZIP file itself. The layout and the
 features of an event are only ever rendered as management pages as well, and the
-only machine-readable part of either is a toggle answering to PUT and DELETE.
+only machine-readable part of either is a toggle answering to PUT and DELETE. A
+generated document is rendered into the registration page and into the management
+list as a download link, with nothing behind it but the PDF itself. The list of
+designer templates has no payload to compare against either, since the designer
+renders its own page; the comparison is made on a single template instead, against
+the endpoint its editor reads.
 
 ## Pagination
 
