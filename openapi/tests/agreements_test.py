@@ -34,12 +34,6 @@ def dummy_agreement(create_agreement):
     return create_agreement('Alice Smith')
 
 
-@pytest.fixture
-def event_manager(db, dummy_event, dummy_user):
-    dummy_event.update_principal(dummy_user, full_access=True)
-    db.session.flush()
-
-
 def test_agreement_details(dummy_agreement, dummy_event, event_manager, token_headers, test_client):
     resp = test_client.get(f'/api/v1/events/{dummy_event.id}/agreements/{dummy_agreement.id}', headers=token_headers)
     assert resp.status_code == 200

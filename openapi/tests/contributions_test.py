@@ -85,12 +85,6 @@ CONTRIBUTION_FIELDS = ('id', 'friendly_id', 'title', 'description', 'code', 'boa
                        'track', 'session', 'session_block', 'type', 'persons', 'custom_fields')
 
 
-@pytest.fixture
-def event_manager(db, dummy_event, dummy_user):
-    dummy_event.update_principal(dummy_user, full_access=True)
-    db.session.flush()
-
-
 def test_contribution_matches_current_api(dummy_event, dummy_contribution, contribution_speaker, event_manager,
                                           token_headers, test_client, indico_api, same_json):
     current = indico_api(f'/event/{dummy_event.id}/contributions/{dummy_contribution.id}.json')

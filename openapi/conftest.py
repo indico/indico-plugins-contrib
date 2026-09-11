@@ -57,6 +57,12 @@ def outsider_headers(db, dummy_personal_token, outsider):
 
 
 @pytest.fixture
+def event_manager(db, dummy_event, dummy_user):
+    dummy_event.update_principal(dummy_user, full_access=True)
+    db.session.flush()
+
+
+@pytest.fixture
 def admin_headers(db, dummy_user, token_headers):
     dummy_user.is_admin = True
     db.session.flush()
