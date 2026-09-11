@@ -14,6 +14,7 @@ from indico.modules.events.contributions.schemas import (
     ContributionPersonLinkSchema,
     ContributionTypeSchema,
 )
+from indico.modules.events.registration.schemas import RegistrationTagSchema as CoreRegistrationTagSchema
 from indico.modules.events.tracks.schemas import TrackSchema
 from indico.modules.users.schemas import AffiliationSchema as CoreAffiliationSchema
 from indico.modules.users.schemas import BasicUserSchema
@@ -66,6 +67,15 @@ class UserReferenceSchema(DescribedFieldsMixin, BasicUserSchema):
 class MemberSchema(UserReferenceSchema):
     class Meta(UserReferenceSchema.Meta):
         fields = ('id', 'identifier', 'full_name', 'email')
+
+
+class RegistrationTagSchema(DescribedFieldsMixin, CoreRegistrationTagSchema):
+    class Meta(CoreRegistrationTagSchema.Meta):
+        descriptions = {
+            'id': 'Numeric identifier of the tag, unique across the whole instance.',
+            'title': 'Name of the tag.',
+            'color': 'Colour the tag is shown in, as a colour name such as `blue`.',
+        }
 
 
 class CustomFieldValueSchema(DescribedFieldsMixin, ContributionFieldValueSchema):
