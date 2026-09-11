@@ -83,6 +83,17 @@ def paginate(query, predicate, limit, offset):
     return accepted[:limit], (cutoff if has_more else None)
 
 
+def jsonify_results(schema, objects):
+    """Serve a collection Indico keeps in memory, in the shape the paginated endpoints use.
+
+    Menu entries and feature definitions are built from signals rather than
+    queried, so they cannot be paginated, but the response shape stays the same
+    for every collection.
+    """
+    results = schema.dump(objects)
+    return jsonify(results=results, count=len(results), next_offset=None)
+
+
 class RHListBase(RH):
     """Base for endpoints listing objects the current user is allowed to see."""
 
