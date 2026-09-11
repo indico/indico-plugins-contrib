@@ -42,6 +42,8 @@ of being reported as an error.
 | `/api/v1/events/<event_id>/roles/<role_id>` | Event role details |
 | `/api/v1/events/<event_id>/reminders` | List the reminders of an event |
 | `/api/v1/events/<event_id>/reminders/<reminder_id>` | Reminder details |
+| `/api/v1/events/<event_id>/logs` | List the log entries of an event |
+| `/api/v1/events/<event_id>/logs/<entry_id>` | Log entry details |
 | `/api/v1/events/<event_id>/notes` | List the notes of an event and of everything inside it |
 | `/api/v1/events/<event_id>/notes/<note_id>` | Note details |
 | `/api/v1/events/<event_id>/attachments` | List the attachments of an event |
@@ -98,6 +100,7 @@ checks are reused, so they cost nothing here.
 | Agreements | Who an event asked to sign something and who answered. | 112 | 105 |
 | Event roles | The groups of users an event grants permissions to, and the people holding each one. | 99 | 104 |
 | Reminders | The emails an event has scheduled for its participants, with their recipient filters and their message. | 140 | 101 |
+| Event logs | Every management action an event recorded, with the values that changed, which is the only account of who did what. | 158 | 182 |
 | Notes | The minutes attached to an event, a session, a contribution or a subcontribution. | 76 | 89 |
 | Attachments | The material and links attached to any of those, and the folders holding them. | 225 | 126 |
 | Locations | The places rooms belong to. | 86 | 93 |
@@ -108,7 +111,7 @@ checks are reused, so they cost nothing here.
 | Files | The files uploaded to the instance, with the name, type and size of each one. | 77 | 65 |
 | Groups | The groups of users the instance itself defines, and the members of each one. | 99 | 85 |
 | Shared code (spec, Swagger UI, pagination, schema helpers) | Paid once: the OpenAPI document, the docs page, the list envelope and the field description machinery every resource above builds on. | 446 | 49 |
-| **Total** | | **3421** | **3028** |
+| **Total** | | **3579** | **3210** |
 
 ## Entities not covered
 
@@ -122,7 +125,6 @@ per role, 450 to 500 when it also needs several endpoints of its own.
 | Paper and abstract reviews, ratings and comments | Reviewing is written under the assumption that only the people in the process read it, and each role sees a different part of the same review. Exposing it through an API means reimplementing those rules rather than reusing them. | 600 to 700 |
 | Editing (`events/editing`) | The editing workflow is reviewing material under another name: revisions, review comments and file type settings. It also already has its own REST API, used by its React frontend. | 500 to 600 |
 | Payment transactions | A transaction stores the raw answer of a payment provider, which is neither documented by Indico nor safe to publish field by field. The registration already says whether it is paid. | 150, plus one payload per provider |
-| Event logs | The log is an audit trail of every management action, including the values that changed. It is written for forensics and read in the interface with filters this API has no equivalent for. | 250 to 300 |
 | Service requests (`events/requests`) | Request types are provided by plugins, so an instance without plugins has none, and the payload of each one is defined by its own plugin. | 150, plus one payload per plugin |
 | Videoconference rooms | Same reason: the room type and everything in it comes from a plugin such as Zoom, and the core model only keeps the link. | 150, plus one payload per plugin |
 | Receipts and designer templates | Both are document templates plus the files they render. They are management tooling, and the rendered documents are reached through the registration they belong to. | 300 to 350 |
@@ -132,7 +134,7 @@ per role, 450 to 500 when it also needs several endpoints of its own.
 
 ### Where Indico serves them today
 
-None of the ten is invisible over GET. Every one of them can be read
+None of the nine is invisible over GET. Every one of them can be read
 without a POST, either as JSON or as a rendered page, so the question is never
 whether the data is reachable but in what shape and to whom.
 
@@ -141,7 +143,6 @@ whether the data is reachable but in what shape and to whom.
 | Paper and abstract reviews, ratings and comments | `/event/<event_id>/manage/abstracts/abstracts.json`, `/event/<event_id>/manage/papers/assignment-list/export-json`, and the abstract and paper pages | JSON, but only as a whole-event dump sent as a file attachment and only to managers. The per-role view of a single review is HTML. |
 | Editing | `/event/<event_id>/editing/api/...` and the editable timeline of each contribution | JSON. It already is a REST API, written for its own React frontend. |
 | Payment transactions | The registration summary for the registrant, the registration details for the manager | HTML only. The check-in API exposes the date of the last successful transaction and nothing else of it. |
-| Event logs | `/event/<event_id>/manage/logs/api/logs`, and the same route under a category, a user and the instance | JSON, with the filters the log interface uses. |
 | Service requests | `/event/<event_id>/manage/requests/` and `/event/<event_id>/manage/requests/<type>/` | HTML only. |
 | Videoconference rooms | `/event/<event_id>/videoconference/` and the management page | HTML only. |
 | Receipts and designer templates | `/event/<event_id>/manage/receipts/templates`, the same path plus `/images`, `/receipts/default-templates/<name>`, and `<template_id>/data` for designer templates | JSON. |
@@ -156,12 +157,6 @@ surfaces rendered from a template, never asked for by a machine. The ones that a
 either a React page of the interface or a manager downloading a file, so their
 payloads are shaped after that caller instead of a public contract, and none of
 them is versioned or documented.
-
-Event logs are the closest to ready of the group. They already answer JSON over
-GET, they are checked as a management surface, and the interface reads them with
-filters by date, by kind of entry and by free text. Any endpoint added here would
-have to carry the same filtering, otherwise a caller has to download the whole
-audit trail of an event to find one entry.
 
 Two entities are served with a field left out on purpose: an agreement never
 exposes its signing token, since holding it is enough to answer on behalf of the
@@ -182,6 +177,15 @@ returned: a group coming from an external identity provider is known by its
 name alone, and its members are asked for on every check instead of being
 stored. The endpoints also honour the setting that hides local groups, so they
 answer 403 while it is off, exactly as the administration pages do.
+
+The log of an event is served with the filters the log interface uses: the area
+of the event an entry belongs to, free text over the same columns the interface
+searches, and the registration an entry is about. Without them a caller would
+have to read the whole audit trail of an event to find one entry. A caller who
+only manages the registrations of the event has to pass the registration filter,
+and reaches a single entry only when that entry is about a registration, which
+is the rule the log interface applies as well. The log of a category, of a user
+and of the instance is not served: those belong to instance administration.
 
 Responses reuse Indico's own marshmallow schemas wherever core has one that
 describes the object. Several objects are only ever rendered from a template, or
@@ -235,6 +239,7 @@ current interface itself calls:
 | Files | `/files/<uuid>` |
 | Groups | `/groups/api/search` |
 | Event roles | `/event/<event_id>/manage/roles/api/roles/` and `/event/<event_id>/manage/api/event-roles` |
+| Event logs | `/event/<event_id>/manage/logs/api/logs` |
 
 Event roles are the one entity whose comparison needs two endpoints at once:
 the management API serves the members of a role but not its id, and the
