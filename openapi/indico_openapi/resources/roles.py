@@ -16,21 +16,10 @@ from werkzeug.exceptions import Forbidden
 from indico.core.marshmallow import mm
 from indico.modules.events.controllers.base import RHProtectedEventBase
 from indico.modules.events.models.roles import EventRole
-from indico.modules.users.schemas import BasicUserSchema
 from indico.web.rh import json_errors
 
 from indico_openapi.resources.base import DescribedFieldsMixin, Endpoint, RHListBase
-
-
-class RoleMemberSchema(DescribedFieldsMixin, BasicUserSchema):
-    class Meta(BasicUserSchema.Meta):
-        fields = ('id', 'identifier', 'full_name', 'email')
-        descriptions = {
-            'id': 'Numeric identifier of the user, unique across the whole instance.',
-            'identifier': 'Identifier of the user as used by Indico ACLs, such as `User:42`.',
-            'full_name': 'Full name of the user, in display order.',
-            'email': 'Primary email address of the user.',
-        }
+from indico_openapi.schemas import MemberSchema
 
 
 class EventRoleSchema(DescribedFieldsMixin, mm.SQLAlchemyAutoSchema):
@@ -52,7 +41,7 @@ class EventRoleSchema(DescribedFieldsMixin, mm.SQLAlchemyAutoSchema):
             'members': 'Users holding the role, sorted by identifier.',
         }
 
-    members = fields.List(fields.Nested(RoleMemberSchema))
+    members = fields.List(fields.Nested(MemberSchema))
 
     @post_dump
     def _sort_members(self, data, **kwargs):

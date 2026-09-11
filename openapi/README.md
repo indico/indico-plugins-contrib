@@ -67,6 +67,8 @@ of being reported as an error.
 | `/api/v1/users/<user_id>` | User details |
 | `/api/v1/files` | List the uploaded files |
 | `/api/v1/files/<uuid>` | Uploaded file details |
+| `/api/v1/groups` | List the local groups |
+| `/api/v1/groups/<group_id>` | Local group details |
 | `/api/v1/openapi.json` | OpenAPI v3 document |
 | `/api/v1/docs` | Swagger UI |
 
@@ -92,7 +94,7 @@ checks are reused, so they cost nothing here.
 | Papers | The files submitted for a contribution, with every revision and the judgment of each one. | 157 | 185 |
 | Surveys and submissions | The questionnaires an event runs, question by question, and the answers it collected. | 210 | 221 |
 | Agreements | Who an event asked to sign something and who answered. | 112 | 111 |
-| Event roles | The groups of users an event grants permissions to, and the people holding each one. | 110 | 110 |
+| Event roles | The groups of users an event grants permissions to, and the people holding each one. | 99 | 110 |
 | Notes | The minutes attached to an event, a session, a contribution or a subcontribution. | 93 | 98 |
 | Attachments | The material and links attached to any of those, and the folders holding them. | 215 | 137 |
 | Locations | The places rooms belong to. | 81 | 83 |
@@ -101,8 +103,9 @@ checks are reused, so they cost nothing here.
 | Blockings | The periods a room cannot be booked, and who may still book it. | 99 | 103 |
 | Users | The people the instance knows, plus the identity of the caller. | 90 | 101 |
 | Files | The files uploaded to the instance, with the name, type and size of each one. | 77 | 65 |
-| Shared code (spec, Swagger UI, pagination, schema helpers) | Paid once: the OpenAPI document, the docs page, the list envelope and the field description machinery every resource above builds on. | 421 | 49 |
-| **Total** | | **3257** | **2771** |
+| Groups | The groups of users the instance itself defines, and the members of each one. | 99 | 85 |
+| Shared code (spec, Swagger UI, pagination, schema helpers) | Paid once: the OpenAPI document, the docs page, the list envelope and the field description machinery every resource above builds on. | 426 | 49 |
+| **Total** | | **3350** | **2856** |
 
 ## Entities not covered
 
@@ -123,12 +126,11 @@ per role, 450 to 500 when it also needs several endpoints of its own.
 | Receipts and designer templates | Both are document templates plus the files they render. They are management tooling, and the rendered documents are reached through the registration they belong to. | 300 to 350 |
 | Static sites and event series | A static site is a build job with a ZIP file as its result. A series is a grouping with no data of its own beyond the events it holds, which are served already. | 200 |
 | Event layout and features | Menu entries, stylesheets, images and feature toggles describe how an event page looks, not what the event is. | 200 |
-| Groups | Group membership is user data under another name, and local groups can be mapped to an external provider whose members Indico does not store. | 150 |
 | Instance administration | Settings, announcements, news, legal texts, authentication, OAuth applications, IP networks and the search service are either instance configuration or a view over the entities above. | 600 or more |
 
 ### Where Indico serves them today
 
-None of the twelve is invisible over GET. Every one of them can be read
+None of the eleven is invisible over GET. Every one of them can be read
 without a POST, either as JSON or as a rendered page, so the question is never
 whether the data is reachable but in what shape and to whom.
 
@@ -144,12 +146,11 @@ whether the data is reachable but in what shape and to whom.
 | Receipts and designer templates | `/event/<event_id>/manage/receipts/templates`, the same path plus `/images`, `/receipts/default-templates/<name>`, and `<template_id>/data` for designer templates | JSON. |
 | Static sites and event series | `/event/<event_id>/manage/tools/static/` for the list, `/event/series/<series_id>` for the series | A static site is HTML plus a ZIP download. A series is JSON. |
 | Event layout and features | `/event/<event_id>/manage/layout/` and `/event/<event_id>/manage/features/` | HTML only, plus the rendered stylesheet, logo, images and custom pages. |
-| Groups | `/admin/groups/<provider>/<group_id>/` and `/groups/api/search` | Search is JSON. The group page and its member list are HTML. |
 | Instance administration | The pages under `/admin/` | HTML forms, except `/admin/logs/api/logs` and `/admin/version-check`. |
 
 The ones that can only be read as HTML today are payment transactions,
 reminders, service requests, videoconference rooms, static sites, event layout
-and features, group membership and instance settings. The reason is the same for
+and features and instance settings. The reason is the same for
 all of them: they are management surfaces rendered from a template, never asked
 for by a machine. The ones that already answer JSON do it for one caller each,
 either a React page of the interface or a manager downloading a file, so their
@@ -173,6 +174,14 @@ hands that identifier out through the receipt, editing revision or data export
 holding the file, so listing the identifiers would give away the permission
 along with them. Reading one file by its identifier is open to any
 authenticated caller, which is the rule Indico itself applies.
+
+Groups are served in both shapes but only to administrators, since the
+administration area is the only interface showing a group together with the
+email address of every member. Only the groups Indico defines itself are
+returned: a group coming from an external identity provider is known by its
+name alone, and its members are asked for on every check instead of being
+stored. The endpoints also honour the setting that hides local groups, so they
+answer 403 while it is off, exactly as the administration pages do.
 
 Responses reuse Indico's own marshmallow schemas wherever core has one that
 describes the object. Several objects are only ever rendered from a template, or
@@ -224,12 +233,18 @@ current interface itself calls:
 | Locations | `/rooms/api/locations` |
 | Blockings | `/rooms/api/blockings/` |
 | Files | `/files/<uuid>` |
+| Groups | `/groups/api/search` |
 | Event roles | `/event/<event_id>/manage/roles/api/roles/` and `/event/<event_id>/manage/api/event-roles` |
 
 Event roles are the one entity whose comparison needs two endpoints at once:
 the management API serves the members of a role but not its id, and the
 protection API the id but not the members, so the test compares
 against both payloads joined on the code each of them orders by.
+
+The member list of a group is left out of its comparison, for lack of anything
+to compare it against: the group search answers with the name and the identifier
+of a group and never with its members, and the member list of the administration
+area is rendered as HTML.
 
 One value is left out of those comparisons because the two APIs mean different
 things by it: the check-in API counts every registration a form holds, while

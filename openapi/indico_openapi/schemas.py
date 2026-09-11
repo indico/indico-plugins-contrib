@@ -63,6 +63,11 @@ class UserReferenceSchema(DescribedFieldsMixin, BasicUserSchema):
     affiliation_meta = fields.Nested(AffiliationReferenceSchema, attribute='affiliation_link')
 
 
+class MemberSchema(UserReferenceSchema):
+    class Meta(UserReferenceSchema.Meta):
+        fields = ('id', 'identifier', 'full_name', 'email')
+
+
 class CustomFieldValueSchema(DescribedFieldsMixin, ContributionFieldValueSchema):
     class Meta(ContributionFieldValueSchema.Meta):
         descriptions = {
