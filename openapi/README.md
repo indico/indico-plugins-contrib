@@ -65,6 +65,8 @@ of being reported as an error.
 | `/api/v1/users` | List users |
 | `/api/v1/users/me` | Details of the authenticated user |
 | `/api/v1/users/<user_id>` | User details |
+| `/api/v1/files` | List the uploaded files |
+| `/api/v1/files/<uuid>` | Uploaded file details |
 | `/api/v1/openapi.json` | OpenAPI v3 document |
 | `/api/v1/docs` | Swagger UI |
 
@@ -98,8 +100,9 @@ checks are reused, so they cost nothing here.
 | Reservations | The bookings of those rooms, with their occurrences. | 156 | 159 |
 | Blockings | The periods a room cannot be booked, and who may still book it. | 99 | 103 |
 | Users | The people the instance knows, plus the identity of the caller. | 90 | 101 |
+| Files | The files uploaded to the instance, with the name, type and size of each one. | 77 | 65 |
 | Shared code (spec, Swagger UI, pagination, schema helpers) | Paid once: the OpenAPI document, the docs page, the list envelope and the field description machinery every resource above builds on. | 421 | 49 |
-| **Total** | | **3180** | **2706** |
+| **Total** | | **3257** | **2771** |
 
 ## Entities not covered
 
@@ -120,13 +123,12 @@ per role, 450 to 500 when it also needs several endpoints of its own.
 | Receipts and designer templates | Both are document templates plus the files they render. They are management tooling, and the rendered documents are reached through the registration they belong to. | 300 to 350 |
 | Static sites and event series | A static site is a build job with a ZIP file as its result. A series is a grouping with no data of its own beyond the events it holds, which are served already. | 200 |
 | Event layout and features | Menu entries, stylesheets, images and feature toggles describe how an event page looks, not what the event is. | 200 |
-| Files | Uploaded files are never standalone: each one is reached through the attachment, paper or registration field that owns it, and those carry the access checks. | 100 |
 | Groups | Group membership is user data under another name, and local groups can be mapped to an external provider whose members Indico does not store. | 150 |
 | Instance administration | Settings, announcements, news, legal texts, authentication, OAuth applications, IP networks and the search service are either instance configuration or a view over the entities above. | 600 or more |
 
 ### Where Indico serves them today
 
-None of the thirteen is invisible over GET. Every one of them can be read
+None of the twelve is invisible over GET. Every one of them can be read
 without a POST, either as JSON or as a rendered page, so the question is never
 whether the data is reachable but in what shape and to whom.
 
@@ -142,7 +144,6 @@ whether the data is reachable but in what shape and to whom.
 | Receipts and designer templates | `/event/<event_id>/manage/receipts/templates`, the same path plus `/images`, `/receipts/default-templates/<name>`, and `<template_id>/data` for designer templates | JSON. |
 | Static sites and event series | `/event/<event_id>/manage/tools/static/` for the list, `/event/series/<series_id>` for the series | A static site is HTML plus a ZIP download. A series is JSON. |
 | Event layout and features | `/event/<event_id>/manage/layout/` and `/event/<event_id>/manage/features/` | HTML only, plus the rendered stylesheet, logo, images and custom pages. |
-| Files | `/files/<uuid>` and `/files/<uuid>/download` | JSON. |
 | Groups | `/admin/groups/<provider>/<group_id>/` and `/groups/api/search` | Search is JSON. The group page and its member list are HTML. |
 | Instance administration | The pages under `/admin/` | HTML forms, except `/admin/logs/api/logs` and `/admin/version-check`. |
 
@@ -165,6 +166,13 @@ Two entities are served with a field left out on purpose: an agreement never
 exposes its signing token, since holding it is enough to answer on behalf of the
 person who was asked to sign, and a survey submission never exposes its
 respondent, anonymous or not.
+
+Files are the one entity whose list is restricted to administrators. A file
+carries no access list: Indico protects it by keeping its identifier secret and
+hands that identifier out through the receipt, editing revision or data export
+holding the file, so listing the identifiers would give away the permission
+along with them. Reading one file by its identifier is open to any
+authenticated caller, which is the rule Indico itself applies.
 
 Responses reuse Indico's own marshmallow schemas wherever core has one that
 describes the object. Several objects are only ever rendered from a template, or
@@ -215,6 +223,7 @@ current interface itself calls:
 | Surveys | `/event/<event_id>/manage/surveys/<survey_id>/questionnaire/survey.json` |
 | Locations | `/rooms/api/locations` |
 | Blockings | `/rooms/api/blockings/` |
+| Files | `/files/<uuid>` |
 | Event roles | `/event/<event_id>/manage/roles/api/roles/` and `/event/<event_id>/manage/api/event-roles` |
 
 Event roles are the one entity whose comparison needs two endpoints at once:
