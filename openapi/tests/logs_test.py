@@ -9,6 +9,7 @@
 from datetime import UTC, datetime
 
 import pytest
+from parity import rename_keys
 
 from indico.modules.logs.models.entries import EventLogRealm, LogKind
 
@@ -146,22 +147,26 @@ def test_log_entry_of_another_event_is_not_found(dummy_log_entry, create_event, 
 
 
 LOG_FIELDS = ('id', 'type', 'realm', 'kind', 'module', 'meta')
+ALL_REALMS = '&'.join(f'filters={realm.name}' for realm in EventLogRealm)
 
 
-@pytest.fixture
-def log_mapping(dummy_event, rename_keys):
+def log_keys(tzinfo):
     def _in_event_tz(value):
-        return datetime.fromisoformat(value).astimezone(dummy_event.tzinfo).isoformat()
+        return datetime.fromisoformat(value).astimezone(tzinfo).isoformat()
 
     return {'summary': ('description', None), 'data': ('payload', None), 'logged_dt': ('time', _in_event_tz),
             'user': ('user', rename_keys({'full_name': 'fullName', 'avatar_url': 'avatarURL'}))}
 
 
 @pytest.fixture
+def log_mapping(dummy_event):
+    return log_keys(dummy_event.tzinfo)
+
+
+@pytest.fixture
 def current_entries(dummy_event, indico_api):
     def _fetch():
-        filters = '&'.join(f'filters={realm.name}' for realm in EventLogRealm)
-        return indico_api(f'/event/{dummy_event.id}/manage/logs/api/logs?{filters}')['entries']
+        return indico_api(f'/event/{dummy_event.id}/manage/logs/api/logs?{ALL_REALMS}')['entries']
 
     return _fetch
 

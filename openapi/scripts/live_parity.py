@@ -20,7 +20,9 @@ copied, so the live check cannot drift away from the tests.
 import json
 import sys
 from datetime import datetime
+from operator import itemgetter
 from pathlib import Path
+from urllib.parse import quote
 
 import pytz
 import requests
@@ -35,14 +37,21 @@ import attachments_test  # noqa: E402
 import blockings_test  # noqa: E402
 import categories_test  # noqa: E402
 import contributions_test  # noqa: E402
+import designer_test  # noqa: E402
 import events_test  # noqa: E402
+import files_test  # noqa: E402
+import groups_test  # noqa: E402
 import locations_test  # noqa: E402
+import logs_test  # noqa: E402
 import notes_test  # noqa: E402
 import papers_test  # noqa: E402
 import persons_test  # noqa: E402
+import receipts_test  # noqa: E402
 import registrations_test  # noqa: E402
 import reservations_test  # noqa: E402
+import roles_test  # noqa: E402
 import rooms_test  # noqa: E402
+import series_test  # noqa: E402
 import sessions_test  # noqa: E402
 import subcontributions_test  # noqa: E402
 import timetable_test  # noqa: E402
@@ -149,12 +158,38 @@ def note_url(event_id, link_type=None, link_id=None):
     return f'/export/note/{event_id}/{link_type}/{link_id}.json'
 
 
+def merged_roles(api, event_id):
+    # only the management API serves the members, and only the protection API serves the id,
+    # so the two payloads are zipped together on the code both of them order by
+    detailed = sorted(api.get(f'/event/{event_id}/manage/roles/api/roles/'), key=itemgetter('code'))
+    basic = api.get(f'/event/{event_id}/manage/api/event-roles')
+    return [{**role, **extra} for role, extra in zip(detailed, basic, strict=True)]
+
+
+def current_log_entries(api, event_id):
+    # the management log serves fixed pages, so every page is read
+    entries = []
+    page = 1
+    while True:
+        data = api.get(f'/event/{event_id}/manage/logs/api/logs?{logs_test.ALL_REALMS}&page={page}')
+        entries += data['entries']
+        if page >= data['total_page_count']:
+            return entries
+        page += 1
+
+
+def designer_template_data(api, event_id, template_id):
+    current = api.get(f'/event/{event_id}/manage/designer/{template_id}/data')
+    return current['template'] | {'backside_template_id': current['backside_template_id']}
+
+
 class Checker:
     """Run every comparison and collect the outcome of each one."""
 
     def __init__(self, api, manifest):
         self.api = api
         self.manifest = manifest
+        self.tzinfo = pytz.timezone(manifest['default_timezone'])
         self.as_legacy_date = legacy_date(manifest['default_timezone'])
         self.as_timetable_date = timetable_date(manifest['default_timezone'])
         self.results = []
@@ -175,11 +210,23 @@ class Checker:
         for event in self.manifest['events']:
             self.area('events', self.check_event_contents, event)
         self.area('users', self.check_users)
+        self.area('groups', self.check_groups)
+        self.area('files', self.check_files)
+        self.area('event-series', self.check_series)
         self.area('rooms', self.check_rooms)
         self.area('locations', self.check_locations)
         self.area('blockings', self.check_blockings)
         self.area('reservations', self.check_reservations)
         return self.results
+
+    def check_count(self, entity, path, expected):
+        """Check that a list endpoint the current API has no counterpart for serves the seeded rows."""
+        def run():
+            if len(listed) != expected:
+                raise AssertionError(f'{path} served {len(listed)} rows instead of {expected}')
+
+        listed = self.api.list(path)
+        self.check(entity, f'count {path}', len(listed), run)
 
     def area(self, entity, method, *args):
         # a comparison that cannot even be set up must not take the rest of the run with it
@@ -238,12 +285,26 @@ class Checker:
         self.check_timetable(event_id)
         self.check_notes(event)
         self.check_attachments(event)
+        self.check_logs(event_id)
+        self.check_count('reminders', f'/events/{event_id}/reminders', event['reminders'])
+        self.check_count('videoconference-rooms', f'/events/{event_id}/videoconference-rooms', event['vc_rooms'])
         if event['type'] != 'conference':
             return
         self.check_tracks(event_id)
         self.check_abstracts(event_id)
         self.check_papers(event_id)
         self.check_registrations(event_id)
+        self.check_roles(event_id)
+        self.check_layout(event)
+        self.check_features(event)
+        self.check_document_templates(event_id)
+        self.check_designer_templates(event_id)
+        self.check_count('payments', f'/events/{event_id}/payments', event['payments'])
+        self.check_count('offline-copies', f'/events/{event_id}/offline-copies', event['offline_copies'])
+        self.check_count('pages', f'/events/{event_id}/pages', event['pages'])
+        self.check_count('images', f'/events/{event_id}/images', event['images'])
+        for registration_id, expected in event['documents'].items():
+            self.check_count('documents', f'/events/{event_id}/registrations/{registration_id}/documents', expected)
 
     def check_contributions(self, event_id):
         ours = self.api.list(f'/events/{event_id}/contributions')
@@ -409,6 +470,103 @@ class Checker:
         one = self.api.ours(f'/events/{event_id}/registrations/{first["id"]}')
         current = next(reg for reg in their_regs if reg['id'] == first['id'])
         self.check('registrations', f'detail {first["id"]}', 1, lambda: compare(one, current, **mappings))
+
+    def check_logs(self, event_id):
+        mappings = {'same': logs_test.LOG_FIELDS, 'renamed': logs_test.log_keys(self.tzinfo)}
+        ours = self.api.list(f'/events/{event_id}/logs')
+        theirs = current_log_entries(self.api, event_id)
+        self.check('logs', f'list {event_id}', len(ours), lambda: compare_list(ours, theirs, **mappings))
+        first = ours[0]
+        one = self.api.ours(f'/events/{event_id}/logs/{first["id"]}')
+        current = next(entry for entry in theirs if entry['id'] == first['id'])
+        self.check('logs', f'detail {first["id"]}', 1, lambda: compare(one, current, **mappings))
+
+    def check_roles(self, event_id):
+        mappings = {'same': roles_test.ROLE_FIELDS, 'derived': {'members': roles_test.by_id}}
+        ours = self.api.list(f'/events/{event_id}/roles')
+        theirs = merged_roles(self.api, event_id)
+        self.check('roles', f'list {event_id}', len(ours), lambda: compare_list(ours, theirs, **mappings))
+        first = ours[0]
+        one = self.api.ours(f'/events/{event_id}/roles/{first["id"]}')
+        current = next(role for role in theirs if role['id'] == first['id'])
+        self.check('roles', f'detail {first["id"]}', 1, lambda: compare(one, current, **mappings))
+
+    def check_layout(self, event):
+        event_id = event['id']
+
+        def run():
+            if layout['announcement'] != event['announcement']:
+                raise AssertionError(f'announcement {layout["announcement"]!r} instead of {event["announcement"]!r}')
+            if layout['css_url'] is None:
+                raise AssertionError('no stylesheet served')
+            pages = [entry for entry in menu if entry['type'] == 'page']
+            if len(pages) != event['pages']:
+                raise AssertionError(f'{len(pages)} page entries in the menu instead of {event["pages"]}')
+
+        layout = self.api.ours(f'/events/{event_id}/layout')
+        menu = self.api.list(f'/events/{event_id}/menu')
+        self.check('layout', f'event {event_id}', 1 + len(menu), run)
+
+    def check_features(self, event):
+        event_id = event['id']
+
+        def run():
+            enabled = sorted(feature['name'] for feature in features if feature['enabled'])
+            if enabled != event['features']:
+                raise AssertionError(f'enabled features {enabled} instead of {event["features"]}')
+
+        features = self.api.list(f'/events/{event_id}/features')
+        self.check('features', f'event {event_id}', len(features), run)
+
+    def check_document_templates(self, event_id):
+        ours = self.api.list(f'/events/{event_id}/document-templates')
+        theirs = self.api.get(f'/event/{event_id}/manage/receipts/templates')
+        self.check('document-templates', f'list {event_id}', len(ours),
+                   lambda: compare_list(ours, theirs, same=receipts_test.TEMPLATE_FIELDS))
+        first = ours[0]
+        one = self.api.ours(f'/events/{event_id}/document-templates/{first["id"]}')
+        current = next(template for template in theirs if template['id'] == first['id'])
+        self.check('document-templates', f'detail {first["id"]}', 1,
+                   lambda: compare(one, current, same=receipts_test.TEMPLATE_FIELDS))
+
+    def check_designer_templates(self, event_id):
+        mappings = {'same': ('title', 'data', 'background_url'),
+                    'renamed': {'id': ('backside_template_id', None), 'images': ('images', designer_test.as_image_map)}}
+        ours = self.api.list(f'/events/{event_id}/designer-templates')
+        theirs = [designer_template_data(self.api, event_id, template['id']) for template in ours]
+        self.check('designer-templates', f'list {event_id}', len(ours),
+                   lambda: compare_list(ours, theirs, **mappings, key='id'))
+        first = ours[0]
+        one = self.api.ours(f'/events/{event_id}/designer-templates/{first["id"]}')
+        self.check('designer-templates', f'detail {first["id"]}', 1, lambda: compare(one, theirs[0], **mappings))
+
+    def check_groups(self):
+        ours = self.api.list('/groups')
+        theirs = [self.api.get(f'/groups/api/search?name={quote(group["name"])}&exact=true')['groups'][0]
+                  for group in ours]
+        stripped = [groups_test.without_members(group) for group in ours]
+        self.check('groups', 'list', len(ours),
+                   lambda: compare_list(stripped, theirs, same=groups_test.GROUP_FIELDS))
+        first = ours[0]
+        one = groups_test.without_members(self.api.ours(f'/groups/{first["id"]}'))
+        self.check('groups', f'detail {first["id"]}', 1,
+                   lambda: compare(one, theirs[0], same=groups_test.GROUP_FIELDS))
+
+    def check_files(self):
+        ours = self.api.list('/files')
+        # the current API serves one file per call
+        theirs = [self.api.get(f'/files/{file["uuid"]}') for file in ours]
+        self.check('files', 'list', len(ours),
+                   lambda: compare_list(ours, theirs, same=files_test.FILE_FIELDS, key='uuid'))
+
+    def check_series(self):
+        mappings = {'same': series_test.SERIES_FIELDS, 'derived': {'event_ids': series_test.as_event_ids}}
+        ours = self.api.list('/event-series')
+        theirs = [self.api.get(f'/event-series/{series["id"]}') for series in ours]
+        self.check('event-series', 'list', len(ours), lambda: compare_list(ours, theirs, **mappings))
+        first = ours[0]
+        one = self.api.ours(f'/event-series/{first["id"]}')
+        self.check('event-series', f'detail {first["id"]}', 1, lambda: compare(one, theirs[0], **mappings))
 
     def check_users(self):
         me = self.api.ours('/users/me')

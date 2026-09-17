@@ -382,6 +382,24 @@ designer templates has no payload to compare against either, since the designer
 renders its own page; the comparison is made on a single template instead, against
 the endpoint its editor reads.
 
+### Checking a running instance
+
+The tests above run on rows built by fixtures. `scripts/seed_demo_data.py` fills
+a running instance with rows for every entity served, and
+`scripts/live_parity.py` repeats the comparisons over HTTP against it, importing
+the mappings from the test modules so the two cannot drift apart. The entities
+with no payload to compare against are checked by count, and the layout and the
+features by value, against what the seed wrote to its manifest.
+`scripts/purge_demo_data.py` removes the dataset again. Service requests are the
+one entity the seed leaves out: a request needs a plugin that defines its type,
+and none of the plugins shipped with Indico does.
+
+```sh
+SEED_PASSWORD=... indico shell -r <<< "import runpy, sys; sys.argv = ['seed', '/tmp/demo.json']; runpy.run_path('scripts/seed_demo_data.py', run_name='__main__')"
+python scripts/live_parity.py /tmp/demo.json
+indico shell -r <<< "import runpy; runpy.run_path('scripts/purge_demo_data.py', run_name='__main__')"
+```
+
 ## Pagination
 
 List endpoints take `limit` and `offset` and answer with an envelope:
