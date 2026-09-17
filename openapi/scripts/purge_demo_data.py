@@ -22,6 +22,7 @@ from indico.core.db import db
 CATEGORY_TITLE = 'OpenAPI demo data'
 EMAIL_PATTERN = 'openapi.%@example.test'
 IDENTITY_PATTERN = 'openapi.%'
+GROUP_PATTERN = 'OpenAPI demo %'
 LOCATION_NAMES = ('Meyrin', 'Prevessin', 'Remote')
 
 CATEGORY_TREE = """
@@ -39,7 +40,19 @@ DEMO_USERS = """
     SELECT user_id FROM users.identities WHERE provider = 'indico' AND identifier LIKE :identities
 """
 
-LISTS = ('categories', 'locations', 'users')
+# rows the demo events point at instead of the other way round, so deleting
+# the events leaves them behind
+SERIES = 'SELECT DISTINCT series_id FROM events.events WHERE series_id IS NOT NULL AND category_id IN :categories'
+VC_ROOMS = """
+    SELECT DISTINCT vc_room_id FROM events.vc_room_events
+    WHERE event_id IN (SELECT id FROM events.events WHERE category_id IN :categories)
+"""
+FILES = """
+    SELECT id FROM indico.files
+    WHERE (meta->>'event_id')::int IN (SELECT id FROM events.events WHERE category_id IN :categories)
+"""
+
+LISTS = ('categories', 'locations', 'users', 'series', 'vc_rooms', 'files')
 
 FOREIGN_KEYS = """
     SELECT rn.nspname || '.' || rc.relname AS parent,
@@ -70,7 +83,11 @@ TARGETS = (
     # reachable once the entry is gone
     ('events.breaks', ('id IN (SELECT b.id FROM events.breaks b WHERE NOT EXISTS '
                        '(SELECT 1 FROM events.timetable_entries t WHERE t.break_id = b.id))')),
+    ('events.series', 'id IN :series'),
+    ('events.vc_rooms', 'id IN :vc_rooms'),
+    ('indico.files', 'id IN :files'),
     ('roombooking.locations', 'name IN :locations'),
+    ('users.groups', 'name LIKE :groups'),
     ('users.users', 'id IN :users'),
 )
 
@@ -131,7 +148,9 @@ def main():
     categories = db.session.execute(text(CATEGORY_TREE), {'title': CATEGORY_TITLE}).scalars().all()
     users = db.session.execute(text(DEMO_USERS),
                                {'emails': EMAIL_PATTERN, 'identities': IDENTITY_PATTERN}).scalars().all()
-    params = {'categories': categories, 'locations': list(LOCATION_NAMES), 'users': users}
+    params = {'categories': categories, 'locations': list(LOCATION_NAMES), 'users': users, 'groups': GROUP_PATTERN}
+    for name, statement in (('series', SERIES), ('vc_rooms', VC_ROOMS), ('files', FILES)):
+        params[name] = run(statement, params).scalars().all()
     keys = read_foreign_keys()
     deleted = {}
     for table, where in TARGETS:
