@@ -293,6 +293,89 @@ designer templates. Those are declared
 here as automatic schemas over the model, so their field names and types still
 come from Indico rather than from a hand-written mapping.
 
+## How a resource is built
+
+A resource is one module under `indico_openapi/resources/`, holding its schema,
+its request handlers and an `ENDPOINTS` list. The package imports every module
+it finds and joins the lists, the blueprint registers one URL rule per entry and
+the OpenAPI document is generated from the same entries, so a route and its
+documentation cannot disagree on what is served. Dropping the module in is the
+whole change; nothing else registers it.
+
+```python
+@dataclass(frozen=True)
+class Endpoint:
+    rule: str
+    name: str
+    rh: type[RH]
+    summary: str
+    tag: str
+    schema: type | None = None
+    many: bool = False
+```
+
+Tracks are the smallest complete example. The schema extends the one core
+already has for the object and adds a description per field, since the fields
+inherited from core carry none and the generated document is the only reference
+a caller gets. A test fails as soon as any field of any schema is left
+undescribed.
+
+```python
+class TrackSchema(DescribedFieldsMixin, CoreTrackSchema):
+    class Meta(CoreTrackSchema.Meta):
+        fields = (*CoreTrackSchema.Meta.fields, 'track_group')
+        descriptions = {
+            'id': 'Numeric identifier of the track, unique across the whole instance.',
+            'title': 'Title of the track.',
+            ...
+        }
+
+    track_group = fields.Nested(TrackGroupReferenceSchema)
+```
+
+The request handlers subclass the bases core uses for its own pages, so the
+access check is the one the web interface runs: `RHProtectedEventBase` for what
+anyone allowed to see the event may read, `RHManageEventBase` for what only its
+managers see. A detail handler loads the row scoped to the event and dumps it. A
+list handler mixes in `RHListBase`, declares its schema and its query, and gets
+the pagination and the per-row access check from the base; a track has no access
+list of its own, so its per-row check is a constant, while a note answers with
+the check of the object it is attached to. `json_errors` turns the exceptions
+core raises into the JSON errors the document describes.
+
+```python
+@json_errors
+class RHTrackList(RHListBase, RHProtectedEventBase):
+    schema = TrackSchema
+
+    def _query(self):
+        return Track.query.with_parent(self.event).order_by(Track.position)
+
+    def _can_access(self, obj):
+        return True
+
+
+ENDPOINTS = [
+    Endpoint(rule='/events/<int:event_id>/tracks', name='tracks', rh=RHTrackList, schema=TrackSchema, many=True,
+             summary='List the tracks of an event', tag='Tracks'),
+    Endpoint(rule='/events/<int:event_id>/tracks/<int:track_id>', name='track', rh=RHTrack, schema=TrackSchema,
+             summary='Track details', tag='Tracks'),
+]
+```
+
+A list that takes filters extends `ListArgs` with them and names them as
+parameters of its query, as the event list does with `category_id`; the document
+picks them up as query parameters from the same class. When core has no schema
+for the object, the resource declares an automatic schema over the model
+instead, as the notes resource does, so the field names and types still come
+from Indico.
+
+The test module of a resource covers the detail and the list, the 403 an
+outsider gets, the 404 an identifier of another event gets, and the parity with
+the endpoint Indico serves today, described in the next section. The tuple of
+compared fields it declares is what the live check imports, so a field added to
+the schema is compared everywhere at once or nowhere.
+
 ## Parity with the endpoints Indico already serves
 
 Every entity has a test asserting that this API and the endpoint Indico already
