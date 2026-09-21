@@ -11,6 +11,7 @@ import pytest
 from indico.core.db.sqlalchemy.protection import ProtectionMode
 from indico.modules.events.contributions import contribution_settings
 from indico.modules.events.contributions.models.persons import ContributionPersonLink
+from indico.modules.events.contributions.models.references import ContributionReference
 
 
 @pytest.fixture
@@ -28,6 +29,15 @@ def test_contribution_details(dummy_event, dummy_contribution, token_headers, te
     assert resp.json['id'] == dummy_contribution.id
     assert resp.json['title'] == dummy_contribution.title
     assert resp.json['duration'] == dummy_contribution.duration.total_seconds()
+
+
+def test_contribution_details_carry_references(db, dummy_event, dummy_contribution, doi, token_headers, test_client):
+    dummy_contribution.references.append(ContributionReference(reference_type=doi, value='10.1000/xyz'))
+    db.session.flush()
+    resp = test_client.get(f'/api/v1/events/{dummy_event.id}/contributions/{dummy_contribution.id}',
+                           headers=token_headers)
+    assert resp.json['references'] == [{'type': 'DOI', 'value': '10.1000/xyz', 'url': 'https://doi.org/10.1000/xyz',
+                                        'urn': 'doi:10.1000/xyz'}]
 
 
 def test_contribution_list(dummy_event, dummy_contribution, token_headers, test_client):
@@ -82,20 +92,41 @@ def test_contribution_list_hides_person_contact_details(dummy_event, dummy_contr
 
 CONTRIBUTION_FIELDS = ('id', 'friendly_id', 'title', 'description', 'code', 'board_number', 'keywords', 'duration',
                        'start_dt', 'end_dt', 'inherit_location', 'venue_name', 'room_name', 'address', 'abstract_id',
-                       'track', 'session', 'session_block', 'type', 'persons', 'custom_fields')
+                       'track', 'session', 'session_block', 'type', 'persons', 'custom_fields', 'references')
 
 
-def test_contribution_matches_current_api(dummy_event, dummy_contribution, contribution_speaker, event_manager,
+@pytest.fixture
+def referenced_contribution(db, dummy_contribution, doi):
+    dummy_contribution.references.append(ContributionReference(reference_type=doi, value='10.1000/xyz'))
+    db.session.flush()
+    return dummy_contribution
+
+
+def with_references(indico_api, event):
+    # the contribution schema of the current API leaves the references out, the legacy export carries them
+    exported = indico_api(f'/export/event/{event.id}.json?detail=contributions')['results'][0]['contributions']
+    references = {contrib['db_id']: contrib['references'] for contrib in exported}
+
+    def add(current):
+        return {**current, 'references': references[current['id']]}
+
+    return add
+
+
+def test_contribution_matches_current_api(dummy_event, referenced_contribution, contribution_speaker, event_manager,
                                           token_headers, test_client, indico_api, same_json):
-    current = indico_api(f'/event/{dummy_event.id}/contributions/{dummy_contribution.id}.json')
-    new = test_client.get(f'/api/v1/events/{dummy_event.id}/contributions/{dummy_contribution.id}',
+    current = indico_api(f'/event/{dummy_event.id}/contributions/{referenced_contribution.id}.json')
+    new = test_client.get(f'/api/v1/events/{dummy_event.id}/contributions/{referenced_contribution.id}',
                           headers=token_headers).json
-    same_json(new, current, same=CONTRIBUTION_FIELDS)
+    same_json(new, with_references(indico_api, dummy_event)(current), same=CONTRIBUTION_FIELDS)
 
 
-def test_contribution_list_matches_current_api(dummy_event, dummy_contribution, create_contribution, event_manager,
-                                               token_headers, test_client, indico_api, same_json_list):
+def test_contribution_list_matches_current_api(dummy_event, referenced_contribution, create_contribution,
+                                               event_manager, token_headers, test_client, indico_api,
+                                               same_json_list):
     create_contribution(dummy_event, 'Another contribution')
-    current = indico_api(f'/event/{dummy_event.id}/manage/contributions/contributions.json')
+    add_references = with_references(indico_api, dummy_event)
+    current = [add_references(contrib)
+               for contrib in indico_api(f'/event/{dummy_event.id}/manage/contributions/contributions.json')]
     new = test_client.get(f'/api/v1/events/{dummy_event.id}/contributions', headers=token_headers).json['results']
     same_json_list(new, current, same=CONTRIBUTION_FIELDS)

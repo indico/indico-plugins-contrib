@@ -27,6 +27,7 @@ from indico_openapi.schemas import (
     ContributionPersonSchema,
     ContributionTypeReferenceSchema,
     CustomFieldValueSchema,
+    ExternalReferenceSchema,
     TrackReferenceSchema,
 )
 
@@ -54,6 +55,7 @@ class SessionBlockReferenceSchema(DescribedFieldsMixin, SessionBlockSchema):
 
 class ContributionSchema(DescribedFieldsMixin, FullContributionSchema):
     class Meta(FullContributionSchema.Meta):
+        fields = (*FullContributionSchema.Meta.fields, 'references')
         descriptions = {
             'id': 'Numeric identifier of the contribution, unique across the whole instance.',
             'title': 'Title of the contribution.',
@@ -78,6 +80,7 @@ class ContributionSchema(DescribedFieldsMixin, FullContributionSchema):
                              'restricted to managers.',
             'persons': 'Speakers and authors, in display order. Email, phone and address are only '
                        'present for users who can manage the contribution.',
+            'references': 'Identifiers of the contribution in other systems, such as a DOI.',
         }
 
     session = fields.Nested(SessionReferenceSchema)
@@ -87,6 +90,7 @@ class ContributionSchema(DescribedFieldsMixin, FullContributionSchema):
     custom_fields = fields.List(fields.Nested(CustomFieldValueSchema), attribute='field_values')
     persons = SortedList(fields.Nested(ContributionPersonSchema), attribute='person_links',
                          sort_key=attrgetter('display_order_key'))
+    references = fields.List(fields.Nested(ExternalReferenceSchema))
 
 
 class ContributionMixin:

@@ -13,6 +13,7 @@ from parity import compare, compare_list
 from parity import rename_keys as _rename_keys
 
 from indico.core.config import config
+from indico.modules.events.models.references import ReferenceType
 from indico.modules.users.models.affiliations import Affiliation
 
 
@@ -43,6 +44,14 @@ def dummy_affiliation(db, dummy_user):
     dummy_user.affiliation = affiliation.name
     db.session.flush()
     return affiliation
+
+
+@pytest.fixture
+def doi(db):
+    reference_type = ReferenceType(name='DOI', scheme='doi', url_template='https://doi.org/{value}')
+    db.session.add(reference_type)
+    db.session.flush()
+    return reference_type
 
 
 @pytest.fixture

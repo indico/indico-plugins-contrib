@@ -15,13 +15,13 @@ from indico.web.rh import json_errors
 
 from indico_openapi.resources.base import DescribedFieldsMixin, Endpoint, RHListBase
 from indico_openapi.resources.contributions import RHContribution
-from indico_openapi.schemas import SubContributionPersonSchema
+from indico_openapi.schemas import ExternalReferenceSchema, SubContributionPersonSchema
 
 
 class SubContributionSchema(DescribedFieldsMixin, mm.SQLAlchemyAutoSchema):
     class Meta:
         model = SubContribution
-        fields = ('id', 'title', 'friendly_id', 'code', 'duration', 'persons')
+        fields = ('id', 'title', 'friendly_id', 'code', 'duration', 'persons', 'references')
         descriptions = {
             'id': 'Numeric identifier of the subcontribution, unique across the whole instance.',
             'title': 'Title of the subcontribution.',
@@ -30,9 +30,11 @@ class SubContributionSchema(DescribedFieldsMixin, mm.SQLAlchemyAutoSchema):
             'duration': 'Length of the subcontribution, in seconds.',
             'persons': 'Speakers of the subcontribution. Email is only present for users who can '
                        'manage the contribution.',
+            'references': 'Identifiers of the subcontribution in other systems, such as a DOI.',
         }
 
     persons = fields.List(fields.Nested(SubContributionPersonSchema), attribute='person_links')
+    references = fields.List(fields.Nested(ExternalReferenceSchema))
 
 
 class SubContributionMixin:
