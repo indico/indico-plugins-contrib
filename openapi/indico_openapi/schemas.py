@@ -8,6 +8,7 @@
 
 from marshmallow import fields, post_dump
 
+from indico.core.marshmallow import mm
 from indico.modules.events.contributions.models.persons import SubContributionPersonLink
 from indico.modules.events.contributions.schemas import (
     ContributionFieldValueSchema,
@@ -85,6 +86,23 @@ class CustomFieldValueSchema(DescribedFieldsMixin, ContributionFieldValueSchema)
             'name': 'Title of the custom field.',
             'value': 'Value stored for this object, in the shape defined by the field type.',
         }
+
+
+class ExternalReferenceSchema(DescribedFieldsMixin, mm.Schema):
+    """Identifier of an event, contribution or subcontribution in another system, such as a DOI."""
+
+    class Meta:
+        descriptions = {
+            'type': 'Name of the system the identifier belongs to, as the administrators defined it, such as `DOI`.',
+            'value': 'The identifier itself.',
+            'url': 'Link to the entry in that system, or `null` when the system has no URL template.',
+            'urn': 'The identifier as a URN, such as `doi:10.1000/xyz`, or `null` when the system has no scheme.',
+        }
+
+    type = fields.String(attribute='reference_type.name')
+    value = fields.String()
+    url = fields.String(allow_none=True)
+    urn = fields.String(allow_none=True)
 
 
 class TrackReferenceSchema(DescribedFieldsMixin, TrackSchema):

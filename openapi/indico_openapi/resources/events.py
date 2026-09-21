@@ -10,19 +10,66 @@ from marshmallow import fields
 
 from indico.core.db import db
 from indico.core.db.sqlalchemy.protection import ProtectionMode
+from indico.core.marshmallow import mm
 from indico.modules.events.controllers.base import RHProtectedEventBase
 from indico.modules.events.models.events import Event
 from indico.modules.events.schemas import EventDetailsSchema
 from indico.web.rh import json_errors
 
 from indico_openapi.resources.base import DescribedFieldsMixin, Endpoint, ListArgs, RHListBase
+from indico_openapi.schemas import ExternalReferenceSchema
+
+
+class EventLabelSchema(DescribedFieldsMixin, mm.Schema):
+    """The label of an event, read from the event itself since the message given with it lives there."""
+
+    class Meta:
+        descriptions = {
+            'id': 'Numeric identifier of the label, shared by every event carrying it.',
+            'title': 'Text of the label, such as `Cancelled` or `Postponed`.',
+            'color': 'Colour the label is shown in, as a colour name such as `red`.',
+            'is_event_not_happening': 'Whether the label means the event will not take place as announced.',
+            'message': 'Explanation the managers of the event attached to the label, or an empty string.',
+        }
+
+    id = fields.Integer(attribute='label.id')
+    title = fields.String(attribute='label.title')
+    color = fields.String(attribute='label.color')
+    is_event_not_happening = fields.Boolean(attribute='label.is_event_not_happening')
+    message = fields.String(attribute='label_message')
+
+
+class Label(fields.Nested):
+    def get_value(self, obj, attr, **kwargs):
+        return obj if obj.label else None
+
+
+class ContactSchema(DescribedFieldsMixin, mm.Schema):
+    """How to reach the organisers, read from the event itself since it is stored as settings of it."""
+
+    class Meta:
+        descriptions = {
+            'title': 'Heading of the contact box on the event page, `Contact` unless the managers changed it.',
+            'emails': 'Email addresses to reach the organisers at.',
+            'phones': 'Phone numbers to reach the organisers at.',
+        }
+
+    title = fields.String(attribute='contact_title')
+    emails = fields.List(fields.String(), attribute='contact_emails')
+    phones = fields.List(fields.String(), attribute='contact_phones')
+
+
+class Contact(fields.Nested):
+    def get_value(self, obj, attr, **kwargs):
+        return obj
 
 
 class EventSchema(DescribedFieldsMixin, EventDetailsSchema):
     class Meta(EventDetailsSchema.Meta):
         fields = ('id', 'title', 'description', 'start_dt', 'end_dt', 'timezone', 'type', 'url',
                   'category_id', 'category_title', 'category_chain', 'location', 'room', 'room_full_name',
-                  'address', 'keywords', 'organizer', 'language', 'created_dt', 'is_protected')
+                  'address', 'keywords', 'organizer', 'language', 'created_dt', 'is_protected', 'references',
+                  'label', 'contact')
         descriptions = {
             'id': 'Numeric identifier of the event, unique across the whole instance.',
             'title': 'Title of the event.',
@@ -44,6 +91,9 @@ class EventSchema(DescribedFieldsMixin, EventDetailsSchema):
             'language': 'Locale the event is forced to be displayed in, or `null` to follow the user.',
             'created_dt': 'Moment the event was created, in UTC.',
             'is_protected': 'Whether reading the event requires permissions beyond being logged in.',
+            'references': 'Identifiers of the event in other systems, such as a DOI.',
+            'label': 'Label the managers put on the event, such as `Cancelled`, or `null` when there is none.',
+            'contact': 'How to reach the organisers, as shown on the event page.',
         }
 
     type = fields.String(attribute='type_.legacy_name')
@@ -55,6 +105,9 @@ class EventSchema(DescribedFieldsMixin, EventDetailsSchema):
     organizer = fields.String(attribute='organizer_info')
     language = fields.Function(lambda event: event.default_locale or None)
     is_protected = fields.Function(lambda event: event.effective_protection_mode != ProtectionMode.public)
+    references = fields.List(fields.Nested(ExternalReferenceSchema))
+    label = Label(EventLabelSchema, allow_none=True)
+    contact = Contact(ContactSchema)
 
 
 class EventListArgs(ListArgs):
@@ -78,7 +131,8 @@ class RHEventList(RHListBase):
     schema = EventSchema
 
     def _query(self, category_id, start_after, start_before):
-        query = Event.query.filter(~Event.is_deleted).options(db.joinedload('acl_entries'))
+        query = (Event.query.filter(~Event.is_deleted)
+                 .options(db.joinedload('acl_entries'), db.selectinload('references'), db.selectinload('label')))
         if category_id is not None:
             query = query.filter(Event.is_visible_in(category_id))
         if start_after is not None:
