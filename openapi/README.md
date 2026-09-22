@@ -182,8 +182,8 @@ request handlers and access checks are reused, so they cost nothing here.
 | Users | The people the instance knows, plus the identity of the caller. | 89 | 101 |
 | Files | The files uploaded to the instance, with the name, type and size of each one. | 77 | 65 |
 | Groups | The groups of users the instance itself defines, and the members of each one. | 99 | 85 |
-| Shared code (spec, Swagger UI, pagination, schema helpers) | Paid once: the OpenAPI document, the docs page, the list envelope and the field description machinery every resource above builds on. | 475 | 49 |
-| **Total** | | **6447** | **6459** |
+| Shared code (spec, Swagger UI, pagination, schema helpers) | Paid once: the OpenAPI document, the docs page, the list envelope and the field description machinery every resource above builds on, plus the fixtures and the comparison helper every test builds on. | 475 | 251 |
+| **Total** | | **6447** | **6661** |
 
 ## Entities not covered
 
