@@ -1136,16 +1136,18 @@ def create_reservation_logs(reservations, manager):
     return entries
 
 
-def link_reservations(reservations, events):
-    """Book a room for an event, which is how a booking gets attached to one.
+def link_reservations(reservations, datasets):
+    """Book a room for an event, a contribution or a session block, which is how a booking gets attached to one.
 
-    Indico allows a single booking occurrence per object, so one event takes one
-    reservation.
+    Indico allows a single booking occurrence per object, and a demo booking
+    takes one hour of a single day, so every object takes a booking of its own.
     """
+    objects = [obj for dataset in datasets
+               for obj in (dataset['event'], dataset['contributions'][0], dataset['blocks'][0])]
     links = []
-    for reservation, event in zip(reservations, events, strict=False):
+    for reservation, obj in zip(reservations, objects, strict=False):
         occurrence = reservation.occurrences[0]
-        occurrence.linked_object = event
+        occurrence.linked_object = obj
         links.append(occurrence.link)
     db.session.flush()
     return links
@@ -1344,7 +1346,7 @@ def main(manifest_path):
     # bookings are made before the rooms are restricted
     bookable_hours, nonbookable_periods = create_room_availability(rooms)
     reservation_logs = create_reservation_logs(reservations, manager)
-    reservation_links = link_reservations(reservations, [dataset['event'] for dataset in conferences])
+    reservation_links = link_reservations(reservations, conferences)
     blockings = create_blockings(rooms, users, 40)
 
     token = PersonalToken(name=TOKEN_NAME, user=manager, scopes=TOKEN_SCOPES)
@@ -1396,7 +1398,9 @@ def main(manifest_path):
         'attributed_room_id': rooms[0].id,
         'map_area_id': map_areas[0].id,
         'reservation_id': reservations[0].id,
-        'linked_reservation_id': reservation_links[0].reservation_occurrence.reservation_id,
+        # the first three links are an event, a contribution and a session block
+        'linked_reservation_ids': [link.reservation_occurrence.reservation_id
+                                   for link in reservation_links[:3]],
         'blocking_id': blockings[0].id,
         'role_id': sample['roles'][0].id,
         'group_id': groups[0].id,
