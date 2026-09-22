@@ -131,6 +131,7 @@ from indico.modules.receipts.settings import receipt_defaults
 from indico.modules.receipts.util import compile_jinja_code, create_pdf, get_safe_template_context
 from indico.modules.users import User
 from indico.modules.users.models.affiliations import Affiliation
+from indico.modules.users.models.export import DataExportOptions, DataExportRequest, DataExportRequestState
 from indico.modules.users.models.users import NameFormat
 from indico.modules.vc.models.vc_rooms import VCRoom, VCRoomEventAssociation, VCRoomStatus
 from indico.util.date_time import now_utc
@@ -1358,6 +1359,29 @@ def count_all(datasets, key):
     return sum(len(dataset.get(key, ())) for dataset in datasets)
 
 
+def create_personal_data(manager, users, categories, events, rooms):
+    """Fill the profile of the demo user, which is what the personal endpoints answer with."""
+    manager.favorite_users.update(users[:5])
+    manager.favorite_categories.update(categories[:2])
+    manager.favorite_events.update(events[:4])
+    manager.favorite_rooms.update(rooms[:3])
+    manager.secondary_emails.add(f'{MANAGER_USERNAME}.backup@example.test')
+    settings = {'timezone': 'Europe/Zurich', 'force_timezone': True, 'name_format': NameFormat.last_f,
+                'add_ical_alerts': True, 'add_ical_alerts_mins': 30, 'use_markdown_for_minutes': True}
+    manager.settings.set_multi(settings)
+    export_request = DataExportRequest(user=manager, state=DataExportRequestState.running, include_files=False,
+                                       selected_options=[DataExportOptions.personal_data, DataExportOptions.settings])
+    db.session.add(export_request)
+    db.session.flush()
+    return {'settings': {**settings, 'name_format': settings['name_format'].name},
+            'export_state': export_request.state.name,
+            'counts': {'favorite_users': len(manager.favorite_users),
+                       'favorite_categories': len(manager.favorite_categories),
+                       'favorite_events': len(manager.favorite_events),
+                       'favorite_rooms': len(manager.favorite_rooms),
+                       'emails': len(manager.all_emails)}}
+
+
 def main(manifest_path):
     if Category.query.filter_by(title=CATEGORY_TITLE, is_deleted=False).first():
         raise SystemExit(f'"{CATEGORY_TITLE}" already exists, delete it before seeding again')
@@ -1413,6 +1437,8 @@ def main(manifest_path):
     reservation_links = link_reservations(reservations, conferences)
     blockings = create_blockings(rooms, users, 40)
 
+    personal = create_personal_data(manager, users, topics, [dataset['event'] for dataset in conferences], rooms)
+
     token = PersonalToken(name=TOKEN_NAME, user=manager, scopes=TOKEN_SCOPES)
     plaintext = token.generate_token()
     db.session.add(token)
@@ -1425,6 +1451,8 @@ def main(manifest_path):
         'token': plaintext,
         'manager_id': manager.id,
         'manager_username': MANAGER_USERNAME,
+        'settings': personal['settings'],
+        'data_export_state': personal['export_state'],
         'category_id': demo.id,
         'topic_category_id': topics[0].id,
         'event_id': sample['event'].id,
@@ -1521,6 +1549,7 @@ def main(manifest_path):
             'invitations': count_all(datasets, 'invitations'),
             'category_roles': len(category_roles),
             'category_log_entries': len(category_log_entries),
+            **personal['counts'],
             # the catalogues are served instance wide, so what is already there counts too
             'affiliations': Affiliation.query.filter(~Affiliation.is_deleted).count(),
             'reference_types': ReferenceType.query.count(),
