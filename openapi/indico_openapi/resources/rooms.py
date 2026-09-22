@@ -12,6 +12,7 @@ from marshmallow import fields
 from indico.modules.rb.controllers import RHRoomBookingBase
 from indico.modules.rb.models.rooms import Room
 from indico.modules.rb.schemas import RoomSchema as CoreRoomSchema
+from indico.web.flask.util import url_for
 from indico.web.rh import json_errors
 
 from indico_openapi.resources.base import DescribedFieldsMixin, Endpoint, ListArgs, RHListBase
@@ -22,7 +23,7 @@ class RoomSchema(DescribedFieldsMixin, CoreRoomSchema):
         fields = ('id', 'name', 'full_name', 'verbose_name', 'location_id', 'location_name', 'site', 'building',
                   'floor', 'number', 'division', 'capacity', 'surface_area', 'latitude', 'longitude', 'telephone',
                   'key_location', 'comments', 'owner_name', 'available_equipment', 'is_public', 'is_reservable',
-                  'reservations_need_confirmation', 'max_advance_days', 'has_photo', 'map_url')
+                  'reservations_need_confirmation', 'max_advance_days', 'has_photo', 'photo_url', 'map_url')
         descriptions = {
             'id': 'Numeric identifier of the room, unique across the whole instance.',
             'name': 'Name of the room, either its verbose name or `building/floor-number`.',
@@ -48,11 +49,14 @@ class RoomSchema(DescribedFieldsMixin, CoreRoomSchema):
             'is_reservable': 'Whether the room can be booked at all.',
             'reservations_need_confirmation': 'Whether a booking has to be accepted by a manager of the room.',
             'max_advance_days': 'How many days in advance the room can be booked, or `null` when unlimited.',
-            'has_photo': 'Whether the room has a photo, served under the room booking interface.',
+            'has_photo': 'Whether the room has a photo.',
+            'photo_url': 'URL the photo is served from, relative to the Indico instance, or `null` when the room '
+                         'has none.',
             'map_url': 'Absolute URL of the room on an external map, or `null` when there is none.',
         }
 
     available_equipment = fields.Function(lambda room: sorted(eq.name for eq in room.available_equipment))
+    photo_url = fields.Function(lambda room: url_for('rb.room_photo', room_id=room.id) if room.has_photo else None)
 
 
 class RoomReferenceSchema(DescribedFieldsMixin, CoreRoomSchema):
