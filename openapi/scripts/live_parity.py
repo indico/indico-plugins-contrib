@@ -240,6 +240,8 @@ class Checker:
         for event in self.manifest['events']:
             self.area('events', self.check_event_contents, event)
         self.area('users', self.check_users)
+        self.area('favorites', self.check_favorites)
+        self.area('personal-data', self.check_personal_data)
         self.area('groups', self.check_groups)
         self.area('files', self.check_files)
         self.area('event-series', self.check_series)
@@ -848,6 +850,42 @@ class Checker:
         self.check('users', 'list', len(ours),
                    lambda: compare_list(ours, theirs, same=users_test.USER_FIELDS))
 
+    def check_same_ids(self, entity, label, ours, theirs):
+        """Check that a personal list holds the same objects the current API answers with.
+
+        The current API answers with identifiers alone for every list of
+        favourites, so that is what the comparison can go down to.
+        """
+        def run():
+            if sorted(ours) != sorted(theirs):
+                raise AssertionError(f'{label} served {sorted(ours)} instead of {sorted(theirs)}')
+
+        self.check(entity, label, len(ours), run)
+
+    def check_favorites(self):
+        ours = self.api.list('/users/me/favorite-users')
+        self.check_same_ids('favorites', 'users', [user['identifier'] for user in ours],
+                            self.api.get('/user/api/favorites/users'))
+        ours = self.api.list('/users/me/favorite-categories')
+        self.check_same_ids('favorites', 'categories', [category['id'] for category in ours],
+                            [int(id_) for id_ in self.api.get('/user/api/favorites/categories')])
+        ours = self.api.list('/users/me/favorite-events')
+        self.check_same_ids('favorites', 'events', [event['id'] for event in ours],
+                            [int(id_) for id_ in self.api.get('/user/api/favorites/events')])
+        ours = self.api.list('/users/me/favorite-rooms')
+        self.check_same_ids('favorites', 'rooms', [room['id'] for room in ours],
+                            self.api.get('/rooms/api/user/favorite-rooms/'))
+
+    def check_personal_data(self):
+        settings = self.api.ours('/users/me/settings')
+        expected = self.manifest['settings']
+        self.check('personal-data', 'settings', 1,
+                   lambda: _same_settings(settings, expected))
+        self.check_count('personal-data', '/users/me/emails', self.manifest['counts']['emails'])
+        export = self.api.ours('/users/me/data-export')
+        self.check('personal-data', 'data export', 1,
+                   lambda: _same_export_state(export, self.manifest['data_export_state']))
+
     def check_rooms(self):
         as_ids = rooms_test.as_equipment_ids(self.api.get)
         mappings = {'same': rooms_test.ROOM_FIELDS,
@@ -901,6 +939,17 @@ class Checker:
                    lambda: compare(one, current, **mappings,
                                    derived={'is_repeating': reservations_test.as_is_repeating,
                                             'occurrences': reservations_test.as_occurrences}))
+
+
+def _same_settings(ours, expected):
+    saved = {key: ours[key] for key in expected}
+    if saved != expected:
+        raise AssertionError(f'/users/me/settings served {saved} instead of {expected}')
+
+
+def _same_export_state(ours, expected):
+    if ours['state'] != expected:
+        raise AssertionError(f'/users/me/data-export is {ours["state"]} instead of {expected}')
 
 
 def report(results, compared, calls):
