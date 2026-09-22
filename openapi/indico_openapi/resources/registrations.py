@@ -19,6 +19,7 @@ from indico.modules.events.registration.models.form_fields import RegistrationFo
 from indico.modules.events.registration.models.forms import RegistrationForm
 from indico.modules.events.registration.models.items import PersonalDataType, RegistrationFormSection
 from indico.modules.events.registration.models.registrations import Registration, RegistrationState
+from indico.modules.events.registration.models.tags import RegistrationTag
 from indico.web.rh import json_errors
 
 from indico_openapi.resources.base import DescribedFieldsMixin, Endpoint, RHListBase
@@ -503,6 +504,44 @@ class RHRegistrationList(RegistrationMixin, RHListBase, RHProtectedEventBase):
         return self._registration_schema(many=True)
 
 
+class RegistrationTagMixin(RegistrationMixin):
+    """Access checks shared by the registration tag endpoints.
+
+    The tags of a registration are only served to the organisers, and so is the
+    catalogue they are taken from.
+    """
+
+    def _check_access(self):
+        RHProtectedEventBase._check_access(self)
+        if not self.can_manage:
+            raise Forbidden
+
+    def _tag_query(self):
+        return (RegistrationTag.query.with_parent(self.event)
+                .order_by(db.func.lower(RegistrationTag.title), RegistrationTag.id))
+
+
+@json_errors
+class RHRegistrationTag(RegistrationTagMixin, RHProtectedEventBase):
+    def _process_args(self):
+        RegistrationTagMixin._process_args(self)
+        self.tag = self._tag_query().filter(RegistrationTag.id == request.view_args['tag_id']).first_or_404()
+
+    def _process_GET(self):
+        return RegistrationTagSchema().jsonify(self.tag)
+
+
+@json_errors
+class RHRegistrationTagList(RegistrationTagMixin, RHListBase, RHProtectedEventBase):
+    schema = RegistrationTagSchema
+
+    def _query(self):
+        return self._tag_query()
+
+    def _can_access(self, obj):
+        return True
+
+
 ENDPOINTS = [
     Endpoint(rule='/events/<int:event_id>/registration-forms', name='regforms', rh=RHRegistrationFormList,
              schema=RegistrationFormSchema, many=True, summary='List the registration forms of an event',
@@ -519,5 +558,11 @@ ENDPOINTS = [
              schema=RegistrationSchema, many=True, summary='List the registrations of an event', tag='Registrations'),
     Endpoint(rule='/events/<int:event_id>/registrations/<int:registration_id>', name='registration', rh=RHRegistration,
              schema=RegistrationDetailsSchema, summary='Registration details, with the answers given',
+             tag='Registrations'),
+    Endpoint(rule='/events/<int:event_id>/registration-tags', name='registration_tags', rh=RHRegistrationTagList,
+             schema=RegistrationTagSchema, many=True, summary='List the tags an event marks its registrations with',
+             tag='Registrations'),
+    Endpoint(rule='/events/<int:event_id>/registration-tags/<int:tag_id>', name='registration_tag',
+             rh=RHRegistrationTag, schema=RegistrationTagSchema, summary='Registration tag details',
              tag='Registrations'),
 ]
