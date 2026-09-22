@@ -12,6 +12,7 @@ import pytest
 
 from indico.core.db.sqlalchemy.protection import ProtectionMode
 from indico.modules.events.contributions import contribution_settings
+from indico.modules.events.sessions.models.types import SessionType
 from indico.modules.events.timetable.models.breaks import Break
 from indico.util.date_time import now_utc
 
@@ -184,3 +185,21 @@ def test_timetable_matches_current_api(dummy_event, dummy_break, dummy_session_b
     current = [as_current(entry) for entry in flatten(days).values()]
     new = test_client.get(f'/api/v1/events/{dummy_event.id}/timetable', headers=token_headers).json['results']
     same_json_list(new, current, same=('title',), renamed=entry_keys(as_timetable_date), derived=DERIVED)
+
+
+def test_timetable_serves_the_stored_schedule_of_a_poster(db, dummy_event, dummy_session, dummy_session_block,
+                                                          dummy_contribution, create_timetable_entry, token_headers,
+                                                          test_client, indico_api):
+    # a poster is shown for as long as the session it is presented in, and that displayed span is what
+    # the legacy export answers with, while the schedule as stored is what is served here
+    entry = create_timetable_entry(dummy_event, dummy_contribution, now_utc(),
+                                   parent=dummy_session_block.timetable_entry)
+    dummy_session.type = SessionType(event=dummy_event, name='Poster session', is_poster=True)
+    dummy_session_block.duration = timedelta(hours=3)
+    dummy_contribution.session = dummy_session
+    dummy_contribution.session_block = dummy_session_block
+    db.session.flush()
+    days = indico_api(f'/export/timetable/{dummy_event.id}.json')['results'][str(dummy_event.id)]
+    new = test_client.get(f'/api/v1/events/{dummy_event.id}/timetable/{entry.id}', headers=token_headers).json
+    assert timedelta(seconds=new['duration']) == dummy_contribution.duration
+    assert timedelta(minutes=flatten(days)[f'c{entry.id}']['duration']) == dummy_session_block.duration
