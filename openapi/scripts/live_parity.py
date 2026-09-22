@@ -680,17 +680,14 @@ class Checker:
                                         derived={'reservation_id': lambda _: reservation_id}))
 
     def check_reservation_links(self):
-        reservation_id = self.manifest['linked_reservation_id']
-        ours = self.api.list(f'/reservations/{reservation_id}/links')
-        theirs = self.api.get(f'/rooms/api/bookings/{reservation_id}/links')
-        event_ids = {link['id']: link['event_id'] for link in ours}
-        self.check('reservation-links', f'list {reservation_id}', len(ours),
-                   lambda: compare_list(ours, theirs, same=reservation_links_test.LINK_FIELDS,
-                                        renamed={'occurrence_start_dt': 'start_dt', 'occurrence_state': 'state'},
-                                        derived={'event_id': lambda current: event_ids[current['id']],
-                                                 'contribution_id': lambda _: None,
-                                                 'session_block_id': lambda _: None,
-                                                 'title': lambda current: current['object']['title']}))
+        for reservation_id in self.manifest['linked_reservation_ids']:
+            ours = self.api.list(f'/reservations/{reservation_id}/links')
+            theirs = self.api.get(f'/rooms/api/bookings/{reservation_id}/links')
+            self.check('reservation-links', f'list {reservation_id}', len(ours),
+                       lambda ours=ours, theirs=theirs: compare_list(
+                           ours, theirs, same=reservation_links_test.LINK_FIELDS,
+                           renamed=reservation_links_test.LINK_KEYS,
+                           derived=reservation_links_test.link_derived(ours)))
 
     def check_layout(self, event):
         event_id = event['id']
