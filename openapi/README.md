@@ -129,6 +129,13 @@ of being reported as an error.
 | `/api/v1/users` | List users |
 | `/api/v1/users/me` | Details of the authenticated user |
 | `/api/v1/users/<user_id>` | User details |
+| `/api/v1/users/me/settings` | Preferences of the authenticated user |
+| `/api/v1/users/me/emails` | List the email addresses of the authenticated user |
+| `/api/v1/users/me/favorite-users` | List the users the caller marked as favourites |
+| `/api/v1/users/me/favorite-categories` | List the categories the caller marked as favourites |
+| `/api/v1/users/me/favorite-events` | List the events the caller marked as favourites |
+| `/api/v1/users/me/favorite-rooms` | List the rooms the caller marked as favourites |
+| `/api/v1/users/me/data-export` | Data export the authenticated user requested |
 | `/api/v1/affiliations` | List the organisations people can be affiliated with |
 | `/api/v1/affiliations/<affiliation_id>` | Affiliation details |
 | `/api/v1/files` | List the uploaded files |
@@ -147,7 +154,7 @@ of being reported as an error.
 ## Entities served
 
 The list below is what the API serves. It leaves out reviewing, editing, the
-instance administration area, permissions and personal user data, described
+instance administration area, permissions and the log of a user account, described
 under Entities not covered. The cost columns are the lines of plugin code and of plugin
 tests each entity took, counted with `wc -l` on the files it owns. Core schemas,
 request handlers and access checks are reused, so they cost nothing here.
@@ -199,12 +206,14 @@ request handlers and access checks are reused, so they cost nothing here.
 | Blockings | The periods a room cannot be booked, and who may still book it. | 99 | 95 |
 | Users | The people the instance knows, plus the identity of the caller. | 89 | 101 |
 | Affiliations | The organisations the instance defines, which is what the affiliation of a user, a speaker or a registrant points at. | 60 | 65 |
+| Favourites | The users, categories, events and rooms the caller starred, which is what their dashboard and the room booking pages open with. | 96 | 72 |
+| Personal data | The preferences the caller saved, the addresses they receive Indico mail at and the data export they asked for. | 136 | 78 |
 | Files | The files uploaded to the instance, with the name, type and size of each one. | 77 | 65 |
 | Groups | The groups of users the instance itself defines, and the members of each one. | 99 | 85 |
 | Event labels | The labels an event can be marked with, such as `Cancelled`, as the administrators defined them. | 70 | 57 |
 | Reference types | The external systems an event, a contribution or a subcontribution can carry an identifier of, such as a DOI, with the scheme and the URL template each one builds its links from. | 71 | 41 |
 | Shared code (spec, Swagger UI, pagination, schema helpers) | Paid once: the OpenAPI document, the docs page, the list envelope and the field description machinery every resource above builds on, plus the fixtures and the comparison helper every test builds on. | 475 | 251 |
-| **Total** | | **6961** | **7226** |
+| **Total** | | **7193** | **7376** |
 
 ## Entities not covered
 
@@ -219,7 +228,7 @@ per role, 450 to 500 when it also needs several endpoints of its own.
 | Editing (`events/editing`) | The editing workflow is reviewing material under another name: revisions, review comments and file type settings. It also already has its own REST API, used by its React frontend. | 500 to 600 |
 | Instance administration | Settings, announcements, news, legal texts, authentication, OAuth applications, IP networks and the search service are either instance configuration or a view over the entities above. | 600 or more |
 | Protection and permissions | The access lists of events, categories, sessions, contributions, tracks, menu entries, rooms and blockings. Reading one means resolving every kind of principal it can hold, from a user to a group, an email address, an IP network, an event role or a registration form, and each surface grants a different set of permissions. It is also the one payload that says who may read the rest, so serving it needs a design of its own rather than another resource. | 500 to 600 |
-| User logs and personal data | The log of a user account, its settings, its favourite events, categories, rooms and users, and the data export requests it made. All of it belongs to one person, is only ever shown to that person and to administrators, and is read from the profile page rather than from an event. Identities, API keys and personal tokens are credentials and are not served at all. | 300 to 350 |
+| User logs | The audit trail of one account: the profile changes, the permissions granted and the mail sent to it. Indico shows it in the administration area alone and never to the account it belongs to, so serving it here would mean answering one caller with the record of another, which the personal endpoints never do. Identities, API keys and personal tokens are credentials and are not served at all either. | 150 to 200 |
 
 ### Where Indico serves them today
 
@@ -232,7 +241,7 @@ whether the data is reachable but in what shape and to whom.
 | Paper and abstract reviews, ratings and comments | `/event/<event_id>/manage/abstracts/abstracts.json`, `/event/<event_id>/manage/papers/assignment-list/export-json`, and the abstract and paper pages | JSON, but only as a whole-event dump sent as a file attachment and only to managers. The per-role view of a single review is HTML. |
 | Editing | `/event/<event_id>/editing/api/...` and the editable timeline of each contribution | JSON. It already is a REST API, written for its own React frontend. |
 | Protection and permissions | The protection page of each object, plus `/event/<event_id>/manage/protection/acl` | HTML. The inherited access list is rendered into the page, and the only JSON behind it is the principal search, which answers to POST. |
-| User logs and personal data | `/user/<user_id>/...`, with JSON at `/user/<user_id>/api/favorites/...` and `/user/<user_id>/api/data-export` | Mixed. The profile, the settings and the log are HTML; the favourites and the export request answer JSON to the user they belong to. |
+| User logs | `/user/<user_id>/logs`, with JSON at `/user/<user_id>/api/logs` | JSON behind an HTML page, served to instance administrators alone. |
 | Instance administration | The pages under `/admin/` | HTML forms, except `/admin/logs/api/logs` and `/admin/version-check`. |
 
 Instance settings are the one entity that can only be read as HTML today: they are a
@@ -410,6 +419,17 @@ hangs off, which is a narrower audience than the note itself. The current text i
 what the object shows, while a revision holds what it used to say and no longer
 does.
 
+The preferences of the caller, the addresses they receive Indico mail at, the
+export of their own data they asked Indico to build and the four lists of
+favourites they keep are served to the caller alone. Indico puts all of it on the
+profile page, which an administrator may open for somebody else; this API answers
+about the account holding the token and about no other, so none of these
+endpoints takes a user id in its path. A favourite pointing at something the
+caller may no longer read, or at something since deleted, is left out of the
+list, which is the one place these endpoints answer with less than the profile
+page does. A favourite user is served with the name and the address the user
+search answers with, since that is the interface the caller picked them from.
+
 Responses reuse Indico's own marshmallow schemas wherever core has one that
 describes the object. Several objects are only ever rendered from a template, or
 sent as a payload shaped for one React page, or described by a schema that only
@@ -563,6 +583,10 @@ current interface itself calls:
 | Category roles | `/category/<category_id>/manage/roles/api/roles/` |
 | Registration tags | `/api/checkin/event/<event_id>/`, field `registration_tags` |
 | Affiliations | `/api/admin/affiliations` |
+| Favourite users | `/user/api/favorites/users` |
+| Favourite categories | `/user/api/favorites/categories` |
+| Favourite events | `/user/api/favorites/events` |
+| Favourite rooms | `/rooms/api/user/favorite-rooms/` |
 | Event move requests | `/category/<category_id>/api/event-move-requests` |
 | Map areas | `/rooms/api/map-areas` |
 | Equipment types | `/rooms/api/equipment` |
@@ -576,6 +600,13 @@ Event roles are the one entity whose comparison needs two endpoints at once:
 the management API serves the members of a role but not its id, and the
 protection API the id but not the members, so the test compares
 against both payloads joined on the code each of them orders by.
+
+The four lists of favourites are compared on identifiers alone. The interface
+keeps the objects it already holds and asks Indico only which ones are starred,
+so three of those endpoints answer with a bare list of ids and the fourth with
+one entry per id. This API answers with the objects themselves, in the shape it
+serves them everywhere else, and what the two have to agree on is which objects
+are in the list.
 
 The member list of a group is left out of its comparison, for lack of anything
 to compare it against: the group search answers with the name and the identifier
@@ -604,8 +635,9 @@ stretches those contributions over their session block before matching them.
 Survey submissions, agreements, reminders, payments, service requests,
 videoconferences, offline copies, event layout, event features, the documents
 generated for a registration, session types, registration invitations, paper
-templates, abstract notifications, reference types, event labels and note
-revisions are the entities served without a parity test. The interface only exports submissions as CSV or Excel, behind a
+templates, abstract notifications, reference types, event labels, note
+revisions, user preferences, email addresses and data exports are the entities
+served without a parity test. The interface only exports submissions as CSV or Excel, behind a
 POST, so the survey test compares the questionnaire instead. For agreements, the
 legacy endpoint answers with the people an agreement definition asks to sign, and
 those definitions come from plugins, so there is nobody to list unless a plugin
@@ -627,7 +659,11 @@ renders its own page; the comparison is made on a single template instead, again
 the endpoint its editor reads. Session types, registration invitations, paper
 templates and both the notification templates of a call for abstracts and the
 notifications it sent are only ever rendered as management pages, with a download
-link behind a paper template and nothing behind the rest.
+link behind a paper template and nothing behind the rest. The preferences and the
+email addresses of a caller are rendered as forms, which answer to POST, and the
+one JSON endpoint of the data export is the call that starts an export rather
+than one that describes it, so the three of them are checked against the values
+the demo data seeds instead.
 
 Reference types and event labels are managed from an administration page that
 answers HTML, and neither catalogue is served as JSON anywhere, so there is
