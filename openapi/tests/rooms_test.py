@@ -7,6 +7,7 @@
 
 
 from indico.modules.rb import rb_settings
+from indico.modules.rb.models.photos import Photo
 
 
 def test_room_details(dummy_room, token_headers, test_client):
@@ -42,6 +43,16 @@ def test_room_equipment(db, dummy_room, create_equipment_type, token_headers, te
     assert resp.json['available_equipment'] == ['Video conference']
 
 
+def test_room_photo_url(db, dummy_room, token_headers, test_client):
+    url = f'/api/v1/rooms/{dummy_room.id}'
+    assert test_client.get(url, headers=token_headers).json['photo_url'] is None
+    dummy_room.photo = Photo(data=b'not really a picture')
+    db.session.flush()
+    resp = test_client.get(url, headers=token_headers)
+    assert resp.json['has_photo'] is True
+    assert resp.json['photo_url'] == f'/rooms/rooms/{dummy_room.id}.jpg'
+
+
 def test_deleted_room_is_not_found(db, dummy_room, token_headers, test_client):
     dummy_room.is_deleted = True
     db.session.flush()
@@ -70,6 +81,12 @@ ROOM_FIELDS = ('id', 'name', 'full_name', 'verbose_name', 'location_id', 'locati
                'reservations_need_confirmation', 'max_advance_days', 'has_photo', 'map_url')
 
 
+def as_photo_url(current):
+    # the current API only says whether a room has a photo, and the interface builds the URL out of the room id
+    room_id = current['id']
+    return f'/rooms/rooms/{room_id}.jpg' if current['has_photo'] else None
+
+
 def as_equipment_ids(indico_api):
     ids = {eq['name']: eq['id'] for eq in indico_api('/rooms/api/equipment')}
     return lambda names: sorted(ids[name] for name in names)
@@ -83,7 +100,8 @@ def test_room_matches_current_api(db, dummy_room, create_equipment_type, token_h
     current['available_equipment'].sort()
     new = test_client.get(f'/api/v1/rooms/{dummy_room.id}', headers=token_headers).json
     same_json(new, current, same=ROOM_FIELDS,
-              renamed={'available_equipment': ('available_equipment', as_equipment_ids(indico_api))})
+              renamed={'available_equipment': ('available_equipment', as_equipment_ids(indico_api))},
+              derived={'photo_url': as_photo_url})
 
 
 def test_room_list_matches_current_api(db, dummy_room, create_room, create_equipment_type, token_headers, test_client,
@@ -96,4 +114,5 @@ def test_room_list_matches_current_api(db, dummy_room, create_room, create_equip
         room['available_equipment'].sort()
     new = test_client.get('/api/v1/rooms', headers=token_headers).json['results']
     same_json_list(new, current, same=ROOM_FIELDS,
-                   renamed={'available_equipment': ('available_equipment', as_equipment_ids(indico_api))})
+                   renamed={'available_equipment': ('available_equipment', as_equipment_ids(indico_api))},
+                   derived={'photo_url': as_photo_url})
