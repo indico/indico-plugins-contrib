@@ -46,36 +46,52 @@ from indico.modules.attachments.models.attachments import Attachment, Attachment
 from indico.modules.attachments.models.folders import AttachmentFolder
 from indico.modules.auth import Identity
 from indico.modules.categories import Category
+from indico.modules.categories.models.event_move_request import EventMoveRequest, MoveRequestState
+from indico.modules.categories.models.roles import CategoryRole
 from indico.modules.designer import TemplateType
 from indico.modules.designer.models.images import DesignerImageFile
 from indico.modules.designer.models.templates import DesignerTemplate
 from indico.modules.events import Event
 from indico.modules.events.abstracts.models.abstracts import Abstract, AbstractState
+from indico.modules.events.abstracts.models.email_logs import AbstractEmailLogEntry
+from indico.modules.events.abstracts.models.email_templates import AbstractEmailTemplate
 from indico.modules.events.abstracts.models.files import AbstractFile
 from indico.modules.events.abstracts.models.persons import AbstractPersonLink
 from indico.modules.events.agreements.models.agreements import Agreement, AgreementState
 from indico.modules.events.contributions.models.contributions import Contribution
+from indico.modules.events.contributions.models.fields import (
+    ContributionField,
+    ContributionFieldValue,
+    ContributionFieldVisibility,
+)
 from indico.modules.events.contributions.models.persons import (
     AuthorType,
     ContributionPersonLink,
     SubContributionPersonLink,
 )
+from indico.modules.events.contributions.models.references import ContributionReference, SubContributionReference
 from indico.modules.events.contributions.models.subcontributions import SubContribution
+from indico.modules.events.contributions.models.types import ContributionType
 from indico.modules.events.features.util import get_enabled_features, set_feature_enabled
 from indico.modules.events.layout import layout_settings
 from indico.modules.events.layout.models.images import ImageFile
 from indico.modules.events.layout.models.menu import EventPage, MenuEntry, MenuEntryType
 from indico.modules.events.layout.util import menu_entries_for_event
 from indico.modules.events.models.events import EventType
+from indico.modules.events.models.labels import EventLabel
 from indico.modules.events.models.persons import EventPerson, EventPersonLink
+from indico.modules.events.models.references import EventReference, ReferenceType
 from indico.modules.events.models.roles import EventRole
 from indico.modules.events.models.series import EventSeries
 from indico.modules.events.notes.models.notes import EventNote
+from indico.modules.events.papers.file_types import PaperFileType
 from indico.modules.events.papers.models.files import PaperFile
 from indico.modules.events.papers.models.papers import Paper
 from indico.modules.events.papers.models.revisions import PaperRevision, PaperRevisionState
+from indico.modules.events.papers.models.templates import PaperTemplate
 from indico.modules.events.payment.models.transactions import PaymentTransaction, TransactionStatus
 from indico.modules.events.registration.models.forms import RegistrationForm
+from indico.modules.events.registration.models.invitations import InvitationState, RegistrationInvitation
 from indico.modules.events.registration.models.registrations import PublishRegistrationsMode
 from indico.modules.events.registration.models.tags import RegistrationTag
 from indico.modules.events.registration.util import create_personal_data_fields, create_registration
@@ -83,6 +99,8 @@ from indico.modules.events.reminders.models.reminders import EventReminder, Remi
 from indico.modules.events.sessions.models.blocks import SessionBlock
 from indico.modules.events.sessions.models.persons import SessionBlockPersonLink
 from indico.modules.events.sessions.models.sessions import Session
+from indico.modules.events.sessions.models.types import SessionType
+from indico.modules.events.settings import event_contact_settings
 from indico.modules.events.static.models.static import StaticSite, StaticSiteState
 from indico.modules.events.surveys.models.items import SurveyQuestion, SurveySection
 from indico.modules.events.surveys.models.submissions import SurveyAnswer, SurveySubmission
@@ -98,7 +116,13 @@ from indico.modules.rb.models.blocked_rooms import BlockedRoom
 from indico.modules.rb.models.blockings import Blocking
 from indico.modules.rb.models.equipment import EquipmentType
 from indico.modules.rb.models.locations import Location
+from indico.modules.rb.models.map_areas import MapArea
+from indico.modules.rb.models.photos import Photo
+from indico.modules.rb.models.reservation_edit_logs import ReservationEditLog
 from indico.modules.rb.models.reservations import RepeatFrequency, Reservation
+from indico.modules.rb.models.room_attributes import RoomAttribute
+from indico.modules.rb.models.room_bookable_hours import BookableHours
+from indico.modules.rb.models.room_nonbookable_periods import NonBookablePeriod
 from indico.modules.rb.models.rooms import Room
 from indico.modules.receipts.models.files import ReceiptFile
 from indico.modules.receipts.models.templates import ReceiptTemplate
@@ -202,6 +226,12 @@ def midnight(day):
 def png_image(color, size=(160, 60)):
     buffer = BytesIO()
     Image.new('RGB', size, f'#{color}').save(buffer, 'PNG')
+    return buffer.getvalue()
+
+
+def jpeg_image(color, size=(320, 240)):
+    buffer = BytesIO()
+    Image.new('RGB', size, f'#{color}').save(buffer, 'JPEG')
     return buffer.getvalue()
 
 
@@ -842,7 +872,286 @@ def create_uploads(event, count):
     return files
 
 
-def seed_conference(category, manager, users, index, start):
+def get_reference_types():
+    types = {}
+    for name, scheme, template in (('DOI', 'doi', 'https://doi.org/{value}'), ('Report number', None, None)):
+        # the name is unique regardless of case
+        reference_type = ReferenceType.query.filter(db.func.lower(ReferenceType.name) == name.lower()).first()
+        if reference_type is None:
+            reference_type = ReferenceType(name=name, scheme=scheme, url_template=template)
+            db.session.add(reference_type)
+        types[name] = reference_type
+    db.session.flush()
+    return types
+
+
+def get_event_labels():
+    labels = []
+    for title, color, not_happening in (('Cancelled', 'red', True), ('Hybrid', 'blue', False)):
+        # the title is unique regardless of case
+        label = EventLabel.query.filter(db.func.lower(EventLabel.title) == title.lower()).first()
+        if label is None:
+            label = EventLabel(title=title, color=color, is_event_not_happening=not_happening)
+            db.session.add(label)
+        labels.append(label)
+    db.session.flush()
+    return labels
+
+
+def create_references(event, contributions, subcontributions, types, index):
+    doi, report = types['DOI'], types['Report number']
+    # a reference type holds the references made with it, so a new reference is
+    # already pending when it is built and has to carry its owner from the start
+    references = [EventReference(event=event, reference_type=doi, value=f'10.5170/OPENAPI-2026-{index:03d}'),
+                  EventReference(event=event, reference_type=report, value=f'OPENAPI-EVENT-{index:03d}')]
+    references += [ContributionReference(contribution=contribution, reference_type=doi,
+                                         value=f'10.5170/OPENAPI-2026-{index:03d}.{i + 1}')
+                   for i, contribution in enumerate(contributions[:4])]
+    references += [SubContributionReference(subcontribution=subcontribution, reference_type=report,
+                                            value=f'OPENAPI-TALK-{index:03d}-{i + 1}')
+                   for i, subcontribution in enumerate(subcontributions[:2])]
+    db.session.flush()
+    return references
+
+
+def set_contact(event, index):
+    event_contact_settings.set_multi(event, {
+        'title': 'Conference secretariat',
+        'emails': [f'openapi.contact{index}@example.test'],
+        'phones': [f'+41 22 767 {index:04d}'],
+    })
+
+
+def create_contribution_types(event, contributions):
+    types = []
+    for name, description, private in (('Oral', 'A talk given in a session.', False),
+                                       ('Poster', 'Shown in the poster session.', False),
+                                       ('Keynote', 'An invited talk.', True)):
+        contribution_type = ContributionType(event=event, name=name, description=description, is_private=private)
+        db.session.add(contribution_type)
+        types.append(contribution_type)
+    db.session.flush()
+    for i, contribution in enumerate(contributions):
+        contribution.type = pick(types, i)
+    # the type is written to the contribution row, which subcontributions draw
+    # their friendly id from through a separate connection
+    db.session.commit()
+    return types
+
+
+def create_contribution_fields(event, contributions):
+    summary = ContributionField(event=event, title='Extended summary', description='A longer abstract.',
+                                field_type='text', field_data={'multiline': True}, position=1, is_required=False)
+    options = [{'id': str(uuid4()), 'option': label, 'is_enabled': True}
+               for label in ('Beginner', 'Advanced')]
+    level = ContributionField(event=event, title='Audience level', description='Who the talk is aimed at.',
+                              field_type='single_choice', position=2, is_required=False,
+                              visibility=ContributionFieldVisibility.managers_only,
+                              field_data={'options': options, 'display': 'select'})
+    db.session.add_all([summary, level])
+    db.session.flush()
+    for i, contribution in enumerate(contributions[:6]):
+        db.session.add(ContributionFieldValue(contribution=contribution, contribution_field=summary,
+                                              data=f'Extended summary of {contribution.title.lower()}.'))
+        db.session.add(ContributionFieldValue(contribution=contribution, contribution_field=level,
+                                              data=pick(options, i)['id']))
+    db.session.flush()
+    return [summary, level]
+
+
+def create_session_types(event, sessions):
+    types = [SessionType(event=event, name='Plenary', code='PL', is_poster=False),
+             SessionType(event=event, name='Poster session', code='PO', is_poster=True)]
+    db.session.add_all(types)
+    db.session.flush()
+    for i, sess in enumerate(sessions):
+        sess.type = pick(types, i)
+    db.session.flush()
+    return types
+
+
+def create_paper_setup(event):
+    template = PaperTemplate(event=event, name='Paper template', description='The skeleton every paper starts from.',
+                             filename='template.tex', content_type='text/x-tex')
+    template.save(b'\\documentclass{article}\n')
+    db.session.add(template)
+    file_types = [PaperFileType(event=event, name='Paper', extensions=['pdf'], required=True, publishable=True,
+                                filename_template='paper-{code}'),
+                  PaperFileType(event=event, name='Sources', extensions=['tex', 'zip'], required=False,
+                                publishable=False)]
+    db.session.add_all(file_types)
+    db.session.flush()
+    return template, file_types
+
+
+def create_abstract_emails(event, abstracts, manager):
+    templates = [
+        AbstractEmailTemplate(event=event, title='Acceptance', position=1, stop_on_match=True,
+                              subject='Your abstract was accepted',
+                              body='Dear {abstract_submitter},\n\n{abstract_title} was accepted.',
+                              reply_to_address='', extra_cc_emails=[], include_submitter=True,
+                              include_authors=True, include_coauthors=False,
+                              rules=[{'state': [AbstractState.accepted.value]}]),
+        AbstractEmailTemplate(event=event, title='Rejection', position=2, stop_on_match=True,
+                              subject='Your abstract was rejected',
+                              body='Dear {abstract_submitter},\n\n{abstract_title} was rejected.',
+                              reply_to_address='', extra_cc_emails=[], include_submitter=True,
+                              include_authors=False, include_coauthors=False,
+                              rules=[{'state': [AbstractState.rejected.value]}]),
+    ]
+    db.session.add_all(templates)
+    db.session.flush()
+    by_state = {AbstractState.accepted: templates[0], AbstractState.rejected: templates[1]}
+    entries = []
+    for abstract in abstracts:
+        template = by_state.get(abstract.state)
+        if template is None:
+            continue
+        entry = AbstractEmailLogEntry(abstract=abstract, email_template=template, user=manager,
+                                      sent_dt=abstract.judgment_dt, recipients=[abstract.submitter.email],
+                                      subject=template.subject, body=template.body,
+                                      data={'template_name': template.title})
+        db.session.add(entry)
+        entries.append(entry)
+    db.session.flush()
+    return templates, entries
+
+
+def create_invitations(regform, registrations, index, count=4):
+    invitations = []
+    for i in range(count):
+        state = pick((InvitationState.pending, InvitationState.accepted, InvitationState.declined), i)
+        invitation = RegistrationInvitation(registration_form=regform,
+                                            first_name=pick(FIRST_NAMES, index + i),
+                                            last_name=pick(LAST_NAMES, index + i),
+                                            email=f'openapi.invitee{index}.{i}@example.test',
+                                            affiliation=pick(AFFILIATIONS, i), state=state,
+                                            skip_moderation=(i % 2 == 0), lock_email=(i % 3 == 0))
+        if state == InvitationState.accepted:
+            invitation.registration = pick(registrations, i)
+        invitations.append(invitation)
+    db.session.flush()
+    return invitations
+
+
+def create_category_roles(category, users):
+    roles = []
+    for i, (name, code) in enumerate((('Category managers', 'CATMAN'), ('Event creators', 'CREATORS'))):
+        role = CategoryRole(category=category, name=name, code=code, color=pick(COLORS, i),
+                            members={pick(users, i), pick(users, i + 1), pick(users, i + 2)})
+        db.session.add(role)
+        roles.append(role)
+    db.session.flush()
+    return roles
+
+
+def create_move_requests(category, events, users, manager):
+    requests = []
+    for i, event in enumerate(events):
+        state = pick((MoveRequestState.pending, MoveRequestState.accepted, MoveRequestState.rejected), i)
+        request = EventMoveRequest(event=event, category=category, requestor=pick(users, i), state=state,
+                                   requestor_comment='This event belongs in the demo category.',
+                                   requested_dt=now_utc() - timedelta(days=30 - i))
+        if state != MoveRequestState.pending:
+            request.moderator = manager
+            request.moderator_comment = 'Answered for the demo dataset.'
+        db.session.add(request)
+        requests.append(request)
+    db.session.flush()
+    return requests
+
+
+def get_map_areas():
+    corners = ((46.2400, 6.0400, 46.2250, 6.0650), (46.2600, 6.0250, 46.2450, 6.0500))
+    # the instance allows a single default area, and it may already have one
+    is_default = MapArea.query.filter_by(is_default=True).first() is None
+    areas = []
+    for name, corner in zip(('Meyrin site', 'Prevessin site'), corners, strict=True):
+        area = MapArea.query.filter_by(name=name).first()
+        if area is None:
+            top_left_latitude, top_left_longitude, bottom_right_latitude, bottom_right_longitude = corner
+            area = MapArea(name=name, is_default=is_default, top_left_latitude=top_left_latitude,
+                           top_left_longitude=top_left_longitude, bottom_right_latitude=bottom_right_latitude,
+                           bottom_right_longitude=bottom_right_longitude)
+            db.session.add(area)
+        is_default = False
+        areas.append(area)
+    db.session.flush()
+    return areas
+
+
+def get_room_attributes(rooms):
+    attributes = []
+    for name, title, hidden in (('demo-manager-group', 'Manager group', False),
+                                ('demo-door-code', 'Door code', True)):
+        attribute = RoomAttribute.query.filter_by(name=name).first()
+        if attribute is None:
+            attribute = RoomAttribute(name=name, title=title, is_hidden=hidden)
+            db.session.add(attribute)
+        attributes.append(attribute)
+    db.session.flush()
+    for i, room in enumerate(rooms):
+        room.set_attribute_value('demo-manager-group', pick(GROUP_NAMES, i))
+        if i % 3 == 0:
+            room.set_attribute_value('demo-door-code', f'{1000 + i}')
+    db.session.flush()
+    return attributes
+
+
+def create_room_availability(rooms):
+    hours, periods = [], []
+    shutdown = datetime.combine(date.today() + timedelta(days=90), time(0, 0))
+    for i, room in enumerate(rooms):
+        if i % 2 == 0:
+            hours.append(BookableHours(room=room, start_time=time(8, 0), end_time=time(18, 0)))
+        if i % 3 == 0:
+            hours.append(BookableHours(room=room, start_time=time(9, 0), end_time=time(12, 0), weekday='sat'))
+        if i % 4 == 0:
+            periods.append(NonBookablePeriod(room=room, start_dt=shutdown, end_dt=shutdown + timedelta(days=7)))
+    db.session.add_all(hours + periods)
+    db.session.flush()
+    return hours, periods
+
+
+def create_room_photos(rooms, count):
+    photos = []
+    for i, room in enumerate(rooms[:count]):
+        room.photo = Photo(data=jpeg_image(pick(COLORS, i)))
+        photos.append(room.photo)
+    db.session.flush()
+    return photos
+
+
+def create_reservation_logs(reservations, manager):
+    entries = []
+    for i, reservation in enumerate(reservations):
+        entries.append(ReservationEditLog(reservation=reservation, user_name=reservation.created_by_user.full_name,
+                                          info=['Booking created'], timestamp=reservation.created_dt))
+        if i % 5 == 0:
+            entries.append(ReservationEditLog(reservation=reservation, user_name=manager.full_name,
+                                              info=['Booking accepted', 'Notification sent'],
+                                              timestamp=reservation.created_dt + timedelta(hours=1)))
+    db.session.add_all(entries)
+    db.session.flush()
+    return entries
+
+
+def link_reservations(reservations, events):
+    """Book a room for an event, which is how a booking gets attached to one.
+
+    Indico allows a single booking occurrence per object, so one event takes one
+    reservation.
+    """
+    links = []
+    for reservation, event in zip(reservations, events, strict=False):
+        occurrence = reservation.occurrences[0]
+        occurrence.linked_object = event
+        links.append(occurrence.link)
+    db.session.flush()
+    return links
+
+
+def seed_conference(category, manager, users, index, start, reference_types, labels):
     title = f'{category.title} Conference {index % CONFERENCES_PER_TOPIC + 1}'
     event = create_event(category, manager, title, start, EventType.conference, days=2)
     for feature in ('abstracts', 'papers', 'registration', 'payment', 'surveys'):
@@ -851,11 +1160,22 @@ def seed_conference(category, manager, users, index, start):
     persons = create_persons(event, users, 12, index * 5)
     for i in range(3):
         event.person_links.append(EventPersonLink(person=persons[i]))
+    set_contact(event, index)
+    if index % 5 == 0:
+        event.label = pick(labels, index)
+        event.label_message = 'Kept in the demo dataset to show a labelled event.'
+        # the label is written to the event row, which has to be committed again
+        # before anything inside the event draws a friendly id from it
+        db.session.commit()
     group, tracks = create_tracks(event, index)
     sessions, blocks = create_sessions(event, persons, 3, 2, start)
+    session_types = create_session_types(event, sessions)
     contributions = create_contributions(event, persons, tracks, blocks, 15, index)
+    contribution_types = create_contribution_types(event, contributions)
+    contribution_fields = create_contribution_fields(event, contributions)
     subcontributions = create_subcontributions(contributions, persons)
     breaks = create_breaks(event, blocks, 3, start)
+    references = create_references(event, contributions, subcontributions, reference_types, index)
 
     notes = [create_note(event, manager, f'<p>Minutes of {title}.</p>')]
     notes += [create_note(contributions[i], manager, f'<p>Notes for {contributions[i].title}.</p>')
@@ -869,8 +1189,11 @@ def seed_conference(category, manager, users, index, start):
                    create_file_attachment(sessions[0], manager, 'Session notes', 'Shared during the session.')]
 
     abstracts = create_abstracts(event, persons, tracks, users, 10, index)
+    abstract_email_templates, abstract_emails = create_abstract_emails(event, abstracts, manager)
     papers = create_papers(contributions[:8], users, index)
+    paper_template, paper_file_types = create_paper_setup(event)
     regform, registrations = create_regform(event, users, 15, index * 3)
+    invitations = create_invitations(regform, registrations, index)
     payments = create_payments(registrations, manager)
     survey, questions, submissions = create_survey(event, users, 8, index * 2)
     agreements = create_agreements(event, persons, 6)
@@ -897,18 +1220,24 @@ def seed_conference(category, manager, users, index, start):
         'submissions': submissions, 'agreements': agreements, 'roles': roles, 'reminders': reminders,
         'log_entries': log_entries, 'vc_rooms': vc_rooms, 'offline_copies': offline_copies, 'pages': pages,
         'images': images, 'receipt_templates': [receipt_template], 'documents': documents,
-        'designer_templates': [designer_template], 'uploads': uploads,
+        'designer_templates': [designer_template], 'uploads': uploads, 'references': references,
+        'contribution_types': contribution_types, 'contribution_fields': contribution_fields,
+        'session_types': session_types, 'paper_templates': [paper_template], 'paper_file_types': paper_file_types,
+        'abstract_email_templates': abstract_email_templates, 'abstract_emails': abstract_emails,
+        'invitations': invitations,
     }
 
 
-def seed_meeting(category, manager, users, index, start):
+def seed_meeting(category, manager, users, index, start, reference_types):
     title = f'Demo meeting {index + 1}'
     event = create_event(category, manager, title, start, EventType.meeting, days=0)
     persons = create_persons(event, users, 6, index * 4)
+    set_contact(event, index)
     sessions, blocks = create_sessions(event, persons, 1, 1, start)
     contributions = create_contributions(event, persons, [], blocks, 8, index)
     subcontributions = create_subcontributions(contributions, persons)
     breaks = create_breaks(event, blocks, 2, start)
+    references = create_references(event, contributions, subcontributions, reference_types, 100 + index)
     notes = [create_note(event, manager, f'<p>Minutes of {title}.</p>')]
     attachments = [create_file_attachment(event, manager, 'Agenda', 'The agenda of the meeting.'),
                    create_link_attachment(event, manager, 'Indico', 'https://getindico.io')]
@@ -919,6 +1248,7 @@ def seed_meeting(category, manager, users, index, start):
         'event': event, 'persons': persons, 'sessions': sessions, 'blocks': blocks,
         'contributions': contributions, 'subcontributions': subcontributions, 'breaks': breaks, 'notes': notes,
         'attachments': attachments, 'reminders': reminders, 'log_entries': log_entries, 'vc_rooms': vc_rooms,
+        'references': references,
     }
 
 
@@ -928,6 +1258,9 @@ def describe(dataset):
     documents = {}
     for document in dataset.get('documents', ()):
         documents[document.registration_id] = documents.get(document.registration_id, 0) + 1
+    emails = {}
+    for entry in dataset.get('abstract_emails', ()):
+        emails[entry.abstract_id] = emails.get(entry.abstract_id, 0) + 1
     return {
         'id': dataset['event'].id,
         'type': dataset['event'].type,
@@ -943,6 +1276,15 @@ def describe(dataset):
         'pages': len(dataset.get('pages', ())),
         'images': len(dataset.get('images', ())),
         'documents': documents,
+        'abstract_emails': emails,
+        'contribution_types': len(dataset.get('contribution_types', ())),
+        'contribution_fields': len(dataset.get('contribution_fields', ())),
+        'session_types': len(dataset.get('session_types', ())),
+        'paper_templates': len(dataset.get('paper_templates', ())),
+        'paper_file_types': len(dataset.get('paper_file_types', ())),
+        'abstract_email_templates': len(dataset.get('abstract_email_templates', ())),
+        'invitations': len(dataset.get('invitations', ())),
+        'regform_id': dataset['regform'].id if 'regform' in dataset else None,
         'features': sorted(get_enabled_features(dataset['event'])),
         'announcement': (layout_settings.get(dataset['event'], 'announcement')
                          if layout_settings.get(dataset['event'], 'show_announcement') else None),
@@ -971,15 +1313,21 @@ def main(manifest_path):
         create_designer_template('Demo poster', TemplateType.poster, poster_data, 0, category=demo),
     ]
 
+    reference_types = get_reference_types()
+    labels = get_event_labels()
+    category_roles = create_category_roles(demo, users)
+
     start = midnight(date.today() + timedelta(days=7))
     conferences = []
     for topic_index, topic in enumerate(topics):
         for i in range(CONFERENCES_PER_TOPIC):
             index = topic_index * CONFERENCES_PER_TOPIC + i
             conferences.append(seed_conference(topic, manager, users, index,
-                                               start + timedelta(days=7 * index)))
-    meetings = [seed_meeting(topics[i % len(topics)], manager, users, i, start + timedelta(days=200 + i))
+                                               start + timedelta(days=7 * index), reference_types, labels))
+    meetings = [seed_meeting(topics[i % len(topics)], manager, users, i, start + timedelta(days=200 + i),
+                             reference_types)
                 for i in range(MEETING_COUNT)]
+    move_requests = create_move_requests(demo, [dataset['event'] for dataset in meetings[:3]], users, manager)
     datasets = conferences + meetings
     series = [create_series([dataset['event'] for dataset in conferences[i:i + CONFERENCES_PER_TOPIC]],
                             event_title_pattern=f'{topic.title} Conference {{n}}')
@@ -988,7 +1336,15 @@ def main(manifest_path):
 
     equipment = get_equipment()
     locations, rooms = create_rooms(manager, users, equipment)
+    map_areas = get_map_areas()
+    room_attributes = get_room_attributes(rooms)
+    photos = create_room_photos(rooms, 6)
     reservations = create_reservations(rooms, users, 150)
+    # a booking is checked against the availability of its room, so the demo
+    # bookings are made before the rooms are restricted
+    bookable_hours, nonbookable_periods = create_room_availability(rooms)
+    reservation_logs = create_reservation_logs(reservations, manager)
+    reservation_links = link_reservations(reservations, [dataset['event'] for dataset in conferences])
     blockings = create_blockings(rooms, users, 40)
 
     token = PersonalToken(name=TOKEN_NAME, user=manager, scopes=TOKEN_SCOPES)
@@ -1022,12 +1378,25 @@ def main(manifest_path):
         'paper_contribution_id': sample['papers'][0].contribution.id,
         'regform_id': sample['regform'].id,
         'registration_id': sample['registrations'][0].id,
+        'invitation_id': sample['invitations'][0].id,
+        'contribution_type_id': sample['contribution_types'][0].id,
+        'contribution_field_id': sample['contribution_fields'][0].id,
+        'session_type_id': sample['session_types'][0].id,
+        'paper_template_id': sample['paper_templates'][0].id,
+        'paper_file_type_id': sample['paper_file_types'][0].id,
+        'abstract_email_template_id': sample['abstract_email_templates'][0].id,
+        'emailed_abstract_id': sample['abstract_emails'][0].abstract_id,
+        'category_role_id': category_roles[0].id,
+        'move_request_id': move_requests[0].id,
         'survey_id': sample['survey'].id,
         'agreement_id': sample['agreements'][0].id,
         'location_id': locations[0].id,
         'location_name': locations[0].name,
         'room_id': rooms[0].id,
+        'attributed_room_id': rooms[0].id,
+        'map_area_id': map_areas[0].id,
         'reservation_id': reservations[0].id,
+        'linked_reservation_id': reservation_links[0].reservation_occurrence.reservation_id,
         'blocking_id': blockings[0].id,
         'role_id': sample['roles'][0].id,
         'group_id': groups[0].id,
@@ -1067,9 +1436,27 @@ def main(manifest_path):
             'survey_questions': count_all(datasets, 'questions'),
             'survey_submissions': count_all(datasets, 'submissions'),
             'agreements': count_all(datasets, 'agreements'),
+            'references': count_all(datasets, 'references'),
+            'contribution_types': count_all(datasets, 'contribution_types'),
+            'contribution_fields': count_all(datasets, 'contribution_fields'),
+            'session_types': count_all(datasets, 'session_types'),
+            'paper_templates': count_all(datasets, 'paper_templates'),
+            'paper_file_types': count_all(datasets, 'paper_file_types'),
+            'abstract_email_templates': count_all(datasets, 'abstract_email_templates'),
+            'abstract_emails': count_all(datasets, 'abstract_emails'),
+            'invitations': count_all(datasets, 'invitations'),
+            'category_roles': len(category_roles),
+            'move_requests': len(move_requests),
             'locations': len(locations),
             'rooms': len(rooms),
+            'map_areas': len(map_areas),
+            'room_attributes': len(room_attributes),
+            'bookable_hours': len(bookable_hours),
+            'nonbookable_periods': len(nonbookable_periods),
+            'room_photos': len(photos),
             'reservations': len(reservations),
+            'reservation_edit_logs': len(reservation_logs),
+            'reservation_links': len(reservation_links),
             'blockings': len(blockings),
             'roles': count_all(datasets, 'roles'),
             'groups': len(groups),

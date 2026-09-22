@@ -7,6 +7,10 @@
 
 """Remove everything ``seed_demo_data.py`` created, so it can be run again.
 
+Instance configuration the seed reuses when it is already there (equipment types,
+reference types, event labels, map areas, room attributes) stays behind: it may
+have been set up by the administrators rather than by the seed.
+
 Indico deletes events, rooms and users by flagging them, and a flagged row still
 holds the titles and identities the seed asks for, so the demo data has to go
 for real. No foreign key in the schema cascades, so every row is removed by
@@ -51,8 +55,12 @@ FILES = """
     SELECT id FROM indico.files
     WHERE (meta->>'event_id')::int IN (SELECT id FROM events.events WHERE category_id IN :categories)
 """
+PHOTOS = """
+    SELECT DISTINCT photo_id FROM roombooking.rooms
+    WHERE photo_id IS NOT NULL AND location_id IN (SELECT id FROM roombooking.locations WHERE name IN :locations)
+"""
 
-LISTS = ('categories', 'locations', 'users', 'series', 'vc_rooms', 'files')
+LISTS = ('categories', 'locations', 'users', 'series', 'vc_rooms', 'files', 'photos')
 
 FOREIGN_KEYS = """
     SELECT rn.nspname || '.' || rc.relname AS parent,
@@ -87,6 +95,7 @@ TARGETS = (
     ('events.vc_rooms', 'id IN :vc_rooms'),
     ('indico.files', 'id IN :files'),
     ('roombooking.locations', 'name IN :locations'),
+    ('roombooking.photos', 'id IN :photos'),
     ('users.groups', 'name LIKE :groups'),
     ('users.users', 'id IN :users'),
 )
@@ -149,7 +158,7 @@ def main():
     users = db.session.execute(text(DEMO_USERS),
                                {'emails': EMAIL_PATTERN, 'identities': IDENTITY_PATTERN}).scalars().all()
     params = {'categories': categories, 'locations': list(LOCATION_NAMES), 'users': users, 'groups': GROUP_PATTERN}
-    for name, statement in (('series', SERIES), ('vc_rooms', VC_ROOMS), ('files', FILES)):
+    for name, statement in (('series', SERIES), ('vc_rooms', VC_ROOMS), ('files', FILES), ('photos', PHOTOS)):
         params[name] = run(statement, params).scalars().all()
     keys = read_foreign_keys()
     deleted = {}
