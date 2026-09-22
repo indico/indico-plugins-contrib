@@ -102,9 +102,9 @@ def referenced_contribution(db, dummy_contribution, doi):
     return dummy_contribution
 
 
-def with_references(indico_api, event):
+def with_references(indico_api, event_id):
     # the contribution schema of the current API leaves the references out, the legacy export carries them
-    exported = indico_api(f'/export/event/{event.id}.json?detail=contributions')['results'][0]['contributions']
+    exported = indico_api(f'/export/event/{event_id}.json?detail=contributions')['results'][0]['contributions']
     references = {contrib['db_id']: contrib['references'] for contrib in exported}
 
     def add(current):
@@ -118,14 +118,14 @@ def test_contribution_matches_current_api(dummy_event, referenced_contribution, 
     current = indico_api(f'/event/{dummy_event.id}/contributions/{referenced_contribution.id}.json')
     new = test_client.get(f'/api/v1/events/{dummy_event.id}/contributions/{referenced_contribution.id}',
                           headers=token_headers).json
-    same_json(new, with_references(indico_api, dummy_event)(current), same=CONTRIBUTION_FIELDS)
+    same_json(new, with_references(indico_api, dummy_event.id)(current), same=CONTRIBUTION_FIELDS)
 
 
 def test_contribution_list_matches_current_api(dummy_event, referenced_contribution, create_contribution,
                                                event_manager, token_headers, test_client, indico_api,
                                                same_json_list):
     create_contribution(dummy_event, 'Another contribution')
-    add_references = with_references(indico_api, dummy_event)
+    add_references = with_references(indico_api, dummy_event.id)
     current = [add_references(contrib)
                for contrib in indico_api(f'/event/{dummy_event.id}/manage/contributions/contributions.json')]
     new = test_client.get(f'/api/v1/events/{dummy_event.id}/contributions', headers=token_headers).json['results']
