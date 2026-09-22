@@ -33,13 +33,16 @@ sys.path.insert(0, str(PLUGIN_DIR))
 sys.path.insert(0, str(PLUGIN_DIR / 'tests'))
 
 import abstracts_test  # noqa: E402
+import affiliations_test  # noqa: E402
 import attachments_test  # noqa: E402
 import blockings_test  # noqa: E402
 import categories_test  # noqa: E402
+import category_logs_test  # noqa: E402
 import category_roles_test  # noqa: E402
 import contribution_fields_test  # noqa: E402
 import contributions_test  # noqa: E402
 import designer_test  # noqa: E402
+import equipment_test  # noqa: E402
 import events_test  # noqa: E402
 import files_test  # noqa: E402
 import groups_test  # noqa: E402
@@ -52,6 +55,7 @@ import paper_file_types_test  # noqa: E402
 import papers_test  # noqa: E402
 import persons_test  # noqa: E402
 import receipts_test  # noqa: E402
+import registration_tags_test  # noqa: E402
 import registrations_test  # noqa: E402
 import reservation_edit_logs_test  # noqa: E402
 import reservation_links_test  # noqa: E402
@@ -192,12 +196,12 @@ def merged_roles(api, event_id):
     return [{**role, **extra} for role, extra in zip(detailed, basic, strict=True)]
 
 
-def current_log_entries(api, event_id):
+def current_log_entries(api, path, realms):
     # the management log serves fixed pages, so every page is read
     entries = []
     page = 1
     while True:
-        data = api.get(f'/event/{event_id}/manage/logs/api/logs?{logs_test.ALL_REALMS}&page={page}')
+        data = api.get(f'{path}?{realms}&page={page}')
         entries += data['entries']
         if page >= data['total_page_count']:
             return entries
@@ -240,10 +244,15 @@ class Checker:
         self.area('files', self.check_files)
         self.area('event-series', self.check_series)
         self.area('category-roles', self.check_category_roles)
+        self.area('category-logs', self.check_category_logs)
         self.area('move-requests', self.check_move_requests)
+        self.area('affiliations', self.check_affiliations)
+        self.area('reference-types', self.check_catalogues)
         self.area('rooms', self.check_rooms)
         self.area('locations', self.check_locations)
         self.area('map-areas', self.check_map_areas)
+        self.area('equipment-types', self.check_equipment)
+        self.area('room-features', self.check_room_features)
         self.area('room-attributes', self.check_room_attributes)
         self.area('room-availability', self.check_room_availability)
         self.area('blockings', self.check_blockings)
@@ -331,6 +340,8 @@ class Checker:
         self.check_attachments(event)
         self.check_logs(event_id)
         self.check_count('reminders', f'/events/{event_id}/reminders', event['reminders'])
+        self.check_count('note-revisions', f'/events/{event_id}/notes/{event["note_id"]}/revisions',
+                         event['note_revisions'])
         self.check_count('videoconference-rooms', f'/events/{event_id}/videoconference-rooms', event['vc_rooms'])
         if event['type'] != 'conference':
             return
@@ -341,6 +352,7 @@ class Checker:
         self.check_paper_setup(event)
         self.check_contribution_setup(event)
         self.check_registrations(event_id)
+        self.check_registration_tags(event)
         self.check_count('registration-invitations',
                          f'/events/{event_id}/registration-forms/{event["regform_id"]}/invitations',
                          event['invitations'])
@@ -547,7 +559,7 @@ class Checker:
     def check_logs(self, event_id):
         mappings = {'same': logs_test.LOG_FIELDS, 'renamed': logs_test.log_keys(self.tzinfo)}
         ours = self.api.list(f'/events/{event_id}/logs')
-        theirs = current_log_entries(self.api, event_id)
+        theirs = current_log_entries(self.api, f'/event/{event_id}/manage/logs/api/logs', logs_test.ALL_REALMS)
         self.check('logs', f'list {event_id}', len(ours), lambda: compare_list(ours, theirs, **mappings))
         first = ours[0]
         one = self.api.ours(f'/events/{event_id}/logs/{first["id"]}')
@@ -688,6 +700,66 @@ class Checker:
                            ours, theirs, same=reservation_links_test.LINK_FIELDS,
                            renamed=reservation_links_test.LINK_KEYS,
                            derived=reservation_links_test.link_derived(ours)))
+
+    def check_category_logs(self):
+        category_id = self.manifest['category_id']
+        mappings = {'same': logs_test.LOG_FIELDS, 'renamed': logs_test.log_keys(self.tzinfo)}
+        ours = self.api.list(f'/categories/{category_id}/logs')
+        theirs = current_log_entries(self.api, f'/category/{category_id}/manage/logs/api/logs',
+                                     category_logs_test.ALL_REALMS)
+        self.check('category-logs', f'list {category_id}', len(ours),
+                   lambda: compare_list(ours, theirs, **mappings))
+        first = ours[0]
+        one = self.api.ours(f'/categories/{category_id}/logs/{first["id"]}')
+        current = next(entry for entry in theirs if entry['id'] == first['id'])
+        self.check('category-logs', f'detail {first["id"]}', 1, lambda: compare(one, current, **mappings))
+
+    def check_equipment(self):
+        ours = self.api.list('/equipment-types')
+        theirs = self.api.get('/rooms/api/equipment')
+        self.check('equipment-types', 'list', len(ours),
+                   lambda: compare_list(ours, theirs, same=equipment_test.EQUIPMENT_TYPE_FIELDS))
+        first = ours[0]
+        one = self.api.ours(f'/equipment-types/{first["id"]}')
+        current = next(equipment for equipment in theirs if equipment['id'] == first['id'])
+        self.check('equipment-types', f'detail {first["id"]}', 1,
+                   lambda: compare(one, current, same=equipment_test.EQUIPMENT_TYPE_FIELDS))
+
+    def check_room_features(self):
+        ours = self.api.list('/room-features')
+        # only the administration area lists the features on their own
+        theirs = self.api.get('/rooms/api/admin/features')
+        self.check('room-features', 'list', len(ours),
+                   lambda: compare_list(ours, theirs, same=equipment_test.ROOM_FEATURE_FIELDS))
+        first = ours[0]
+        one = self.api.ours(f'/room-features/{first["id"]}')
+        current = next(feature for feature in theirs if feature['id'] == first['id'])
+        self.check('room-features', f'detail {first["id"]}', 1,
+                   lambda: compare(one, current, same=equipment_test.ROOM_FEATURE_FIELDS))
+
+    def check_affiliations(self):
+        ours = self.api.list('/affiliations')
+        # only the administration area lists the catalogue as a whole
+        theirs = self.api.get('/api/admin/affiliations')
+        self.check('affiliations', 'list', len(ours),
+                   lambda: compare_list(ours, theirs, same=affiliations_test.AFFILIATION_FIELDS))
+        first = ours[0]
+        one = self.api.ours(f'/affiliations/{first["id"]}')
+        current = next(affiliation for affiliation in theirs if affiliation['id'] == first['id'])
+        self.check('affiliations', f'detail {first["id"]}', 1,
+                   lambda: compare(one, current, same=affiliations_test.AFFILIATION_FIELDS))
+
+    def check_catalogues(self):
+        counts = self.manifest['counts']
+        self.check_count('reference-types', '/reference-types', counts['reference_types'])
+        self.check_count('event-labels', '/event-labels', counts['event_labels'])
+
+    def check_registration_tags(self, event):
+        event_id = event['id']
+        ours = self.api.list(f'/events/{event_id}/registration-tags')
+        theirs = self.api.cached(f'/api/checkin/event/{event_id}/')['registration_tags']
+        self.check('registration-tags', f'list {event_id}', len(ours),
+                   lambda: compare_list(ours, theirs, same=registration_tags_test.TAG_FIELDS))
 
     def check_layout(self, event):
         event_id = event['id']

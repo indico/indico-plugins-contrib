@@ -111,7 +111,7 @@ from indico.modules.events.tracks.models.groups import TrackGroup
 from indico.modules.events.tracks.models.tracks import Track
 from indico.modules.files.models.files import File
 from indico.modules.groups.models.groups import LocalGroup
-from indico.modules.logs.models.entries import EventLogRealm, LogKind
+from indico.modules.logs.models.entries import CategoryLogRealm, EventLogRealm, LogKind
 from indico.modules.rb.models.blocked_rooms import BlockedRoom
 from indico.modules.rb.models.blockings import Blocking
 from indico.modules.rb.models.equipment import EquipmentType
@@ -122,6 +122,7 @@ from indico.modules.rb.models.reservation_edit_logs import ReservationEditLog
 from indico.modules.rb.models.reservations import RepeatFrequency, Reservation
 from indico.modules.rb.models.room_attributes import RoomAttribute
 from indico.modules.rb.models.room_bookable_hours import BookableHours
+from indico.modules.rb.models.room_features import RoomFeature
 from indico.modules.rb.models.room_nonbookable_periods import NonBookablePeriod
 from indico.modules.rb.models.rooms import Room
 from indico.modules.receipts.models.files import ReceiptFile
@@ -129,6 +130,7 @@ from indico.modules.receipts.models.templates import ReceiptTemplate
 from indico.modules.receipts.settings import receipt_defaults
 from indico.modules.receipts.util import compile_jinja_code, create_pdf, get_safe_template_context
 from indico.modules.users import User
+from indico.modules.users.models.affiliations import Affiliation
 from indico.modules.users.models.users import NameFormat
 from indico.modules.vc.models.vc_rooms import VCRoom, VCRoomEventAssociation, VCRoomStatus
 from indico.util.date_time import now_utc
@@ -157,6 +159,9 @@ CITIES = ('Geneva', 'Hamburg', 'Madrid', 'Paris', 'Rome', 'Tsukuba', 'Oxford', '
 POSITIONS = ('Research fellow', 'Staff scientist', 'PhD student', 'Engineer', 'Professor')
 BUILDINGS = ('30', '40', '80', '500', '513')
 EQUIPMENT = ('Video conference', 'Webcast', 'Blackboard', 'Projector')
+FEATURES = (('vc', 'Videoconference', 'video-camera'), ('screen', 'Screen', 'projector'))
+EQUIPMENT_FEATURES = {'Video conference': ('vc',), 'Webcast': ('vc', 'screen'), 'Projector': ('screen',)}
+REGISTRATION_TAGS = (('VIP', 'blue'), ('Catering', 'green'), ('Speaker', 'purple'))
 AGREEMENT_TYPES = ('speaker-release', 'data-protection')
 SUBJECTS = ('beam dynamics', 'calorimetry', 'cryogenics', 'data acquisition', 'event reconstruction',
             'lattice QCD', 'machine learning', 'magnet design', 'radiation hardness', 'silicon trackers',
@@ -243,14 +248,29 @@ def zip_archive(files):
     return buffer.getvalue()
 
 
-def create_users():
+def get_affiliations():
+    affiliations = {}
+    for i, name in enumerate(AFFILIATIONS):
+        # the name is unique regardless of case
+        affiliation = Affiliation.query.filter(db.func.lower(Affiliation.name) == name.lower()).first()
+        if affiliation is None:
+            affiliation = Affiliation(name=name, code=name[:3].upper(), city=pick(CITIES, i),
+                                      country_code=pick(COUNTRIES, i))
+            db.session.add(affiliation)
+        affiliations[name] = affiliation
+    db.session.flush()
+    return affiliations
+
+
+def create_users(affiliations):
     users = []
     for i in range(USER_COUNT):
         first_name = pick(FIRST_NAMES, i)
         last_name = pick(LAST_NAMES, i * 7)
         username = f'openapi.user{i:02d}'
+        name = pick(AFFILIATIONS, i)
         user = User(first_name=first_name, last_name=last_name, email=f'{username}@example.test',
-                    affiliation=pick(AFFILIATIONS, i))
+                    affiliation=name, affiliation_link=affiliations[name])
         user.identities.add(Identity(provider='indico', identifier=username, password=os.environ['SEED_PASSWORD']))
         db.session.add(user)
         users.append(user)
@@ -258,9 +278,9 @@ def create_users():
     return users
 
 
-def create_manager():
+def create_manager(affiliations):
     manager = User(first_name='Olivia', last_name='Manager', email=f'{MANAGER_USERNAME}@example.test',
-                   affiliation='CERN')
+                   affiliation='CERN', affiliation_link=affiliations['CERN'])
     manager.identities.add(Identity(provider='indico', identifier=MANAGER_USERNAME,
                                     password=os.environ['SEED_PASSWORD']))
     manager.is_admin = True
@@ -406,6 +426,8 @@ def create_breaks(event, blocks, count, start):
 
 def create_note(obj, author, html):
     note = EventNote.get_or_create(obj)
+    # a note keeps every version it went through, so each one is written twice to give it a history
+    note.create_revision(RenderMode.html, '<p>To be written.</p>', author)
     note.create_revision(RenderMode.html, html, author)
     db.session.flush()
     return note
@@ -569,13 +591,26 @@ def create_agreements(event, persons, count):
     return agreements
 
 
-def get_equipment():
+def get_features():
+    features = {}
+    for name, title, icon in FEATURES:
+        feature = RoomFeature.query.filter_by(name=name).first()
+        if feature is None:
+            feature = RoomFeature(name=name, title=title, icon=icon)
+            db.session.add(feature)
+        features[name] = feature
+    db.session.flush()
+    return features
+
+
+def get_equipment(features):
     equipment = []
     for name in EQUIPMENT:
         eq = EquipmentType.query.filter_by(name=name).first()
         if eq is None:
             eq = EquipmentType(name=name)
             db.session.add(eq)
+        eq.features = [features[key] for key in EQUIPMENT_FEATURES.get(name, ())]
         equipment.append(eq)
     db.session.flush()
     return equipment
@@ -660,19 +695,26 @@ def create_groups(users):
     return groups
 
 
-def create_reminders(event, manager, regform=None):
-    tags = set()
-    if regform is not None:
-        tag = RegistrationTag(event=event, title='VIP', color='blue')
+def create_registration_tags(event, registrations):
+    tags = []
+    for title, color in REGISTRATION_TAGS:
+        tag = RegistrationTag(event=event, title=title, color=color)
         db.session.add(tag)
-        tags.add(tag)
+        tags.append(tag)
+    for i, registration in enumerate(registrations[::3]):
+        registration.tags.add(tags[i % len(tags)])
+    db.session.flush()
+    return tags
+
+
+def create_reminders(event, manager, regform=None, tags=()):
     reminders = [
         EventReminder(event=event, creator=manager, scheduled_dt=event.start_dt - timedelta(days=1),
                       event_start_delta=timedelta(days=1), reminder_type=ReminderType.standard,
                       subject='See you tomorrow', message='<p>Doors open at 8:30.</p>',
                       recipients=[manager.email], reply_to_address=manager.email,
                       send_to_participants=regform is not None, send_to_speakers=True, include_summary=True,
-                      forms={regform} if regform else set(), tags=tags),
+                      forms={regform} if regform else set(), tags=set(tags[:1])),
         EventReminder(event=event, creator=manager, scheduled_dt=event.start_dt - timedelta(days=30),
                       reminder_type=ReminderType.custom, subject='Registration is open',
                       message='<p>Register before the deadline.</p>', recipients=[manager.email],
@@ -697,6 +739,21 @@ def create_log_entries(event, manager, registrations=()):
                           data={'Affiliation': [registration.user.affiliation, 'CERN', 'string']},
                           meta={'registration_id': registration.id})
                 for registration in registrations[:3]]
+    for i, entry in enumerate(entries):
+        entry.logged_dt = now_utc() - timedelta(hours=len(entries) - i)
+    db.session.flush()
+    return entries
+
+
+def create_category_log_entries(category, manager):
+    entries = [
+        category.log(CategoryLogRealm.category, LogKind.change, 'Category', 'Settings updated', manager,
+                     data={'Timezone': ['UTC', category.timezone, 'text']}),
+        category.log(CategoryLogRealm.category, LogKind.positive, 'Protection', 'Manager added', manager,
+                     data={'Manager': manager.full_name}),
+        category.log(CategoryLogRealm.events, LogKind.positive, 'Events', 'Event created', manager,
+                     data={'Title': f'{category.title} Conference 1'}),
+    ]
     for i, entry in enumerate(entries):
         entry.logged_dt = now_utc() - timedelta(hours=len(entries) - i)
     db.session.flush()
@@ -1201,7 +1258,8 @@ def seed_conference(category, manager, users, index, start, reference_types, lab
     agreements = create_agreements(event, persons, 6)
 
     roles = create_roles(event, users, index)
-    reminders = create_reminders(event, manager, regform)
+    registration_tags = create_registration_tags(event, registrations)
+    reminders = create_reminders(event, manager, regform, registration_tags)
     log_entries = create_log_entries(event, manager, registrations)
     vc_rooms = create_vc_rooms(event, manager, contributions, index)
     offline_copies = create_offline_copies(event, manager)
@@ -1226,7 +1284,7 @@ def seed_conference(category, manager, users, index, start, reference_types, lab
         'contribution_types': contribution_types, 'contribution_fields': contribution_fields,
         'session_types': session_types, 'paper_templates': [paper_template], 'paper_file_types': paper_file_types,
         'abstract_email_templates': abstract_email_templates, 'abstract_emails': abstract_emails,
-        'invitations': invitations,
+        'invitations': invitations, 'registration_tags': registration_tags,
     }
 
 
@@ -1266,6 +1324,9 @@ def describe(dataset):
     return {
         'id': dataset['event'].id,
         'type': dataset['event'].type,
+        'note_id': notes[0].id,
+        'note_revisions': len(notes[0].revisions),
+        'registration_tags': len(dataset.get('registration_tags', ())),
         'note_contributions': [note.contribution_id for note in notes if note.contribution_id],
         'note_sessions': [note.session_id for note in notes if note.session_id],
         'attachment_contributions': sorted({f.contribution_id for f in folders if f.contribution_id}),
@@ -1301,8 +1362,9 @@ def main(manifest_path):
     if Category.query.filter_by(title=CATEGORY_TITLE, is_deleted=False).first():
         raise SystemExit(f'"{CATEGORY_TITLE}" already exists, delete it before seeding again')
 
-    manager = create_manager()
-    users = create_users()
+    affiliations = get_affiliations()
+    manager = create_manager(affiliations)
+    users = create_users(affiliations)
     groups = create_groups(users)
     demo, topics = create_categories(Category.get_root())
     category_templates = [
@@ -1318,6 +1380,7 @@ def main(manifest_path):
     reference_types = get_reference_types()
     labels = get_event_labels()
     category_roles = create_category_roles(demo, users)
+    category_log_entries = create_category_log_entries(demo, manager)
 
     start = midnight(date.today() + timedelta(days=7))
     conferences = []
@@ -1336,7 +1399,8 @@ def main(manifest_path):
               for i, topic in zip(range(0, len(conferences), CONFERENCES_PER_TOPIC), topics, strict=True)]
     series.append(create_series([dataset['event'] for dataset in meetings], show_links=False))
 
-    equipment = get_equipment()
+    features = get_features()
+    equipment = get_equipment(features)
     locations, rooms = create_rooms(manager, users, equipment)
     map_areas = get_map_areas()
     room_attributes = get_room_attributes(rooms)
@@ -1389,6 +1453,7 @@ def main(manifest_path):
         'abstract_email_template_id': sample['abstract_email_templates'][0].id,
         'emailed_abstract_id': sample['abstract_emails'][0].abstract_id,
         'category_role_id': category_roles[0].id,
+        'category_log_entry_id': category_log_entries[0].id,
         'move_request_id': move_requests[0].id,
         'survey_id': sample['survey'].id,
         'agreement_id': sample['agreements'][0].id,
@@ -1397,6 +1462,11 @@ def main(manifest_path):
         'room_id': rooms[0].id,
         'attributed_room_id': rooms[0].id,
         'map_area_id': map_areas[0].id,
+        'equipment_type_id': equipment[0].id,
+        'room_feature_id': next(iter(features.values())).id,
+        'affiliation_id': next(iter(affiliations.values())).id,
+        'reference_type_id': next(iter(reference_types.values())).id,
+        'event_label_id': labels[0].id,
         'reservation_id': reservations[0].id,
         # the first three links are an event, a contribution and a session block
         'linked_reservation_ids': [link.reservation_occurrence.reservation_id
@@ -1450,6 +1520,14 @@ def main(manifest_path):
             'abstract_emails': count_all(datasets, 'abstract_emails'),
             'invitations': count_all(datasets, 'invitations'),
             'category_roles': len(category_roles),
+            'category_log_entries': len(category_log_entries),
+            # the catalogues are served instance wide, so what is already there counts too
+            'affiliations': Affiliation.query.filter(~Affiliation.is_deleted).count(),
+            'reference_types': ReferenceType.query.count(),
+            'event_labels': EventLabel.query.count(),
+            'equipment_types': len(equipment),
+            'room_features': len(features),
+            'registration_tags': count_all(datasets, 'registration_tags'),
             'move_requests': len(move_requests),
             'locations': len(locations),
             'rooms': len(rooms),
