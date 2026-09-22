@@ -87,3 +87,53 @@ def test_note_list_matches_current_api(dummy_event, dummy_note, dummy_contributi
     current = [indico_api(f'/export/note/{dummy_event.id}.json')['results'], indico_api(contrib_url)['results']]
     new = test_client.get(f'/api/v1/events/{dummy_event.id}/notes', headers=token_headers).json['results']
     same_json_list(new, current, same=NOTE_FIELDS, renamed={'author_id': ('user', None)}, key='url')
+
+
+@pytest.fixture
+def revised_note(db, create_note, dummy_event, dummy_user):
+    note = create_note(dummy_event, '<p>Minutes</p>')
+    note.create_revision(RenderMode.html, '<p>Better minutes</p>', dummy_user)
+    db.session.flush()
+    return note
+
+
+@pytest.mark.usefixtures('event_manager')
+def test_note_revision_list_is_newest_first(dummy_event, revised_note, token_headers, test_client):
+    resp = test_client.get(f'/api/v1/events/{dummy_event.id}/notes/{revised_note.id}/revisions',
+                           headers=token_headers)
+    assert resp.status_code == 200
+    assert [revision['html'] for revision in resp.json['results']] == ['<p>Better minutes</p>', '<p>Minutes</p>']
+    assert resp.json['results'][0]['id'] == revised_note.current_revision.id
+
+
+@pytest.mark.usefixtures('event_manager')
+def test_note_revision_details(dummy_event, revised_note, dummy_user, token_headers, test_client):
+    revision = revised_note.revisions[0]
+    resp = test_client.get(f'/api/v1/events/{dummy_event.id}/notes/{revised_note.id}/revisions/{revision.id}',
+                           headers=token_headers)
+    assert resp.status_code == 200
+    assert resp.json == {'id': revision.id, 'created_dt': revision.created_dt.isoformat(), 'user_id': dummy_user.id,
+                         'render_mode': 'html', 'source': '<p>Minutes</p>', 'html': '<p>Minutes</p>'}
+
+
+def test_note_revisions_are_manager_only(dummy_event, revised_note, outsider_headers, test_client):
+    # the note itself is served to whoever can read the object, while the content it no longer shows is not
+    assert test_client.get(f'/api/v1/events/{dummy_event.id}/notes/{revised_note.id}',
+                           headers=outsider_headers).status_code == 200
+    resp = test_client.get(f'/api/v1/events/{dummy_event.id}/notes/{revised_note.id}/revisions',
+                           headers=outsider_headers)
+    assert resp.status_code == 403
+    assert 'error' in resp.json
+    revision = revised_note.revisions[0]
+    assert test_client.get(f'/api/v1/events/{dummy_event.id}/notes/{revised_note.id}/revisions/{revision.id}',
+                           headers=outsider_headers).status_code == 403
+
+
+@pytest.mark.usefixtures('event_manager')
+def test_note_revision_of_another_note_is_not_found(dummy_event, revised_note, dummy_contribution, create_note,
+                                                    token_headers, test_client):
+    other = create_note(dummy_contribution, '<p>Contribution minutes</p>')
+    revision = revised_note.revisions[0]
+    resp = test_client.get(f'/api/v1/events/{dummy_event.id}/notes/{other.id}/revisions/{revision.id}',
+                           headers=token_headers)
+    assert resp.status_code == 404
