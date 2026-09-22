@@ -177,13 +177,13 @@ request handlers and access checks are reused, so they cost nothing here.
 | Room attributes | The values an instance stores per room on top of the columns Indico defines itself, which is where a local identifier or an owner ends up. | 66 | 77 |
 | Room availability | The hours a room can be booked for and the periods it cannot, which is what a booking request is checked against. | 89 | 94 |
 | Reservations | The bookings of those rooms, with their occurrences. | 153 | 150 |
-| Reservation history and links | Every change made to a booking since it was created, and the event, contribution or session block it was made for. | 154 | 126 |
+| Reservation history and links | Every change made to a booking since it was created, and the event, contribution or session block it was made for. | 154 | 170 |
 | Blockings | The periods a room cannot be booked, and who may still book it. | 99 | 95 |
 | Users | The people the instance knows, plus the identity of the caller. | 89 | 101 |
 | Files | The files uploaded to the instance, with the name, type and size of each one. | 77 | 65 |
 | Groups | The groups of users the instance itself defines, and the members of each one. | 99 | 85 |
 | Shared code (spec, Swagger UI, pagination, schema helpers) | Paid once: the OpenAPI document, the docs page, the list envelope and the field description machinery every resource above builds on, plus the fixtures and the comparison helper every test builds on. | 475 | 251 |
-| **Total** | | **6447** | **6661** |
+| **Total** | | **6447** | **6705** |
 
 ## Entities not covered
 
@@ -527,6 +527,11 @@ The member list of a group is left out of its comparison, for lack of anything
 to compare it against: the group search answers with the name and the identifier
 of a group and never with its members, and the member list of the administration
 area is rendered as HTML.
+
+The identifier of the session block a booking was made for is left out for the
+same reason. The booking interface links to the session holding the block, so
+the payload carries the id of the event, and the id of the contribution when the
+booking was made for one, but nothing that names the block itself.
 
 One value is left out of those comparisons because the two APIs mean different
 things by it: the check-in API counts every registration a form holds, while
