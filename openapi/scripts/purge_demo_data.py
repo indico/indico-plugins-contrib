@@ -8,8 +8,9 @@
 """Remove everything ``seed_demo_data.py`` created, so it can be run again.
 
 Instance configuration the seed reuses when it is already there (equipment types,
-reference types, event labels, map areas, room attributes) stays behind: it may
-have been set up by the administrators rather than by the seed.
+room features, reference types, event labels, affiliations, map areas, room
+attributes) stays behind: it may have been set up by the administrators rather
+than by the seed.
 
 Indico deletes events, rooms and users by flagging them, and a flagged row still
 holds the titles and identities the seed asks for, so the demo data has to go
