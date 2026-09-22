@@ -39,6 +39,8 @@ of being reported as an error.
 | `/api/v1/events/<event_id>/registration-forms/<regform_id>/invitations/<invitation_id>` | Invitation details |
 | `/api/v1/events/<event_id>/registrations` | List the registrations of an event |
 | `/api/v1/events/<event_id>/registrations/<registration_id>` | Registration details, with the answers given |
+| `/api/v1/events/<event_id>/registration-tags` | List the tags an event marks its registrations with |
+| `/api/v1/events/<event_id>/registration-tags/<tag_id>` | Registration tag details |
 | `/api/v1/events/<event_id>/document-templates` | List the document templates available to an event |
 | `/api/v1/events/<event_id>/document-templates/<template_id>` | Document template details |
 | `/api/v1/events/<event_id>/registrations/<registration_id>/documents` | List the documents generated for a registration |
@@ -85,6 +87,8 @@ of being reported as an error.
 | `/api/v1/events/<event_id>/features` | List the features available to an event |
 | `/api/v1/events/<event_id>/notes` | List the notes of an event and of everything inside it |
 | `/api/v1/events/<event_id>/notes/<note_id>` | Note details |
+| `/api/v1/events/<event_id>/notes/<note_id>/revisions` | List the successive versions of a note |
+| `/api/v1/events/<event_id>/notes/<note_id>/revisions/<revision_id>` | Note revision details |
 | `/api/v1/events/<event_id>/attachments` | List the attachments of an event |
 | `/api/v1/events/<event_id>/attachments/<attachment_id>` | Attachment details |
 | `/api/v1/events/<event_id>/sessions/<session_id>/attachments` | List the attachments of a session |
@@ -99,12 +103,18 @@ of being reported as an error.
 | `/api/v1/categories/<category_id>/roles/<role_id>` | Category role details |
 | `/api/v1/categories/<category_id>/move-requests` | List the event move requests of a category |
 | `/api/v1/categories/<category_id>/move-requests/<request_id>` | Event move request details |
+| `/api/v1/categories/<category_id>/logs` | List the log entries of a category |
+| `/api/v1/categories/<category_id>/logs/<entry_id>` | Category log entry details |
 | `/api/v1/categories/<category_id>/attachments` | List the attachments of a category |
 | `/api/v1/categories/<category_id>/attachments/<attachment_id>` | Attachment details |
 | `/api/v1/locations` | List the locations rooms belong to |
 | `/api/v1/locations/<location_id>` | Location details |
 | `/api/v1/map-areas` | List the areas of the room map |
 | `/api/v1/map-areas/<area_id>` | Map area details |
+| `/api/v1/equipment-types` | List the equipment a room can have |
+| `/api/v1/equipment-types/<equipment_type_id>` | Equipment type details |
+| `/api/v1/room-features` | List the features a room can be searched by |
+| `/api/v1/room-features/<feature_id>` | Room feature details |
 | `/api/v1/rooms` | List the rooms that can be booked |
 | `/api/v1/rooms/<room_id>` | Room details |
 | `/api/v1/rooms/<room_id>/attributes` | List the attribute values of a room |
@@ -119,19 +129,26 @@ of being reported as an error.
 | `/api/v1/users` | List users |
 | `/api/v1/users/me` | Details of the authenticated user |
 | `/api/v1/users/<user_id>` | User details |
+| `/api/v1/affiliations` | List the organisations people can be affiliated with |
+| `/api/v1/affiliations/<affiliation_id>` | Affiliation details |
 | `/api/v1/files` | List the uploaded files |
 | `/api/v1/files/<uuid>` | Uploaded file details |
 | `/api/v1/groups` | List the local groups |
 | `/api/v1/groups/<group_id>` | Local group details |
 | `/api/v1/event-series` | List the event series the caller manages |
 | `/api/v1/event-series/<series_id>` | Event series details |
+| `/api/v1/event-labels` | List the labels an event can be marked with |
+| `/api/v1/event-labels/<event_label_id>` | Event label details |
+| `/api/v1/reference-types` | List the systems external identifiers point at |
+| `/api/v1/reference-types/<reference_type_id>` | Reference type details |
 | `/api/v1/openapi.json` | OpenAPI v3 document |
 | `/api/v1/docs` | Swagger UI |
 
 ## Entities served
 
-The list below is what the API serves. It leaves out reviewing, editing and the
-instance administration area, described under Entities not covered. The cost columns are the lines of plugin code and of plugin
+The list below is what the API serves. It leaves out reviewing, editing, the
+instance administration area, permissions and personal user data, described
+under Entities not covered. The cost columns are the lines of plugin code and of plugin
 tests each entity took, counted with `wc -l` on the files it owns. Core schemas,
 request handlers and access checks are reused, so they cost nothing here.
 
@@ -147,7 +164,7 @@ request handlers and access checks are reused, so they cost nothing here.
 | Timetable | The schedule itself, the only view that says when each contribution, session block and break happens. | 134 | 205 |
 | Tracks | The programme an event is divided into. Abstracts and contributions point at it. | 74 | 100 |
 | Event persons | Speakers, chairs, conveners and authors, with the affiliation each one was entered with. | 142 | 156 |
-| Registration forms and registrations | What an event asks registrants for, section by section and field by field, whether the form is open, who registered, in what state, for what price and with what answers. | 523 | 582 |
+| Registration forms, registrations and tags | What an event asks registrants for, section by section and field by field, whether the form is open, who registered, in what state, for what price and with what answers, plus the tags the organisers group registrations with. | 568 | 662 |
 | Registration invitations | Who an event invited to register, in what state each invitation is and which registration it turned into. | 113 | 126 |
 | Abstracts | The submissions to a call for abstracts, with their state, tracks, authors and files. | 158 | 200 |
 | Abstract notifications | The templates a call for abstracts notifies its submitters with, and the mail each abstract actually triggered. | 183 | 162 |
@@ -159,7 +176,7 @@ request handlers and access checks are reused, so they cost nothing here.
 | Category roles | The same, one level up: the groups a category grants permissions to, which every event under it inherits. | 91 | 102 |
 | Event move requests | The events asking to be moved into a category, in what state each request is and who answered it. | 95 | 109 |
 | Reminders | The emails an event has scheduled for its participants, with their recipient filters and their message. | 140 | 101 |
-| Event logs | Every management action an event recorded, with the values that changed, which is the only account of who did what. | 158 | 187 |
+| Event and category logs | Every management action an event or a category recorded, with the values that changed, which is the only account of who did what. | 227 | 306 |
 | Payments | What each registrant was charged, through which provider, and whether the payment went through. | 112 | 129 |
 | Service requests | The services an event asked the instance to provide, in what state each request is, and who accepted or rejected it. | 131 | 157 |
 | Videoconferences | The videoconference rooms attached to an event, a contribution or a session block, and whether the service still has each one. | 115 | 155 |
@@ -169,21 +186,25 @@ request handlers and access checks are reused, so they cost nothing here.
 | Event features | Which optional parts of Indico an event has turned on, out of the ones its type allows. | 61 | 60 |
 | Document templates and documents | The templates an event renders invoices and certificates from, the fields each one asks for, and the documents already generated for a registration. | 219 | 298 |
 | Designer templates | The badge and poster templates an event draws tickets from, with the drawing itself and the images it places on it. | 128 | 143 |
-| Notes | The minutes attached to an event, a session, a contribution or a subcontribution. | 76 | 89 |
+| Notes | The minutes attached to an event, a session, a contribution or a subcontribution, and every version each one went through. | 152 | 139 |
 | Attachments | The material and links attached to any of those, and the folders holding them. | 225 | 126 |
 | Locations | The places rooms belong to. | 86 | 93 |
 | Map areas | The parts of the map the room booking interface opens on. | 70 | 66 |
 | Rooms | The rooms that can be booked, with their capacity, equipment and managers. | 113 | 118 |
+| Equipment types and room features | The equipment a room can have and the features a room search filters by, which is what the equipment of a room points at. | 123 | 109 |
 | Room attributes | The values an instance stores per room on top of the columns Indico defines itself, which is where a local identifier or an owner ends up. | 66 | 77 |
 | Room availability | The hours a room can be booked for and the periods it cannot, which is what a booking request is checked against. | 89 | 94 |
 | Reservations | The bookings of those rooms, with their occurrences. | 153 | 150 |
 | Reservation history and links | Every change made to a booking since it was created, and the event, contribution or session block it was made for. | 154 | 170 |
 | Blockings | The periods a room cannot be booked, and who may still book it. | 99 | 95 |
 | Users | The people the instance knows, plus the identity of the caller. | 89 | 101 |
+| Affiliations | The organisations the instance defines, which is what the affiliation of a user, a speaker or a registrant points at. | 60 | 65 |
 | Files | The files uploaded to the instance, with the name, type and size of each one. | 77 | 65 |
 | Groups | The groups of users the instance itself defines, and the members of each one. | 99 | 85 |
+| Event labels | The labels an event can be marked with, such as `Cancelled`, as the administrators defined them. | 70 | 57 |
+| Reference types | The external systems an event, a contribution or a subcontribution can carry an identifier of, such as a DOI, with the scheme and the URL template each one builds its links from. | 71 | 41 |
 | Shared code (spec, Swagger UI, pagination, schema helpers) | Paid once: the OpenAPI document, the docs page, the list envelope and the field description machinery every resource above builds on, plus the fixtures and the comparison helper every test builds on. | 475 | 251 |
-| **Total** | | **6447** | **6705** |
+| **Total** | | **6961** | **7226** |
 
 ## Entities not covered
 
@@ -197,10 +218,12 @@ per role, 450 to 500 when it also needs several endpoints of its own.
 | Paper and abstract reviews, ratings and comments | Reviewing is written under the assumption that only the people in the process read it, and each role sees a different part of the same review. Exposing it through an API means reimplementing those rules rather than reusing them. | 600 to 700 |
 | Editing (`events/editing`) | The editing workflow is reviewing material under another name: revisions, review comments and file type settings. It also already has its own REST API, used by its React frontend. | 500 to 600 |
 | Instance administration | Settings, announcements, news, legal texts, authentication, OAuth applications, IP networks and the search service are either instance configuration or a view over the entities above. | 600 or more |
+| Protection and permissions | The access lists of events, categories, sessions, contributions, tracks, menu entries, rooms and blockings. Reading one means resolving every kind of principal it can hold, from a user to a group, an email address, an IP network, an event role or a registration form, and each surface grants a different set of permissions. It is also the one payload that says who may read the rest, so serving it needs a design of its own rather than another resource. | 500 to 600 |
+| User logs and personal data | The log of a user account, its settings, its favourite events, categories, rooms and users, and the data export requests it made. All of it belongs to one person, is only ever shown to that person and to administrators, and is read from the profile page rather than from an event. Identities, API keys and personal tokens are credentials and are not served at all. | 300 to 350 |
 
 ### Where Indico serves them today
 
-None of the three is invisible over GET. Every one of them can be read
+None of them is invisible over GET. Every one of them can be read
 without a POST, either as JSON or as a rendered page, so the question is never
 whether the data is reachable but in what shape and to whom.
 
@@ -208,6 +231,8 @@ whether the data is reachable but in what shape and to whom.
 | --- | --- | --- |
 | Paper and abstract reviews, ratings and comments | `/event/<event_id>/manage/abstracts/abstracts.json`, `/event/<event_id>/manage/papers/assignment-list/export-json`, and the abstract and paper pages | JSON, but only as a whole-event dump sent as a file attachment and only to managers. The per-role view of a single review is HTML. |
 | Editing | `/event/<event_id>/editing/api/...` and the editable timeline of each contribution | JSON. It already is a REST API, written for its own React frontend. |
+| Protection and permissions | The protection page of each object, plus `/event/<event_id>/manage/protection/acl` | HTML. The inherited access list is rendered into the page, and the only JSON behind it is the principal search, which answers to POST. |
+| User logs and personal data | `/user/<user_id>/...`, with JSON at `/user/<user_id>/api/favorites/...` and `/user/<user_id>/api/data-export` | Mixed. The profile, the settings and the log are HTML; the favourites and the export request answer JSON to the user they belong to. |
 | Instance administration | The pages under `/admin/` | HTML forms, except `/admin/logs/api/logs` and `/admin/version-check`. |
 
 Instance settings are the one entity that can only be read as HTML today: they are a
@@ -243,8 +268,10 @@ searches, and the registration an entry is about. Without them a caller would
 have to read the whole audit trail of an event to find one entry. A caller who
 only manages the registrations of the event has to pass the registration filter,
 and reaches a single entry only when that entry is about a registration, which
-is the rule the log interface applies as well. The log of a category, of a user
-and of the instance is not served: those belong to instance administration.
+is the rule the log interface applies as well. The log of a category is served
+the same way to whoever manages the category, with the same filters over the two
+realms a category records, while the log of a user and of the instance is not
+served: those belong to instance administration.
 
 A payment is served to the managers of the registrations of an event, the only
 audience the interface shows one to: the transaction appears on the management
@@ -362,6 +389,27 @@ booking was made for to whoever may use the room booking system. A link names it
 event, contribution or session block by identifier whatever the caller can read,
 and the title only when the caller can access the object itself.
 
+Equipment types and room features are served to whoever may use the room booking
+system, since the search form already filters rooms by both. An equipment type
+carries whether any room still has it, which is the column the administration
+list shows, and the features it maps to, which is how a room ends up drawn with
+one.
+
+Reference types, event labels and affiliations are served to any authenticated
+caller. Each of them is a catalogue the instance defines once and then hands to
+everybody: a reference of an event already names its type, an event already shows
+its label, and a user already carries the affiliation it links to, so what is
+served here is the definition behind a value the caller can read anyway.
+
+Registration tags are served to whoever manages the registrations of an event,
+the audience the tags exist for: a registration carries them only in the payload
+a manager gets, and the tag list is edited from the same management area.
+
+An older revision of a note is served to whoever manages the object the note
+hangs off, which is a narrower audience than the note itself. The current text is
+what the object shows, while a revision holds what it used to say and no longer
+does.
+
 Responses reuse Indico's own marshmallow schemas wherever core has one that
 describes the object. Several objects are only ever rendered from a template, or
 sent as a payload shaped for one React page, or described by a schema that only
@@ -371,7 +419,8 @@ subcontributions, timetable entries, breaks, surveys, survey questions,
 agreements, generated documents, designer templates, paper templates, abstract
 notification templates and the notifications sent from them, category roles,
 event move requests, room attributes, bookable hours, non-bookable periods, the
-history of a booking and the objects it was made for. Those are declared here as
+history of a booking and the objects it was made for, registration tags, note
+revisions, event labels and reference types. Those are declared here as
 automatic schemas over the model, so their field names and types still come from
 Indico rather than from a hand-written mapping.
 
@@ -504,6 +553,7 @@ current interface itself calls:
 | Groups | `/groups/api/search` |
 | Event roles | `/event/<event_id>/manage/roles/api/roles/` and `/event/<event_id>/manage/api/event-roles` |
 | Event logs | `/event/<event_id>/manage/logs/api/logs` |
+| Category logs | `/category/<category_id>/manage/logs/api/logs` |
 | Event series | `/event-series/<series_id>` |
 | Document templates | `/event/<event_id>/manage/receipts/templates` |
 | Designer templates | `/event/<event_id>/manage/designer/<template_id>/data` |
@@ -511,8 +561,12 @@ current interface itself calls:
 | Custom contribution fields | `/event/<event_id>/manage/contributions/api/fields/` |
 | Paper file types | `/event/<event_id>/papers/api/file-types/` |
 | Category roles | `/category/<category_id>/manage/roles/api/roles/` |
+| Registration tags | `/api/checkin/event/<event_id>/`, field `registration_tags` |
+| Affiliations | `/api/admin/affiliations` |
 | Event move requests | `/category/<category_id>/api/event-move-requests` |
 | Map areas | `/rooms/api/map-areas` |
+| Equipment types | `/rooms/api/equipment` |
+| Room features | `/rooms/api/admin/features` |
 | Room attributes | `/rooms/api/rooms/<room_id>/attributes` |
 | Room availability | `/rooms/api/admin/rooms/<room_id>/availability` |
 | Reservation history | `/rooms/api/bookings/<reservation_id>`, field `edit_logs` |
@@ -550,8 +604,8 @@ stretches those contributions over their session block before matching them.
 Survey submissions, agreements, reminders, payments, service requests,
 videoconferences, offline copies, event layout, event features, the documents
 generated for a registration, session types, registration invitations, paper
-templates and abstract notifications are the entities served without a parity
-test. The interface only exports submissions as CSV or Excel, behind a
+templates, abstract notifications, reference types, event labels and note
+revisions are the entities served without a parity test. The interface only exports submissions as CSV or Excel, behind a
 POST, so the survey test compares the questionnaire instead. For agreements, the
 legacy endpoint answers with the people an agreement definition asks to sign, and
 those definitions come from plugins, so there is nobody to list unless a plugin
@@ -574,6 +628,17 @@ the endpoint its editor reads. Session types, registration invitations, paper
 templates and both the notification templates of a call for abstracts and the
 notifications it sent are only ever rendered as management pages, with a download
 link behind a paper template and nothing behind the rest.
+
+Reference types and event labels are managed from an administration page that
+answers HTML, and neither catalogue is served as JSON anywhere, so there is
+nothing to compare them against either. Note revisions are not rendered at all:
+Indico keeps every version of a note and only ever shows the current one.
+
+Two comparisons are made against an endpoint the administration area calls,
+since the catalogue behind it is only listed as a whole there: the features a
+room can be searched by, which every user of the room booking system already
+gets next to the equipment they belong to, and the affiliations, which anybody
+filling in a name searches through the endpoint of the interface.
 
 ### Checking a running instance
 
