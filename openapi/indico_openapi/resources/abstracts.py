@@ -59,7 +59,7 @@ class AbstractFileSchema(DescribedFieldsMixin, CoreAbstractFileSchema):
         }
 
 
-class AbstractSchema(DescribedFieldsMixin, CoreAbstractSchema):
+class ApiAbstractSchema(DescribedFieldsMixin, CoreAbstractSchema):
     class Meta(CoreAbstractSchema.Meta):
         fields = ('id', 'friendly_id', 'title', 'content', 'state', 'submitted_dt', 'modified_dt', 'judgment_dt',
                   'submitter', 'modified_by', 'judge', 'submission_comment', 'judgment_comment',
@@ -110,8 +110,8 @@ class AbstractMixin:
 
     An abstract is readable by its submitter, by the people listed on it, by
     the abstract managers and by the conveners and reviewers of the tracks it
-    is being reviewed for. The reviews, ratings and comments written about it
-    follow their own rules and are not exposed.
+    is being reviewed for. The reviews and comments written about it hang off
+    it as their own resources, each entry served to whoever may read it.
     """
 
     EVENT_FEATURE = 'abstracts'
@@ -139,20 +139,20 @@ class RHAbstract(AbstractMixin, RHProtectedEventBase):
             raise Forbidden
 
     def _process_GET(self):
-        return AbstractSchema().jsonify(self.abstract)
+        return ApiAbstractSchema().jsonify(self.abstract)
 
 
 @json_errors
 class RHAbstractList(AbstractMixin, RHListBase, RHProtectedEventBase):
-    schema = AbstractSchema
+    schema = ApiAbstractSchema
 
     def _query(self):
         return self._abstract_query()
 
 
 ENDPOINTS = [
-    Endpoint(rule='/events/<int:event_id>/abstracts', name='abstracts', rh=RHAbstractList, schema=AbstractSchema,
+    Endpoint(rule='/events/<int:event_id>/abstracts', name='abstracts', rh=RHAbstractList, schema=ApiAbstractSchema,
              many=True, summary='List the abstracts of an event', tag='Abstracts'),
     Endpoint(rule='/events/<int:event_id>/abstracts/<int:abstract_id>', name='abstract', rh=RHAbstract,
-             schema=AbstractSchema, summary='Abstract details', tag='Abstracts'),
+             schema=ApiAbstractSchema, summary='Abstract details', tag='Abstracts'),
 ]

@@ -5,6 +5,16 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
+
+import pathlib
+import re
+
+from marshmallow import class_registry
+from marshmallow.exceptions import RegistryError
+
+import indico
+
+
 def test_spec_requires_login(test_client):
     resp = test_client.get('/api/v1/openapi.json')
     assert resp.status_code == 403
@@ -47,3 +57,17 @@ def test_spec_wraps_list_results(dummy_user, test_client):
     schema = operation['responses']['200']['content']['application/json']['schema']
     assert schema['$ref'] == '#/components/schemas/EventPage'
     assert {p['name'] for p in operation['parameters']} >= {'limit', 'offset', 'category_id'}
+
+
+def test_plugin_schemas_do_not_shadow_the_ones_indico_nests_by_name(test_client):
+    nested_by_name = {name
+                      for path in pathlib.Path(indico.__file__).parent.rglob('schemas.py')
+                      for name in re.findall(r"""Nested\(\s*['"]([A-Za-z_]\w*)['"]""", path.read_text())}
+    assert nested_by_name
+    ambiguous = []
+    for name in sorted(nested_by_name):
+        try:
+            class_registry.get_class(name)
+        except RegistryError:
+            ambiguous.append(name)
+    assert not ambiguous

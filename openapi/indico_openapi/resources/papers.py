@@ -102,8 +102,8 @@ class PaperMixin:
 
     A paper is readable by the people listed on its contribution, by whoever
     may submit it, by the paper managers and by the judges and reviewers
-    assigned to it. The reviews, ratings and comments written about it follow
-    their own rules and are not exposed.
+    assigned to it. The reviews and comments written about it hang off each
+    revision as their own resources, each entry served to whoever may read it.
     """
 
     EVENT_FEATURE = 'papers'

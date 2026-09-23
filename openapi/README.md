@@ -49,12 +49,18 @@ of being reported as an error.
 | `/api/v1/events/<event_id>/designer-templates/<template_id>` | Badge or poster template details |
 | `/api/v1/events/<event_id>/abstracts` | List the abstracts of an event |
 | `/api/v1/events/<event_id>/abstracts/<abstract_id>` | Abstract details |
+| `/api/v1/events/<event_id>/abstracts/<abstract_id>/reviews` | List the reviews of an abstract |
+| `/api/v1/events/<event_id>/abstracts/<abstract_id>/comments` | List the comments left on an abstract |
+| `/api/v1/events/<event_id>/abstract-review-questions` | List the questions abstract reviewers answer |
 | `/api/v1/events/<event_id>/abstracts/<abstract_id>/emails` | List the notifications sent about an abstract |
 | `/api/v1/events/<event_id>/abstracts/<abstract_id>/emails/<email_id>` | Abstract notification details |
 | `/api/v1/events/<event_id>/abstract-email-templates` | List the notification templates of a call for abstracts |
 | `/api/v1/events/<event_id>/abstract-email-templates/<template_id>` | Abstract notification template details |
 | `/api/v1/events/<event_id>/papers` | List the papers of an event |
 | `/api/v1/events/<event_id>/contributions/<contrib_id>/paper` | Paper of a contribution |
+| `/api/v1/events/<event_id>/contributions/<contrib_id>/paper/revisions/<revision_id>/reviews` | List the reviews of a paper revision |
+| `/api/v1/events/<event_id>/contributions/<contrib_id>/paper/revisions/<revision_id>/comments` | List the comments left on a paper revision |
+| `/api/v1/events/<event_id>/paper-review-questions` | List the questions paper reviewers answer |
 | `/api/v1/events/<event_id>/paper-templates` | List the paper templates of an event |
 | `/api/v1/events/<event_id>/paper-templates/<template_id>` | Paper template details |
 | `/api/v1/events/<event_id>/paper-file-types` | List the file types papers are submitted as |
@@ -172,7 +178,7 @@ of being reported as an error.
 
 ## Entities served
 
-The list below is what the API serves. It leaves out reviewing, editing, the
+The list below is what the API serves. It leaves out editing, the
 instance administration area and the log of a user account, described
 under Entities not covered. The cost columns are the lines of plugin code and of plugin
 tests each entity took, counted with `wc -l` on the files it owns. Core schemas,
@@ -232,8 +238,9 @@ request handlers and access checks are reused, so they cost nothing here.
 | Event labels | The labels an event can be marked with, such as `Cancelled`, as the administrators defined them. | 70 | 57 |
 | Reference types | The external systems an event, a contribution or a subcontribution can carry an identifier of, such as a DOI, with the scheme and the URL template each one builds its links from. | 71 | 41 |
 | Protection and permissions | The ACL of every object that holds one, entry by entry, with what each principal is granted, plus the catalogue saying what every permission name allows. | 385 | 225 |
-| Shared code (spec, Swagger UI, pagination, schema helpers) | Paid once: the OpenAPI document, the docs page, the list envelope and the field description machinery every resource above builds on, plus the fixtures and the comparison helper every test builds on. | 475 | 251 |
-| **Total** | | **7571** | **7604** |
+| Reviews, ratings and comments | What the reviewers of an abstract and of a paper wrote about it, with the answer given to every question of the reviewing form and the comments left along the way, plus the questions themselves. | 288 | 416 |
+| Shared code (spec, Swagger UI, pagination, schema helpers) | Paid once: the OpenAPI document, the docs page, the list envelope and the field description machinery every resource above builds on, plus the fixtures and the comparison helper every test builds on. | 487 | 275 |
+| **Total** | | **7871** | **8044** |
 
 ## Entities not covered
 
@@ -244,8 +251,7 @@ per role, 450 to 500 when it also needs several endpoints of its own.
 
 | Entity | Why | Estimated cost |
 | --- | --- | --- |
-| Paper and abstract reviews, ratings and comments | Reviewing is written under the assumption that only the people in the process read it, and each role sees a different part of the same review. Exposing it through an API means reimplementing those rules rather than reusing them. | 600 to 700 |
-| Editing (`events/editing`) | The editing workflow is reviewing material under another name: revisions, review comments and file type settings. It also already has its own REST API, used by its React frontend. | 500 to 600 |
+| Editing (`events/editing`) | The editing workflow already has its own REST API, written for and used by its React frontend, over revisions, review comments and file type settings of its own. | 500 to 600 |
 | Instance administration | Settings, announcements, news, legal texts, authentication, OAuth applications, IP networks and the search service are either instance configuration or a view over the entities above. | 600 or more |
 | User logs | The audit trail of one account: the profile changes, the permissions granted and the mail sent to it. Indico shows it in the administration area alone and never to the account it belongs to, so serving it here would mean answering one caller with the record of another, which the personal endpoints never do. Identities, API keys and personal tokens are credentials and are not served at all either. | 150 to 200 |
 
@@ -257,7 +263,6 @@ whether the data is reachable but in what shape and to whom.
 
 | Entity | Read over GET | Shape |
 | --- | --- | --- |
-| Paper and abstract reviews, ratings and comments | `/event/<event_id>/manage/abstracts/abstracts.json`, `/event/<event_id>/manage/papers/assignment-list/export-json`, and the abstract and paper pages | JSON, but only as a whole-event dump sent as a file attachment and only to managers. The per-role view of a single review is HTML. |
 | Editing | `/event/<event_id>/editing/api/...` and the editable timeline of each contribution | JSON. It already is a REST API, written for its own React frontend. |
 | User logs | `/user/<user_id>/logs`, with JSON at `/user/<user_id>/api/logs` | JSON behind an HTML page, served to instance administrators alone. |
 | Instance administration | The pages under `/admin/` | HTML forms, except `/admin/logs/api/logs` and `/admin/version-check`. |
@@ -311,6 +316,22 @@ and a blocking is the one object whose ACL was already served: the principals
 that may still book the rooms are part of the blocking itself, which is how the
 room booking interface shows them. Since a name stored in an entry means nothing
 on its own, `/permissions` describes what each one allows, per kind of object.
+
+A review and a comment are served to whoever Indico lets read that single entry,
+which is the check the timeline of an abstract and of a paper applies when it
+renders itself: the author of an entry always reads their own, a judge reads
+every one, and a comment is read by whichever of the conveners, the reviewers,
+the people listed on the submission or every user its visibility names. An entry
+the caller may not read is left out of the list rather than reported, the same
+way the timeline simply does not draw it, so two callers reading the same
+abstract get different lists. Reaching them at all still needs access to the
+abstract or to the paper, so somebody outside the submission is answered 403
+before any entry is considered. An answer carries the question it was given to,
+which is what makes a value mean anything, and the score of a review is the
+average of the answers that count towards it. The questions of the reviewing
+form are served on their own to whoever manages the reviewing, the audience of
+the settings page defining them, since a reviewer already gets each question
+next to the answer they gave it.
 
 The log of an event is served with the filters the log interface uses: the area
 of the event an entry belongs to, free text over the same columns the interface
@@ -607,6 +628,9 @@ current interface itself calls:
 | Registration forms, sections, fields, registrations and answers | `/api/checkin/event/<event_id>/forms/[<reg_form_id>/registrations/[<registration_id>]]` |
 | Abstracts | `/event/<event_id>/manage/abstracts/abstracts.json` |
 | Papers | `/event/<event_id>/manage/papers/assignment-list/export-json` |
+| Abstract reviews and comments | `/event/<event_id>/manage/abstracts/abstracts.json`, fields `reviews` and `comments` |
+| Paper reviews and comments | `/event/<event_id>/manage/papers/assignment-list/export-json`, fields `reviews` and `comments` of each revision |
+| Paper reviewing questions | the same export, fields `layout_review_questions` and `content_review_questions` |
 | Surveys | `/event/<event_id>/manage/surveys/<survey_id>/questionnaire/survey.json` |
 | Locations | `/rooms/api/locations` |
 | Blockings | `/rooms/api/blockings/` |
@@ -648,6 +672,17 @@ so three of those endpoints answer with a bare list of ids and the fourth with
 one entry per id. This API answers with the objects themselves, in the shape it
 serves them everywhere else, and what the two have to agree on is which objects
 are in the list.
+
+Reviewing is compared out of the two exports the reviewing pages download, which
+is where Indico dumps a whole event at once. Three values are computed rather
+than compared: the abstracts export names the question of a rating by identifier
+and leaves the score of a review to be averaged from its ratings, and the papers
+export leaves out the flag saying whether an answer counts towards that score,
+which holds for every question but a rating taken out of it by hand. The
+questions abstract reviewers answer are the one part compared on four fields
+alone, since that export describes a question with its identifier, title,
+position and that same flag, and the rest of it is only ever rendered into the
+reviewing settings page.
 
 The member list of a group is left out of its comparison, for lack of anything
 to compare it against: the group search answers with the name and the identifier
