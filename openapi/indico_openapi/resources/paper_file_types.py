@@ -74,5 +74,6 @@ ENDPOINTS = [
              schema=PaperFileTypeSchema, many=True, summary='List the file types papers are submitted as',
              tag='Papers'),
     Endpoint(rule='/events/<int:event_id>/paper-file-types/<int:file_type_id>', name='paper_file_type',
-             rh=RHPaperFileType, schema=PaperFileTypeSchema, summary='Paper file type details', tag='Papers'),
+             rh=RHPaperFileType, schema=PaperFileTypeSchema,
+             summary='Details of one file type papers are submitted as', tag='Papers'),
 ]

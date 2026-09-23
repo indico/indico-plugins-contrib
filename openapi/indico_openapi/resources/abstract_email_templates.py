@@ -82,5 +82,5 @@ ENDPOINTS = [
              summary='List the notification templates of a call for abstracts', tag='Abstracts'),
     Endpoint(rule='/events/<int:event_id>/abstract-email-templates/<int:template_id>', name='abstract_email_template',
              rh=RHAbstractEmailTemplate, schema=AbstractEmailTemplateSchema,
-             summary='Abstract notification template details', tag='Abstracts'),
+             summary='Details of one notification template of a call for abstracts', tag='Abstracts'),
 ]

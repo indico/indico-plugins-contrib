@@ -70,5 +70,5 @@ ENDPOINTS = [
     Endpoint(rule='/events/<int:event_id>/tracks', name='tracks', rh=RHTrackList, schema=TrackSchema, many=True,
              summary='List the tracks of an event', tag='Tracks'),
     Endpoint(rule='/events/<int:event_id>/tracks/<int:track_id>', name='track', rh=RHTrack, schema=TrackSchema,
-             summary='Track details', tag='Tracks'),
+             summary='Details of one track of an event', tag='Tracks'),
 ]

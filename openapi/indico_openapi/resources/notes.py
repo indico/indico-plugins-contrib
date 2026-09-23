@@ -143,10 +143,10 @@ ENDPOINTS = [
     Endpoint(rule='/events/<int:event_id>/notes', name='notes', rh=RHNoteList, schema=NoteSchema, many=True,
              summary='List the notes of an event and of everything inside it', tag='Notes'),
     Endpoint(rule='/events/<int:event_id>/notes/<int:note_id>', name='note', rh=RHNote, schema=NoteSchema,
-             summary='Note details', tag='Notes'),
+             summary='Details of one note of an event', tag='Notes'),
     Endpoint(rule='/events/<int:event_id>/notes/<int:note_id>/revisions', name='note_revisions',
              rh=RHNoteRevisionList, schema=NoteRevisionSchema, many=True,
              summary='List the successive versions of a note', tag='Notes'),
     Endpoint(rule='/events/<int:event_id>/notes/<int:note_id>/revisions/<int:revision_id>', name='note_revision',
-             rh=RHNoteRevision, schema=NoteRevisionSchema, summary='Note revision details', tag='Notes'),
+             rh=RHNoteRevision, schema=NoteRevisionSchema, summary='Details of one version of a note', tag='Notes'),
 ]

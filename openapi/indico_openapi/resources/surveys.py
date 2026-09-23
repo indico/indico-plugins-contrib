@@ -203,7 +203,7 @@ ENDPOINTS = [
     Endpoint(rule='/events/<int:event_id>/surveys', name='surveys', rh=RHSurveyList, schema=SurveySchema, many=True,
              summary='List the surveys of an event', tag='Surveys'),
     Endpoint(rule='/events/<int:event_id>/surveys/<int:survey_id>', name='survey', rh=RHSurvey,
-             schema=SurveyDetailsSchema, summary='Survey details', tag='Surveys'),
+             schema=SurveyDetailsSchema, summary='Details of one survey of an event', tag='Surveys'),
     Endpoint(rule='/events/<int:event_id>/surveys/<int:survey_id>/submissions', name='survey_submissions',
              rh=RHSurveySubmissionList, schema=SurveySubmissionSchema, many=True,
              summary='List the submitted answers of a survey', tag='Surveys'),

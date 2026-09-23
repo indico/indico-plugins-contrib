@@ -92,6 +92,6 @@ ENDPOINTS = [
              rh=RHContributionFieldList, schema=ContributionFieldSchema, many=True,
              summary='List the custom contribution fields of an event', tag='Contributions'),
     Endpoint(rule='/events/<int:event_id>/contribution-fields/<int:field_id>', name='contribution_field',
-             rh=RHContributionField, schema=ContributionFieldSchema, summary='Custom contribution field details',
-             tag='Contributions'),
+             rh=RHContributionField, schema=ContributionFieldSchema,
+             summary='Details of one custom contribution field of an event', tag='Contributions'),
 ]

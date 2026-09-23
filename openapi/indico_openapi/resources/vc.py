@@ -108,8 +108,7 @@ class RHVCRoomList(VCRoomMixin, RHListBase, RHProtectedEventBase):
 
 ENDPOINTS = [
     Endpoint(rule='/events/<int:event_id>/videoconference-rooms', name='vc_rooms', rh=RHVCRoomList,
-             schema=VCRoomSchema, many=True, summary='List the videoconferences of an event',
-             tag='Videoconferences'),
+             schema=VCRoomSchema, many=True, summary='List the videoconferences of an event', tag='Videoconferences'),
     Endpoint(rule='/events/<int:event_id>/videoconference-rooms/<int:vc_room_id>', name='vc_room', rh=RHVCRoom,
-             schema=VCRoomSchema, summary='Videoconference details', tag='Videoconferences'),
+             schema=VCRoomSchema, summary='Details of one videoconference of an event', tag='Videoconferences'),
 ]

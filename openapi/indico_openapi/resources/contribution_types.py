@@ -67,6 +67,6 @@ ENDPOINTS = [
              schema=ContributionTypeSchema, many=True, summary='List the contribution types of an event',
              tag='Contributions'),
     Endpoint(rule='/events/<int:event_id>/contribution-types/<int:type_id>', name='contribution_type',
-             rh=RHContributionType, schema=ContributionTypeSchema, summary='Contribution type details',
-             tag='Contributions'),
+             rh=RHContributionType, schema=ContributionTypeSchema,
+             summary='Details of one contribution type of an event', tag='Contributions'),
 ]

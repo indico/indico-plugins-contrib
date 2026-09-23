@@ -153,5 +153,5 @@ ENDPOINTS = [
     Endpoint(rule='/events/<int:event_id>/papers', name='papers', rh=RHPaperList, schema=PaperSchema, many=True,
              summary='List the papers of an event', tag='Papers'),
     Endpoint(rule='/events/<int:event_id>/contributions/<int:contrib_id>/paper', name='paper', rh=RHPaper,
-             schema=PaperDetailsSchema, summary='Paper of a contribution', tag='Papers'),
+             schema=PaperDetailsSchema, summary='The paper of a contribution, with its revisions', tag='Papers'),
 ]

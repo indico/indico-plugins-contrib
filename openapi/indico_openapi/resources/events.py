@@ -144,7 +144,7 @@ class RHEventList(RHListBase):
 
 ENDPOINTS = [
     Endpoint(rule='/events', name='events', rh=RHEventList, schema=EventSchema, many=True,
-             summary='List events', tag='Events'),
+             summary='List the events the caller can see', tag='Events'),
     Endpoint(rule='/events/<int:event_id>', name='event', rh=RHEvent, schema=EventSchema,
-             summary='Event details', tag='Events'),
+             summary='Details of one event, with its dates and category', tag='Events'),
 ]

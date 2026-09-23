@@ -56,5 +56,6 @@ ENDPOINTS = [
     Endpoint(rule='/affiliations', name='affiliations', rh=RHAffiliationList, schema=AffiliationSchema, many=True,
              summary='List the organisations people can be affiliated with', tag='Users'),
     Endpoint(rule='/affiliations/<int:affiliation_id>', name='affiliation', rh=RHAffiliation,
-             schema=AffiliationSchema, summary='Affiliation details', tag='Users'),
+             schema=AffiliationSchema,
+             summary='Details of one organisation people can be affiliated with', tag='Users'),
 ]

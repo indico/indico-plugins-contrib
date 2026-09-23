@@ -152,8 +152,7 @@ class RHContributionList(ContributionMixin, RHListBase, RHProtectedEventBase):
 
 ENDPOINTS = [
     Endpoint(rule='/events/<int:event_id>/contributions', name='contributions', rh=RHContributionList,
-             schema=ContributionSchema, many=True, summary='List the contributions of an event',
-             tag='Contributions'),
+             schema=ContributionSchema, many=True, summary='List the contributions of an event', tag='Contributions'),
     Endpoint(rule='/events/<int:event_id>/contributions/<int:contrib_id>', name='contribution', rh=RHContribution,
-             schema=ContributionSchema, summary='Contribution details', tag='Contributions'),
+             schema=ContributionSchema, summary='Details of one contribution of an event', tag='Contributions'),
 ]

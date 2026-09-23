@@ -76,5 +76,5 @@ ENDPOINTS = [
              summary='List the subcontributions of a contribution', tag='Contributions'),
     Endpoint(rule='/events/<int:event_id>/contributions/<int:contrib_id>/subcontributions/<int:subcontrib_id>',
              name='subcontribution', rh=RHSubContribution, schema=SubContributionSchema,
-             summary='Subcontribution details', tag='Contributions'),
+             summary='Details of one subcontribution of a contribution', tag='Contributions'),
 ]

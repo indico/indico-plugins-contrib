@@ -109,5 +109,5 @@ ENDPOINTS = [
              summary='List the invitations to register through a form', tag='Registrations'),
     Endpoint(rule='/events/<int:event_id>/registration-forms/<int:regform_id>/invitations/<int:invitation_id>',
              name='invitation', rh=RHRegistrationInvitation, schema=RegistrationInvitationSchema,
-             summary='Invitation details', tag='Registrations'),
+             summary='Details of one invitation to register through a form', tag='Registrations'),
 ]

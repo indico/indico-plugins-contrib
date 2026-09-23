@@ -49,6 +49,24 @@ def test_spec_documents_every_field(dummy_user, test_client):
     assert not undocumented
 
 
+def test_spec_describes_every_endpoint(dummy_user, test_client):
+    with test_client.session_transaction() as sess:
+        sess.set_session_user(dummy_user)
+    resp = test_client.get('/api/v1/openapi.json')
+    summaries = {}
+    terse, repeated = [], []
+    for path, item in resp.json['paths'].items():
+        for operation in item.values():
+            summary = operation.get('summary', '')
+            if len(summary.split()) < 4:
+                terse.append(path)
+            if summary in summaries:
+                repeated.append(f'{path} reads like {summaries[summary]}')
+            summaries[summary] = path
+    assert not terse
+    assert not repeated
+
+
 def test_spec_wraps_list_results(dummy_user, test_client):
     with test_client.session_transaction() as sess:
         sess.set_session_user(dummy_user)

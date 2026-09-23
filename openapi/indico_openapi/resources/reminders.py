@@ -136,5 +136,5 @@ ENDPOINTS = [
     Endpoint(rule='/events/<int:event_id>/reminders', name='reminders', rh=RHReminderList, schema=ReminderSchema,
              many=True, summary='List the reminders of an event', tag='Reminders'),
     Endpoint(rule='/events/<int:event_id>/reminders/<int:reminder_id>', name='reminder', rh=RHReminder,
-             schema=ReminderSchema, summary='Reminder details', tag='Reminders'),
+             schema=ReminderSchema, summary='Details of one reminder of an event', tag='Reminders'),
 ]

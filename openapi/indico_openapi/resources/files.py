@@ -71,7 +71,7 @@ class RHFileList(RHListBase, RHProtected):
 
 ENDPOINTS = [
     Endpoint(rule='/files', name='files', rh=RHFileList, schema=FileSchema, many=True,
-             summary='List the uploaded files', tag='Files'),
+             summary='List the files uploaded to the instance', tag='Files'),
     Endpoint(rule='/files/<uuid:uuid>', name='file', rh=RHFile, schema=FileSchema,
-             summary='Uploaded file details', tag='Files'),
+             summary='Details of one file uploaded to the instance', tag='Files'),
 ]

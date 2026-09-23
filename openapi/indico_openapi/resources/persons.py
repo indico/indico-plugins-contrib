@@ -138,5 +138,5 @@ ENDPOINTS = [
     Endpoint(rule='/events/<int:event_id>/persons', name='persons', rh=RHEventPersonList, schema=EventPersonSchema,
              many=True, summary='List the people taking part in an event', tag='Persons'),
     Endpoint(rule='/events/<int:event_id>/persons/<int:person_id>', name='person', rh=RHEventPerson,
-             schema=EventPersonSchema, summary='Event person details', tag='Persons'),
+             schema=EventPersonSchema, summary='Details of one person taking part in an event', tag='Persons'),
 ]

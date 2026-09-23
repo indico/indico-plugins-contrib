@@ -87,5 +87,5 @@ ENDPOINTS = [
     Endpoint(rule='/categories/<int:category_id>/roles', name='category_roles', rh=RHCategoryRoleList,
              schema=CategoryRoleSchema, many=True, summary='List the roles of a category', tag='Categories'),
     Endpoint(rule='/categories/<int:category_id>/roles/<int:role_id>', name='category_role', rh=RHCategoryRole,
-             schema=CategoryRoleSchema, summary='Category role details', tag='Categories'),
+             schema=CategoryRoleSchema, summary='Details of one role of a category', tag='Categories'),
 ]

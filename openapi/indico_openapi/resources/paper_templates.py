@@ -76,5 +76,6 @@ ENDPOINTS = [
     Endpoint(rule='/events/<int:event_id>/paper-templates', name='paper_templates', rh=RHPaperTemplateList,
              schema=PaperTemplateSchema, many=True, summary='List the paper templates of an event', tag='Papers'),
     Endpoint(rule='/events/<int:event_id>/paper-templates/<int:template_id>', name='paper_template',
-             rh=RHPaperTemplate, schema=PaperTemplateSchema, summary='Paper template details', tag='Papers'),
+             rh=RHPaperTemplate, schema=PaperTemplateSchema,
+             summary='Details of one paper template of an event', tag='Papers'),
 ]

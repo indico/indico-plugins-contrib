@@ -219,9 +219,10 @@ ENDPOINTS = [
     Endpoint(rule='/events/<int:event_id>/logs', name='logs', rh=RHEventLogEntryList, schema=LogEntrySchema,
              many=True, summary='List the log entries of an event', tag='Logs'),
     Endpoint(rule='/events/<int:event_id>/logs/<int:entry_id>', name='log_entry', rh=RHEventLogEntry,
-             schema=LogEntrySchema, summary='Log entry details', tag='Logs'),
+             schema=LogEntrySchema, summary='Details of one log entry of an event', tag='Logs'),
     Endpoint(rule='/categories/<int:category_id>/logs', name='category_logs', rh=RHCategoryLogEntryList,
              schema=CategoryLogEntrySchema, many=True, summary='List the log entries of a category', tag='Logs'),
     Endpoint(rule='/categories/<int:category_id>/logs/<int:entry_id>', name='category_log_entry',
-             rh=RHCategoryLogEntry, schema=CategoryLogEntrySchema, summary='Category log entry details', tag='Logs'),
+             rh=RHCategoryLogEntry, schema=CategoryLogEntrySchema,
+             summary='Details of one log entry of a category', tag='Logs'),
 ]

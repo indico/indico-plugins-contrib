@@ -115,9 +115,9 @@ ENDPOINTS = [
     Endpoint(rule='/equipment-types', name='equipment_types', rh=RHEquipmentTypeList, schema=EquipmentTypeSchema,
              many=True, summary='List the equipment a room can have', tag='Rooms'),
     Endpoint(rule='/equipment-types/<int:equipment_type_id>', name='equipment_type', rh=RHEquipmentType,
-             schema=EquipmentTypeSchema, summary='Equipment type details', tag='Rooms'),
+             schema=EquipmentTypeSchema, summary='Details of one kind of equipment a room can have', tag='Rooms'),
     Endpoint(rule='/room-features', name='room_features', rh=RHRoomFeatureList, schema=RoomFeatureSchema, many=True,
              summary='List the features a room can be searched by', tag='Rooms'),
     Endpoint(rule='/room-features/<int:feature_id>', name='room_feature', rh=RHRoomFeature, schema=RoomFeatureSchema,
-             summary='Room feature details', tag='Rooms'),
+             summary='Details of one feature a room can be searched by', tag='Rooms'),
 ]

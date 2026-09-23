@@ -92,6 +92,6 @@ ENDPOINTS = [
              rh=RHAbstractEmailList, schema=AbstractEmailSchema, many=True,
              summary='List the notifications sent about an abstract', tag='Abstracts'),
     Endpoint(rule='/events/<int:event_id>/abstracts/<int:abstract_id>/emails/<int:email_id>', name='abstract_email',
-             rh=RHAbstractEmail, schema=AbstractEmailSchema, summary='Abstract notification details',
-             tag='Abstracts'),
+             rh=RHAbstractEmail, schema=AbstractEmailSchema,
+             summary='Details of one notification sent about an abstract', tag='Abstracts'),
 ]
