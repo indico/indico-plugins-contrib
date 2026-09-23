@@ -8,8 +8,8 @@
 
 from flask import request, session
 from marshmallow import fields
-from werkzeug.exceptions import Forbidden
 
+from indico.modules.admin import RHAdminBase
 from indico.modules.users import User
 from indico.modules.users.schemas import UserSchema as CoreUserSchema
 from indico.web.rh import RHProtected, json_errors
@@ -31,18 +31,16 @@ class UserSchema(DescribedFieldsMixin, CoreUserSchema):
 
 
 class UserMixin:
-    """Access checks shared by the user endpoints.
+    """Query shared by the endpoints answering about somebody else.
 
-    A profile holds personal data, so it is only readable by the user it
-    belongs to and by Indico administrators. This is the same rule the profile
-    page applies. Deleted users are never returned.
+    A profile holds personal data, and the only interface listing the accounts
+    of an instance is the user management area, so these endpoints are
+    restricted to administrators; every other caller reads their own profile at
+    `/users/me`. Deleted users are never returned.
     """
 
     def _user_query(self):
         return User.query.filter(~User.is_deleted).order_by(User.last_name, User.first_name, User.id)
-
-    def _can_see(self, user):
-        return user.can_be_modified(session.user)
 
 
 @json_errors
@@ -52,31 +50,23 @@ class RHCurrentUser(RHProtected):
 
 
 @json_errors
-class RHUser(UserMixin, RHProtected):
+class RHUser(UserMixin, RHAdminBase):
     def _process_args(self):
         self.user = self._user_query().filter(User.id == request.view_args['user_id']).first_or_404()
-
-    def _check_access(self):
-        RHProtected._check_access(self)
-        if not self._can_see(self.user):
-            raise Forbidden
 
     def _process_GET(self):
         return UserSchema().jsonify(self.user)
 
 
 @json_errors
-class RHUserList(UserMixin, RHListBase, RHProtected):
+class RHUserList(UserMixin, RHListBase, RHAdminBase):
     schema = UserSchema
 
     def _query(self):
-        query = self._user_query()
-        if not session.user.is_admin:
-            query = query.filter(User.id == session.user.id)
-        return query
+        return self._user_query()
 
     def _can_access(self, obj):
-        return self._can_see(obj)
+        return True
 
 
 ENDPOINTS = [
