@@ -80,6 +80,13 @@ from indico.modules.events.contributions.models.persons import (
 from indico.modules.events.contributions.models.references import ContributionReference, SubContributionReference
 from indico.modules.events.contributions.models.subcontributions import SubContribution
 from indico.modules.events.contributions.models.types import ContributionType
+from indico.modules.events.editing.models.comments import EditingRevisionComment
+from indico.modules.events.editing.models.editable import Editable, EditableType
+from indico.modules.events.editing.models.file_types import EditingFileType
+from indico.modules.events.editing.models.review_conditions import EditingReviewCondition
+from indico.modules.events.editing.models.revision_files import EditingRevisionFile
+from indico.modules.events.editing.models.revisions import EditingRevision, RevisionType
+from indico.modules.events.editing.models.tags import EditingTag
 from indico.modules.events.features.util import get_enabled_features, set_feature_enabled
 from indico.modules.events.layout import layout_settings
 from indico.modules.events.layout.models.images import ImageFile
@@ -572,6 +579,66 @@ def create_reviewing(event, abstracts, papers, tracks, users, index):
     return {'abstract_questions': abstract_questions, 'paper_questions': paper_questions,
             'abstract_reviews': abstract_reviews, 'abstract_comments': abstract_comments,
             'paper_reviews': paper_reviews, 'paper_comments': paper_comments}
+
+
+def create_editing(event, contributions, users, index):
+    """Seed the editing workflow of an event.
+
+    The file types are created before the feature is turned on, since Indico
+    adds a default one per editable type to an event that has none.
+    """
+    file_types = {
+        'pdf': EditingFileType(event=event, type=EditableType.paper, name='PDF', extensions=['pdf'],
+                               required=True, publishable=True),
+        'source': EditingFileType(event=event, type=EditableType.paper, name='Source', extensions=['tex', 'zip'],
+                                  allow_multiple_files=True),
+        'slides': EditingFileType(event=event, type=EditableType.slides, name='PDF', extensions=['pdf'],
+                                  required=True, publishable=True),
+        'poster': EditingFileType(event=event, type=EditableType.poster, name='PDF', extensions=['pdf'],
+                                  required=True, publishable=True),
+    }
+    db.session.add_all(file_types.values())
+    db.session.flush()
+    set_feature_enabled(event, 'editing', True)
+    condition = EditingReviewCondition(event=event, type=EditableType.paper, file_types={file_types['pdf']})
+    tags = [EditingTag(event=event, title='Under review', code='REV', color='blue'),
+            EditingTag(event=event, title='Ready to publish', code='PUB', color='green')]
+    db.session.add_all([condition, *tags])
+    db.session.flush()
+
+    editables, revisions, comments = [], [], []
+    for i, contrib in enumerate(contributions):
+        editor = pick(users, index + i)
+        submitter = pick(users, index + i + 1)
+        editable = Editable(contribution=contrib, type=EditableType.paper, editor=(editor if i % 2 == 0 else None))
+        db.session.add(editable)
+        db.session.flush()
+        submission = EditingRevision(editable=editable, user=submitter, type=RevisionType.ready_for_review,
+                                     comment='Submitted for editing.')
+        submission.tags.add(tags[0])
+        db.session.add(submission)
+        db.session.flush()
+        file = File(filename='paper.pdf', content_type='application/pdf', meta={'event_id': event.id})
+        file.save(('event', event.id, 'editing', contrib.id, EditableType.paper.name),
+                  f'Editable of {contrib.title}\n'.encode())
+        file.claim()
+        db.session.add(EditingRevisionFile(revision=submission, file=file, file_type=file_types['pdf']))
+        revisions.append(submission)
+        if i % 2 == 0:
+            judgment = EditingRevision(editable=editable, user=editor, type=RevisionType.acceptance,
+                                       comment='Accepted as it is.')
+            judgment.tags.add(tags[1])
+            db.session.add(judgment)
+            revisions.append(judgment)
+        comments.append(EditingRevisionComment(revision=submission, user=editor, text='Please check the figures.'))
+        comments.append(EditingRevisionComment(revision=submission, user=editor, internal=True,
+                                               text='Assigned to me after the deadline.'))
+        editables.append(editable)
+    db.session.add_all(comments)
+    db.session.flush()
+    return {'editables': editables, 'editing_revisions': revisions, 'editing_comments': comments,
+            'editing_file_types': list(file_types.values()), 'editing_tags': tags,
+            'editing_review_conditions': [condition]}
 
 
 def create_regform(event, users, count, index):
@@ -1322,6 +1389,7 @@ def seed_conference(category, manager, users, index, start, reference_types, lab
     papers = create_papers(contributions[:8], users, index)
     paper_template, paper_file_types = create_paper_setup(event)
     reviewing = create_reviewing(event, abstracts, papers, tracks, users, index)
+    editing = create_editing(event, contributions[:4], users, index)
     regform, registrations = create_regform(event, users, 15, index * 3)
     invitations = create_invitations(regform, registrations, index)
     payments = create_payments(registrations, manager)
@@ -1355,7 +1423,7 @@ def seed_conference(category, manager, users, index, start, reference_types, lab
         'contribution_types': contribution_types, 'contribution_fields': contribution_fields,
         'session_types': session_types, 'paper_templates': [paper_template], 'paper_file_types': paper_file_types,
         'abstract_email_templates': abstract_email_templates, 'abstract_emails': abstract_emails,
-        'invitations': invitations, 'registration_tags': registration_tags, **reviewing,
+        'invitations': invitations, 'registration_tags': registration_tags, **reviewing, **editing,
     }
 
 
@@ -1706,7 +1774,12 @@ def main(manifest_path):
             'document_templates': len(category_templates) + count_all(datasets, 'receipt_templates'),
             'documents': count_all(datasets, 'documents'),
             'designer_templates': len(category_designer_templates) + count_all(datasets, 'designer_templates'),
-            'files': count_all(datasets, 'uploads') + count_all(datasets, 'documents'),
+            'editables': count_all(datasets, 'editables'),
+            'editing_tags': count_all(datasets, 'editing_tags'),
+            'editing_file_types': count_all(datasets, 'editing_file_types'),
+            # every editable carries one file of its own
+            'files': (count_all(datasets, 'uploads') + count_all(datasets, 'documents')
+                      + count_all(datasets, 'editables')),
         },
     }
     with open(manifest_path, 'w') as f:

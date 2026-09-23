@@ -65,6 +65,12 @@ of being reported as an error.
 | `/api/v1/events/<event_id>/paper-templates/<template_id>` | Paper template details |
 | `/api/v1/events/<event_id>/paper-file-types` | List the file types papers are submitted as |
 | `/api/v1/events/<event_id>/paper-file-types/<file_type_id>` | Paper file type details |
+| `/api/v1/events/<event_id>/editables` | List the editables of an event |
+| `/api/v1/events/<event_id>/contributions/<contrib_id>/editables/<editable_type>` | Editable of a contribution |
+| `/api/v1/events/<event_id>/contributions/<contrib_id>/editables/<editable_type>/revisions/<revision_id>/comments` | List the comments left on a revision of an editable |
+| `/api/v1/events/<event_id>/editing/tags` | List the tags of the editing workflow |
+| `/api/v1/events/<event_id>/editing/<editable_type>/file-types` | List the file types a revision is made of |
+| `/api/v1/events/<event_id>/editing/<editable_type>/review-conditions` | List the conditions a revision has to meet to be reviewed |
 | `/api/v1/events/<event_id>/surveys` | List the surveys of an event |
 | `/api/v1/events/<event_id>/surveys/<survey_id>` | Survey details |
 | `/api/v1/events/<event_id>/surveys/<survey_id>/submissions` | List the submitted answers of a survey |
@@ -178,9 +184,9 @@ of being reported as an error.
 
 ## Entities served
 
-The list below is what the API serves. It leaves out editing, the
-instance administration area and the log of a user account, described
-under Entities not covered. The cost columns are the lines of plugin code and of plugin
+The list below is what the API serves. It leaves out the instance
+administration area and the log of a user account, described under
+Entities not covered. The cost columns are the lines of plugin code and of plugin
 tests each entity took, counted with `wc -l` on the files it owns. Core schemas,
 request handlers and access checks are reused, so they cost nothing here.
 
@@ -239,8 +245,9 @@ request handlers and access checks are reused, so they cost nothing here.
 | Reference types | The external systems an event, a contribution or a subcontribution can carry an identifier of, such as a DOI, with the scheme and the URL template each one builds its links from. | 71 | 41 |
 | Protection and permissions | The ACL of every object that holds one, entry by entry, with what each principal is granted, plus the catalogue saying what every permission name allows. | 385 | 225 |
 | Reviews, ratings and comments | What the reviewers of an abstract and of a paper wrote about it, with the answer given to every question of the reviewing form and the comments left along the way, plus the questions themselves. | 288 | 416 |
+| Editables, revisions and editing settings | The paper, slides or poster a contribution is edited into, revision by revision, with the files of each one, the comments left on it and the tags, file types and review conditions the workflow is configured with. | 361 | 353 |
 | Shared code (spec, Swagger UI, pagination, schema helpers) | Paid once: the OpenAPI document, the docs page, the list envelope and the field description machinery every resource above builds on, plus the fixtures and the comparison helper every test builds on. | 487 | 275 |
-| **Total** | | **7871** | **8044** |
+| **Total** | | **8232** | **8397** |
 
 ## Entities not covered
 
@@ -251,19 +258,17 @@ per role, 450 to 500 when it also needs several endpoints of its own.
 
 | Entity | Why | Estimated cost |
 | --- | --- | --- |
-| Editing (`events/editing`) | The editing workflow already has its own REST API, written for and used by its React frontend, over revisions, review comments and file type settings of its own. | 500 to 600 |
 | Instance administration | Settings, announcements, news, legal texts, authentication, OAuth applications, IP networks and the search service are either instance configuration or a view over the entities above. | 600 or more |
 | User logs | The audit trail of one account: the profile changes, the permissions granted and the mail sent to it. Indico shows it in the administration area alone and never to the account it belongs to, so serving it here would mean answering one caller with the record of another, which the personal endpoints never do. Identities, API keys and personal tokens are credentials and are not served at all either. | 150 to 200 |
 
 ### Where Indico serves them today
 
-None of them is invisible over GET. Every one of them can be read
-without a POST, either as JSON or as a rendered page, so the question is never
-whether the data is reachable but in what shape and to whom.
+Neither of them is invisible over GET. Both can be read without a POST,
+either as JSON or as a rendered page, so the question is never whether the data
+is reachable but in what shape and to whom.
 
 | Entity | Read over GET | Shape |
 | --- | --- | --- |
-| Editing | `/event/<event_id>/editing/api/...` and the editable timeline of each contribution | JSON. It already is a REST API, written for its own React frontend. |
 | User logs | `/user/<user_id>/logs`, with JSON at `/user/<user_id>/api/logs` | JSON behind an HTML page, served to instance administrators alone. |
 | Instance administration | The pages under `/admin/` | HTML forms, except `/admin/logs/api/logs` and `/admin/version-check`. |
 
@@ -332,6 +337,24 @@ average of the answers that count towards it. The questions of the reviewing
 form are served on their own to whoever manages the reviewing, the audience of
 the settings page defining them, since a reviewer already gets each question
 next to the answer they gave it.
+
+An editable is served to whoever may see its timeline, which is the people
+listed on the contribution, whoever may submit it and the editing team of the
+event, and the list of editables leaves out the ones the caller cannot reach
+rather than reporting them. A revision the editing team took back is served to
+the team alone, and a comment marked as internal likewise, which is what the
+timeline draws for each of them. An event may run its editing team
+anonymously, and then whoever is not part of it reads an action of the team
+without the name behind it: the user is served with its fields empty and marked
+as anonymous, so a hidden name is never confused with an editable nobody is
+assigned to. A file of a revision carries the identifier `/files` takes, which
+is how Indico hands out a file it protects by keeping that identifier secret.
+The tags and the file types are served to whoever can see the event, since they
+name what a revision is made of and what it is marked with, while the review
+conditions are served to the editing managers, the audience of the page defining
+them. What the editing service stored about an editable is left out, as the
+answer of a payment provider is: it belongs to the service rather than to
+Indico, and the actions it offers are not something a read-only API can hand on.
 
 The log of an event is served with the filters the log interface uses: the area
 of the event an entry belongs to, free text over the same columns the interface
@@ -502,7 +525,7 @@ agreements, generated documents, designer templates, paper templates, abstract
 notification templates and the notifications sent from them, category roles,
 event move requests, room attributes, bookable hours, non-bookable periods, the
 history of a booking and the objects it was made for, registration tags, note
-revisions, event labels and reference types. Those are declared here as
+revisions, event labels, reference types and editing review conditions. Those are declared here as
 automatic schemas over the model, so their field names and types still come from
 Indico rather than from a hand-written mapping.
 
@@ -631,6 +654,10 @@ current interface itself calls:
 | Abstract reviews and comments | `/event/<event_id>/manage/abstracts/abstracts.json`, fields `reviews` and `comments` |
 | Paper reviews and comments | `/event/<event_id>/manage/papers/assignment-list/export-json`, fields `reviews` and `comments` of each revision |
 | Paper reviewing questions | the same export, fields `layout_review_questions` and `content_review_questions` |
+| Editables, revisions and comments | `/event/<event_id>/api/contributions/<contrib_id>/editing/<editable_type>` |
+| Editing tags | `/event/<event_id>/editing/api/tags` |
+| Editing file types | `/event/<event_id>/editing/api/<editable_type>/file-types` |
+| Editing review conditions | `/event/<event_id>/editing/api/<editable_type>/review-conditions` |
 | Surveys | `/event/<event_id>/manage/surveys/<survey_id>/questionnaire/survey.json` |
 | Locations | `/rooms/api/locations` |
 | Blockings | `/rooms/api/blockings/` |
@@ -683,6 +710,16 @@ questions abstract reviewers answer are the one part compared on four fields
 alone, since that export describes a question with its identifier, title,
 position and that same flag, and the rest of it is only ever rendered into the
 reviewing settings page.
+
+An editable is compared against the timeline its own page is drawn from, which
+serves the whole workflow of one contribution in a single payload: the editable,
+its revisions, and the files, tags and comments of each revision. Two values are
+computed rather than compared: the timeline nests the state of an editable and
+the type of a revision as an object with a name and a translated title, and it
+serves the revisions themselves instead of counting the ones carrying files.
+A review condition is compared as the pair the editing page reads it as, since
+that endpoint answers with the identifier of a condition followed by the file
+types it asks for and nothing else.
 
 The member list of a group is left out of its comparison, for lack of anything
 to compare it against: the group search answers with the name and the identifier
