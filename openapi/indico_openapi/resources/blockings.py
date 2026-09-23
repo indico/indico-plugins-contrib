@@ -95,5 +95,5 @@ ENDPOINTS = [
     Endpoint(rule='/blockings', name='blockings', rh=RHBlockingList, schema=BlockingSchema, many=True,
              summary='List the blockings that keep rooms from being booked', tag='Blockings'),
     Endpoint(rule='/blockings/<int:blocking_id>', name='blocking', rh=RHBlocking, schema=BlockingSchema,
-             summary='Blocking details', tag='Blockings'),
+             summary='Details of one blocking that keeps rooms from being booked', tag='Blockings'),
 ]

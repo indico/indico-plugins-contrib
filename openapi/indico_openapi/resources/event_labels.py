@@ -66,5 +66,5 @@ ENDPOINTS = [
     Endpoint(rule='/event-labels', name='event_labels', rh=RHEventLabelList, schema=LabelSchema, many=True,
              summary='List the labels an event can be marked with', tag='Events'),
     Endpoint(rule='/event-labels/<int:event_label_id>', name='event_label', rh=RHEventLabel, schema=LabelSchema,
-             summary='Event label details', tag='Events'),
+             summary='Details of one label an event can be marked with', tag='Events'),
 ]

@@ -66,5 +66,5 @@ ENDPOINTS = [
     Endpoint(rule='/map-areas', name='map_areas', rh=RHMapAreaList, schema=MapAreaSchema, many=True,
              summary='List the areas of the room map', tag='Rooms'),
     Endpoint(rule='/map-areas/<int:area_id>', name='map_area', rh=RHMapArea, schema=MapAreaSchema,
-             summary='Map area details', tag='Rooms'),
+             summary='Details of one area of the room map', tag='Rooms'),
 ]

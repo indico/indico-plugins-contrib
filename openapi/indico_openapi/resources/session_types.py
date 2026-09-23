@@ -61,5 +61,5 @@ ENDPOINTS = [
     Endpoint(rule='/events/<int:event_id>/session-types', name='session_types', rh=RHSessionTypeList,
              schema=SessionTypeSchema, many=True, summary='List the session types of an event', tag='Sessions'),
     Endpoint(rule='/events/<int:event_id>/session-types/<int:type_id>', name='session_type', rh=RHSessionType,
-             schema=SessionTypeSchema, summary='Session type details', tag='Sessions'),
+             schema=SessionTypeSchema, summary='Details of one session type of an event', tag='Sessions'),
 ]

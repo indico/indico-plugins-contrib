@@ -147,7 +147,7 @@ class RHReservationList(ReservationMixin, RHListBase, RHRoomBookingBase):
 
 ENDPOINTS = [
     Endpoint(rule='/reservations', name='reservations', rh=RHReservationList, schema=ReservationSchema, many=True,
-             summary='List room bookings', tag='Reservations'),
+             summary='List the bookings made for rooms', tag='Reservations'),
     Endpoint(rule='/reservations/<int:reservation_id>', name='reservation', rh=RHReservation,
-             schema=ReservationDetailsSchema, summary='Room booking details', tag='Reservations'),
+             schema=ReservationDetailsSchema, summary='Details of one booking made for a room', tag='Reservations'),
 ]

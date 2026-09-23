@@ -91,5 +91,6 @@ ENDPOINTS = [
              schema=MoveRequestSchema, many=True, summary='List the event move requests of a category',
              tag='Categories'),
     Endpoint(rule='/categories/<int:category_id>/move-requests/<int:request_id>', name='move_request',
-             rh=RHMoveRequest, schema=MoveRequestSchema, summary='Event move request details', tag='Categories'),
+             rh=RHMoveRequest, schema=MoveRequestSchema,
+             summary='Details of one request to move an event into a category', tag='Categories'),
 ]

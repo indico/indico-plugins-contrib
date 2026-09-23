@@ -11,136 +11,136 @@ of being reported as an error.
 
 | Path | Description |
 | --- | --- |
-| `/api/v1/events` | List events |
-| `/api/v1/events/<event_id>` | Event details |
+| `/api/v1/events` | List the events the caller can see |
+| `/api/v1/events/<event_id>` | Details of one event, with its dates and category |
 | `/api/v1/events/<event_id>/contributions` | List the contributions of an event |
-| `/api/v1/events/<event_id>/contributions/<contrib_id>` | Contribution details |
+| `/api/v1/events/<event_id>/contributions/<contrib_id>` | Details of one contribution of an event |
 | `/api/v1/events/<event_id>/contributions/<contrib_id>/subcontributions` | List the subcontributions of a contribution |
-| `/api/v1/events/<event_id>/contributions/<contrib_id>/subcontributions/<subcontrib_id>` | Subcontribution details |
+| `/api/v1/events/<event_id>/contributions/<contrib_id>/subcontributions/<subcontrib_id>` | Details of one subcontribution of a contribution |
 | `/api/v1/events/<event_id>/contribution-types` | List the contribution types of an event |
-| `/api/v1/events/<event_id>/contribution-types/<type_id>` | Contribution type details |
+| `/api/v1/events/<event_id>/contribution-types/<type_id>` | Details of one contribution type of an event |
 | `/api/v1/events/<event_id>/contribution-fields` | List the custom contribution fields of an event |
-| `/api/v1/events/<event_id>/contribution-fields/<field_id>` | Custom contribution field details |
+| `/api/v1/events/<event_id>/contribution-fields/<field_id>` | Details of one custom contribution field of an event |
 | `/api/v1/events/<event_id>/sessions` | List the sessions of an event |
-| `/api/v1/events/<event_id>/sessions/<session_id>` | Session details |
+| `/api/v1/events/<event_id>/sessions/<session_id>` | Details of one session of an event |
 | `/api/v1/events/<event_id>/session-types` | List the session types of an event |
-| `/api/v1/events/<event_id>/session-types/<type_id>` | Session type details |
+| `/api/v1/events/<event_id>/session-types/<type_id>` | Details of one session type of an event |
 | `/api/v1/events/<event_id>/timetable` | List the timetable entries of an event |
-| `/api/v1/events/<event_id>/timetable/<entry_id>` | Timetable entry details |
+| `/api/v1/events/<event_id>/timetable/<entry_id>` | Details of one timetable entry of an event |
 | `/api/v1/events/<event_id>/tracks` | List the tracks of an event |
-| `/api/v1/events/<event_id>/tracks/<track_id>` | Track details |
+| `/api/v1/events/<event_id>/tracks/<track_id>` | Details of one track of an event |
 | `/api/v1/events/<event_id>/persons` | List the people taking part in an event |
-| `/api/v1/events/<event_id>/persons/<person_id>` | Event person details |
+| `/api/v1/events/<event_id>/persons/<person_id>` | Details of one person taking part in an event |
 | `/api/v1/events/<event_id>/registration-forms` | List the registration forms of an event |
-| `/api/v1/events/<event_id>/registration-forms/<regform_id>` | Registration form details |
+| `/api/v1/events/<event_id>/registration-forms/<regform_id>` | Details of one registration form of an event |
 | `/api/v1/events/<event_id>/registration-forms/<regform_id>/sections` | List the sections of a registration form, with their fields |
-| `/api/v1/events/<event_id>/registration-forms/<regform_id>/sections/<section_id>` | Registration form section details |
+| `/api/v1/events/<event_id>/registration-forms/<regform_id>/sections/<section_id>` | Details of one section of a registration form |
 | `/api/v1/events/<event_id>/registration-forms/<regform_id>/invitations` | List the invitations to register through a form |
-| `/api/v1/events/<event_id>/registration-forms/<regform_id>/invitations/<invitation_id>` | Invitation details |
+| `/api/v1/events/<event_id>/registration-forms/<regform_id>/invitations/<invitation_id>` | Details of one invitation to register through a form |
 | `/api/v1/events/<event_id>/registrations` | List the registrations of an event |
-| `/api/v1/events/<event_id>/registrations/<registration_id>` | Registration details, with the answers given |
+| `/api/v1/events/<event_id>/registrations/<registration_id>` | Details of one registration, with the answers given |
 | `/api/v1/events/<event_id>/registration-tags` | List the tags an event marks its registrations with |
-| `/api/v1/events/<event_id>/registration-tags/<tag_id>` | Registration tag details |
+| `/api/v1/events/<event_id>/registration-tags/<tag_id>` | Details of one tag registrations are marked with |
 | `/api/v1/events/<event_id>/document-templates` | List the document templates available to an event |
-| `/api/v1/events/<event_id>/document-templates/<template_id>` | Document template details |
+| `/api/v1/events/<event_id>/document-templates/<template_id>` | Details of one document template of an event |
 | `/api/v1/events/<event_id>/registrations/<registration_id>/documents` | List the documents generated for a registration |
-| `/api/v1/events/<event_id>/registrations/<registration_id>/documents/<file_id>` | Document details |
+| `/api/v1/events/<event_id>/registrations/<registration_id>/documents/<file_id>` | Details of one document generated for a registration |
 | `/api/v1/events/<event_id>/designer-templates` | List the badge and poster templates available to an event |
-| `/api/v1/events/<event_id>/designer-templates/<template_id>` | Badge or poster template details |
+| `/api/v1/events/<event_id>/designer-templates/<template_id>` | Details of one badge or poster template |
 | `/api/v1/events/<event_id>/abstracts` | List the abstracts of an event |
-| `/api/v1/events/<event_id>/abstracts/<abstract_id>` | Abstract details |
+| `/api/v1/events/<event_id>/abstracts/<abstract_id>` | Details of one abstract submitted to an event |
 | `/api/v1/events/<event_id>/abstracts/<abstract_id>/reviews` | List the reviews of an abstract |
 | `/api/v1/events/<event_id>/abstracts/<abstract_id>/comments` | List the comments left on an abstract |
 | `/api/v1/events/<event_id>/abstract-review-questions` | List the questions abstract reviewers answer |
 | `/api/v1/events/<event_id>/abstracts/<abstract_id>/emails` | List the notifications sent about an abstract |
-| `/api/v1/events/<event_id>/abstracts/<abstract_id>/emails/<email_id>` | Abstract notification details |
+| `/api/v1/events/<event_id>/abstracts/<abstract_id>/emails/<email_id>` | Details of one notification sent about an abstract |
 | `/api/v1/events/<event_id>/abstract-email-templates` | List the notification templates of a call for abstracts |
-| `/api/v1/events/<event_id>/abstract-email-templates/<template_id>` | Abstract notification template details |
+| `/api/v1/events/<event_id>/abstract-email-templates/<template_id>` | Details of one notification template of a call for abstracts |
 | `/api/v1/events/<event_id>/papers` | List the papers of an event |
-| `/api/v1/events/<event_id>/contributions/<contrib_id>/paper` | Paper of a contribution |
+| `/api/v1/events/<event_id>/contributions/<contrib_id>/paper` | The paper of a contribution, with its revisions |
 | `/api/v1/events/<event_id>/contributions/<contrib_id>/paper/revisions/<revision_id>/reviews` | List the reviews of a paper revision |
 | `/api/v1/events/<event_id>/contributions/<contrib_id>/paper/revisions/<revision_id>/comments` | List the comments left on a paper revision |
 | `/api/v1/events/<event_id>/paper-review-questions` | List the questions paper reviewers answer |
 | `/api/v1/events/<event_id>/paper-templates` | List the paper templates of an event |
-| `/api/v1/events/<event_id>/paper-templates/<template_id>` | Paper template details |
+| `/api/v1/events/<event_id>/paper-templates/<template_id>` | Details of one paper template of an event |
 | `/api/v1/events/<event_id>/paper-file-types` | List the file types papers are submitted as |
-| `/api/v1/events/<event_id>/paper-file-types/<file_type_id>` | Paper file type details |
+| `/api/v1/events/<event_id>/paper-file-types/<file_type_id>` | Details of one file type papers are submitted as |
 | `/api/v1/events/<event_id>/editables` | List the editables of an event |
-| `/api/v1/events/<event_id>/contributions/<contrib_id>/editables/<editable_type>` | Editable of a contribution |
+| `/api/v1/events/<event_id>/contributions/<contrib_id>/editables/<editable_type>` | The editable of a contribution, with its revisions |
 | `/api/v1/events/<event_id>/contributions/<contrib_id>/editables/<editable_type>/revisions/<revision_id>/comments` | List the comments left on a revision of an editable |
 | `/api/v1/events/<event_id>/editing/tags` | List the tags of the editing workflow |
 | `/api/v1/events/<event_id>/editing/<editable_type>/file-types` | List the file types a revision is made of |
 | `/api/v1/events/<event_id>/editing/<editable_type>/review-conditions` | List the conditions a revision has to meet to be reviewed |
 | `/api/v1/events/<event_id>/surveys` | List the surveys of an event |
-| `/api/v1/events/<event_id>/surveys/<survey_id>` | Survey details |
+| `/api/v1/events/<event_id>/surveys/<survey_id>` | Details of one survey of an event |
 | `/api/v1/events/<event_id>/surveys/<survey_id>/submissions` | List the submitted answers of a survey |
 | `/api/v1/events/<event_id>/agreements` | List the agreements an event asked for |
-| `/api/v1/events/<event_id>/agreements/<agreement_id>` | Agreement details |
+| `/api/v1/events/<event_id>/agreements/<agreement_id>` | Details of one agreement an event asked for |
 | `/api/v1/events/<event_id>/roles` | List the roles of an event |
-| `/api/v1/events/<event_id>/roles/<role_id>` | Event role details |
+| `/api/v1/events/<event_id>/roles/<role_id>` | Details of one role of an event |
 | `/api/v1/events/<event_id>/reminders` | List the reminders of an event |
-| `/api/v1/events/<event_id>/reminders/<reminder_id>` | Reminder details |
+| `/api/v1/events/<event_id>/reminders/<reminder_id>` | Details of one reminder of an event |
 | `/api/v1/events/<event_id>/logs` | List the log entries of an event |
-| `/api/v1/events/<event_id>/logs/<entry_id>` | Log entry details |
+| `/api/v1/events/<event_id>/logs/<entry_id>` | Details of one log entry of an event |
 | `/api/v1/events/<event_id>/payments` | List the payments of an event |
-| `/api/v1/events/<event_id>/payments/<payment_id>` | Payment details |
+| `/api/v1/events/<event_id>/payments/<payment_id>` | Details of one payment of an event |
 | `/api/v1/events/<event_id>/requests` | List the services an event asked for |
-| `/api/v1/events/<event_id>/requests/<request_id>` | Service request details |
+| `/api/v1/events/<event_id>/requests/<request_id>` | Details of one service an event asked for |
 | `/api/v1/events/<event_id>/videoconference-rooms` | List the videoconferences of an event |
-| `/api/v1/events/<event_id>/videoconference-rooms/<vc_room_id>` | Videoconference details |
+| `/api/v1/events/<event_id>/videoconference-rooms/<vc_room_id>` | Details of one videoconference of an event |
 | `/api/v1/events/<event_id>/offline-copies` | List the offline copies of an event |
-| `/api/v1/events/<event_id>/offline-copies/<site_id>` | Offline copy details |
+| `/api/v1/events/<event_id>/offline-copies/<site_id>` | Details of one offline copy of an event |
 | `/api/v1/events/<event_id>/layout` | Layout settings of an event |
-| `/api/v1/events/<event_id>/menu` | Menu of an event |
+| `/api/v1/events/<event_id>/menu` | List the menu entries of an event |
 | `/api/v1/events/<event_id>/pages` | List the custom pages of an event |
-| `/api/v1/events/<event_id>/pages/<page_id>` | Custom page details |
+| `/api/v1/events/<event_id>/pages/<page_id>` | Details of one custom page of an event |
 | `/api/v1/events/<event_id>/images` | List the images of an event |
-| `/api/v1/events/<event_id>/images/<image_id>` | Image details |
+| `/api/v1/events/<event_id>/images/<image_id>` | Details of one image of an event |
 | `/api/v1/events/<event_id>/features` | List the features available to an event |
 | `/api/v1/events/<event_id>/notes` | List the notes of an event and of everything inside it |
-| `/api/v1/events/<event_id>/notes/<note_id>` | Note details |
+| `/api/v1/events/<event_id>/notes/<note_id>` | Details of one note of an event |
 | `/api/v1/events/<event_id>/notes/<note_id>/revisions` | List the successive versions of a note |
-| `/api/v1/events/<event_id>/notes/<note_id>/revisions/<revision_id>` | Note revision details |
+| `/api/v1/events/<event_id>/notes/<note_id>/revisions/<revision_id>` | Details of one version of a note |
 | `/api/v1/events/<event_id>/attachments` | List the attachments of an event |
-| `/api/v1/events/<event_id>/attachments/<attachment_id>` | Attachment details |
+| `/api/v1/events/<event_id>/attachments/<attachment_id>` | Details of one attachment of an event |
 | `/api/v1/events/<event_id>/sessions/<session_id>/attachments` | List the attachments of a session |
-| `/api/v1/events/<event_id>/sessions/<session_id>/attachments/<attachment_id>` | Attachment details |
+| `/api/v1/events/<event_id>/sessions/<session_id>/attachments/<attachment_id>` | Details of one attachment of a session |
 | `/api/v1/events/<event_id>/contributions/<contrib_id>/attachments` | List the attachments of a contribution |
-| `/api/v1/events/<event_id>/contributions/<contrib_id>/attachments/<attachment_id>` | Attachment details |
+| `/api/v1/events/<event_id>/contributions/<contrib_id>/attachments/<attachment_id>` | Details of one attachment of a contribution |
 | `/api/v1/events/<event_id>/contributions/<contrib_id>/subcontributions/<subcontrib_id>/attachments` | List the attachments of a subcontribution |
-| `/api/v1/events/<event_id>/contributions/<contrib_id>/subcontributions/<subcontrib_id>/attachments/<attachment_id>` | Attachment details |
-| `/api/v1/categories` | List categories |
-| `/api/v1/categories/<category_id>` | Category details |
+| `/api/v1/events/<event_id>/contributions/<contrib_id>/subcontributions/<subcontrib_id>/attachments/<attachment_id>` | Details of one attachment of a subcontribution |
+| `/api/v1/categories` | List the categories events are organised in |
+| `/api/v1/categories/<category_id>` | Details of one category events are organised in |
 | `/api/v1/categories/<category_id>/roles` | List the roles of a category |
-| `/api/v1/categories/<category_id>/roles/<role_id>` | Category role details |
+| `/api/v1/categories/<category_id>/roles/<role_id>` | Details of one role of a category |
 | `/api/v1/categories/<category_id>/move-requests` | List the event move requests of a category |
-| `/api/v1/categories/<category_id>/move-requests/<request_id>` | Event move request details |
+| `/api/v1/categories/<category_id>/move-requests/<request_id>` | Details of one request to move an event into a category |
 | `/api/v1/categories/<category_id>/logs` | List the log entries of a category |
-| `/api/v1/categories/<category_id>/logs/<entry_id>` | Category log entry details |
+| `/api/v1/categories/<category_id>/logs/<entry_id>` | Details of one log entry of a category |
 | `/api/v1/categories/<category_id>/attachments` | List the attachments of a category |
-| `/api/v1/categories/<category_id>/attachments/<attachment_id>` | Attachment details |
+| `/api/v1/categories/<category_id>/attachments/<attachment_id>` | Details of one attachment of a category |
 | `/api/v1/locations` | List the locations rooms belong to |
-| `/api/v1/locations/<location_id>` | Location details |
+| `/api/v1/locations/<location_id>` | Details of one location rooms belong to |
 | `/api/v1/map-areas` | List the areas of the room map |
-| `/api/v1/map-areas/<area_id>` | Map area details |
+| `/api/v1/map-areas/<area_id>` | Details of one area of the room map |
 | `/api/v1/equipment-types` | List the equipment a room can have |
-| `/api/v1/equipment-types/<equipment_type_id>` | Equipment type details |
+| `/api/v1/equipment-types/<equipment_type_id>` | Details of one kind of equipment a room can have |
 | `/api/v1/room-features` | List the features a room can be searched by |
-| `/api/v1/room-features/<feature_id>` | Room feature details |
+| `/api/v1/room-features/<feature_id>` | Details of one feature a room can be searched by |
 | `/api/v1/rooms` | List the rooms that can be booked |
-| `/api/v1/rooms/<room_id>` | Room details |
+| `/api/v1/rooms/<room_id>` | Details of one room that can be booked |
 | `/api/v1/rooms/<room_id>/attributes` | List the attribute values of a room |
 | `/api/v1/rooms/<room_id>/bookable-hours` | List the hours a room can be booked for |
 | `/api/v1/rooms/<room_id>/nonbookable-periods` | List the periods a room cannot be booked for |
-| `/api/v1/reservations` | List room bookings |
-| `/api/v1/reservations/<reservation_id>` | Room booking details |
+| `/api/v1/reservations` | List the bookings made for rooms |
+| `/api/v1/reservations/<reservation_id>` | Details of one booking made for a room |
 | `/api/v1/reservations/<reservation_id>/edit-logs` | List the history of a room booking |
 | `/api/v1/reservations/<reservation_id>/links` | List the objects a room booking was made for |
 | `/api/v1/blockings` | List the blockings that keep rooms from being booked |
-| `/api/v1/blockings/<blocking_id>` | Blocking details |
-| `/api/v1/users` | List users |
+| `/api/v1/blockings/<blocking_id>` | Details of one blocking that keeps rooms from being booked |
+| `/api/v1/users` | List the user accounts of the instance |
 | `/api/v1/users/me` | Details of the authenticated user |
-| `/api/v1/users/<user_id>` | User details |
+| `/api/v1/users/<user_id>` | Details of one user account of the instance |
 | `/api/v1/users/me/settings` | Preferences of the authenticated user |
 | `/api/v1/users/me/emails` | List the email addresses of the authenticated user |
 | `/api/v1/users/me/favorite-users` | List the users the caller marked as favourites |
@@ -149,34 +149,34 @@ of being reported as an error.
 | `/api/v1/users/me/favorite-rooms` | List the rooms the caller marked as favourites |
 | `/api/v1/users/me/data-export` | Data export the authenticated user requested |
 | `/api/v1/affiliations` | List the organisations people can be affiliated with |
-| `/api/v1/affiliations/<affiliation_id>` | Affiliation details |
-| `/api/v1/files` | List the uploaded files |
-| `/api/v1/files/<uuid>` | Uploaded file details |
-| `/api/v1/groups` | List the local groups |
-| `/api/v1/groups/<group_id>` | Local group details |
+| `/api/v1/affiliations/<affiliation_id>` | Details of one organisation people can be affiliated with |
+| `/api/v1/files` | List the files uploaded to the instance |
+| `/api/v1/files/<uuid>` | Details of one file uploaded to the instance |
+| `/api/v1/groups` | List the groups defined in Indico itself |
+| `/api/v1/groups/<group_id>` | Details of one group defined in Indico itself |
 | `/api/v1/event-series` | List the event series the caller manages |
-| `/api/v1/event-series/<series_id>` | Event series details |
+| `/api/v1/event-series/<series_id>` | Details of one series of related events |
 | `/api/v1/event-labels` | List the labels an event can be marked with |
-| `/api/v1/event-labels/<event_label_id>` | Event label details |
+| `/api/v1/event-labels/<event_label_id>` | Details of one label an event can be marked with |
 | `/api/v1/reference-types` | List the systems external identifiers point at |
-| `/api/v1/reference-types/<reference_type_id>` | Reference type details |
+| `/api/v1/reference-types/<reference_type_id>` | Details of one system external identifiers point at |
 | `/api/v1/permissions` | List the permissions an ACL entry can grant |
 | `/api/v1/categories/<category_id>/acl` | List the ACL of a category |
-| `/api/v1/categories/<category_id>/attachments/<attachment_id>/acl` | List the ACL of an attachment |
-| `/api/v1/categories/<category_id>/attachment-folders/<folder_id>/acl` | List the ACL of an attachment folder |
+| `/api/v1/categories/<category_id>/attachments/<attachment_id>/acl` | List the ACL of an attachment of a category |
+| `/api/v1/categories/<category_id>/attachment-folders/<folder_id>/acl` | List the ACL of an attachment folder of a category |
 | `/api/v1/events/<event_id>/acl` | List the ACL of an event |
 | `/api/v1/events/<event_id>/sessions/<session_id>/acl` | List the ACL of a session |
 | `/api/v1/events/<event_id>/contributions/<contrib_id>/acl` | List the ACL of a contribution |
 | `/api/v1/events/<event_id>/tracks/<track_id>/acl` | List the ACL of a track |
 | `/api/v1/events/<event_id>/menu/<entry_id>/acl` | List the ACL of a menu entry |
-| `/api/v1/events/<event_id>/attachments/<attachment_id>/acl` | List the ACL of an attachment |
-| `/api/v1/events/<event_id>/attachment-folders/<folder_id>/acl` | List the ACL of an attachment folder |
-| `/api/v1/events/<event_id>/sessions/<session_id>/attachments/<attachment_id>/acl` | List the ACL of an attachment |
-| `/api/v1/events/<event_id>/sessions/<session_id>/attachment-folders/<folder_id>/acl` | List the ACL of an attachment folder |
-| `/api/v1/events/<event_id>/contributions/<contrib_id>/attachments/<attachment_id>/acl` | List the ACL of an attachment |
-| `/api/v1/events/<event_id>/contributions/<contrib_id>/attachment-folders/<folder_id>/acl` | List the ACL of an attachment folder |
-| `/api/v1/events/<event_id>/contributions/<contrib_id>/subcontributions/<subcontrib_id>/attachments/<attachment_id>/acl` | List the ACL of an attachment |
-| `/api/v1/events/<event_id>/contributions/<contrib_id>/subcontributions/<subcontrib_id>/attachment-folders/<folder_id>/acl` | List the ACL of an attachment folder |
+| `/api/v1/events/<event_id>/attachments/<attachment_id>/acl` | List the ACL of an attachment of an event |
+| `/api/v1/events/<event_id>/attachment-folders/<folder_id>/acl` | List the ACL of an attachment folder of an event |
+| `/api/v1/events/<event_id>/sessions/<session_id>/attachments/<attachment_id>/acl` | List the ACL of an attachment of a session |
+| `/api/v1/events/<event_id>/sessions/<session_id>/attachment-folders/<folder_id>/acl` | List the ACL of an attachment folder of a session |
+| `/api/v1/events/<event_id>/contributions/<contrib_id>/attachments/<attachment_id>/acl` | List the ACL of an attachment of a contribution |
+| `/api/v1/events/<event_id>/contributions/<contrib_id>/attachment-folders/<folder_id>/acl` | List the ACL of an attachment folder of a contribution |
+| `/api/v1/events/<event_id>/contributions/<contrib_id>/subcontributions/<subcontrib_id>/attachments/<attachment_id>/acl` | List the ACL of an attachment of a subcontribution |
+| `/api/v1/events/<event_id>/contributions/<contrib_id>/subcontributions/<subcontrib_id>/attachment-folders/<folder_id>/acl` | List the ACL of an attachment folder of a subcontribution |
 | `/api/v1/rooms/<room_id>/acl` | List the ACL of a room |
 | `/api/v1/locations/<location_id>/acl` | List the ACL of a location |
 | `/api/v1/openapi.json` | OpenAPI v3 document |

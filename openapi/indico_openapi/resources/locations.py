@@ -82,5 +82,5 @@ ENDPOINTS = [
     Endpoint(rule='/locations', name='locations', rh=RHLocationList, schema=LocationSchema, many=True,
              summary='List the locations rooms belong to', tag='Locations'),
     Endpoint(rule='/locations/<int:location_id>', name='location', rh=RHLocation, schema=LocationDetailsSchema,
-             summary='Location details', tag='Locations'),
+             summary='Details of one location rooms belong to', tag='Locations'),
 ]

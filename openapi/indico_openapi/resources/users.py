@@ -71,9 +71,9 @@ class RHUserList(UserMixin, RHListBase, RHAdminBase):
 
 ENDPOINTS = [
     Endpoint(rule='/users', name='users', rh=RHUserList, schema=UserSchema, many=True,
-             summary='List users', tag='Users'),
+             summary='List the user accounts of the instance', tag='Users'),
     Endpoint(rule='/users/me', name='current_user', rh=RHCurrentUser, schema=UserSchema,
              summary='Details of the authenticated user', tag='Users'),
     Endpoint(rule='/users/<int:user_id>', name='user', rh=RHUser, schema=UserSchema,
-             summary='User details', tag='Users'),
+             summary='Details of one user account of the instance', tag='Users'),
 ]

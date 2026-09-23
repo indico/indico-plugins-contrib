@@ -74,5 +74,5 @@ ENDPOINTS = [
     Endpoint(rule='/event-series', name='event_series_list', rh=RHEventSeriesList, schema=EventSeriesSchema,
              many=True, summary='List the event series the caller manages', tag='Event series'),
     Endpoint(rule='/event-series/<int:series_id>', name='event_series', rh=RHEventSeries, schema=EventSeriesSchema,
-             summary='Event series details', tag='Event series'),
+             summary='Details of one series of related events', tag='Event series'),
 ]

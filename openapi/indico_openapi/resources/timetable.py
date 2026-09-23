@@ -130,5 +130,5 @@ ENDPOINTS = [
     Endpoint(rule='/events/<int:event_id>/timetable', name='timetable', rh=RHTimetable, schema=TimetableEntrySchema,
              many=True, summary='List the timetable entries of an event', tag='Timetable'),
     Endpoint(rule='/events/<int:event_id>/timetable/<int:entry_id>', name='timetable_entry', rh=RHTimetableEntry,
-             schema=TimetableEntrySchema, summary='Timetable entry details', tag='Timetable'),
+             schema=TimetableEntrySchema, summary='Details of one timetable entry of an event', tag='Timetable'),
 ]

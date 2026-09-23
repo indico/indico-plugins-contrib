@@ -109,5 +109,5 @@ ENDPOINTS = [
     Endpoint(rule='/rooms', name='rooms', rh=RHRoomList, schema=RoomSchema, many=True,
              summary='List the rooms that can be booked', tag='Rooms'),
     Endpoint(rule='/rooms/<int:room_id>', name='room', rh=RHRoom, schema=RoomSchema,
-             summary='Room details', tag='Rooms'),
+             summary='Details of one room that can be booked', tag='Rooms'),
 ]

@@ -347,7 +347,8 @@ ENDPOINTS = [
     Endpoint(rule='/events/<int:event_id>/editables', name='editables', rh=RHEditableList, schema=EditableSchema,
              many=True, summary='List the editables of an event', tag='Editing'),
     Endpoint(rule='/events/<int:event_id>/contributions/<int:contrib_id>/editables/<editable_type>', name='editable',
-             rh=RHEditable, schema=EditableDetailsSchema, summary='Editable of a contribution', tag='Editing'),
+             rh=RHEditable, schema=EditableDetailsSchema,
+             summary='The editable of a contribution, with its revisions', tag='Editing'),
     Endpoint(rule='/events/<int:event_id>/contributions/<int:contrib_id>/editables/<editable_type>'
                   '/revisions/<int:revision_id>/comments',
              name='editable_comments', rh=RHEditableComments, schema=EditingCommentSchema, many=True,

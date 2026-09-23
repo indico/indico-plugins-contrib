@@ -154,5 +154,5 @@ ENDPOINTS = [
     Endpoint(rule='/events/<int:event_id>/abstracts', name='abstracts', rh=RHAbstractList, schema=ApiAbstractSchema,
              many=True, summary='List the abstracts of an event', tag='Abstracts'),
     Endpoint(rule='/events/<int:event_id>/abstracts/<int:abstract_id>', name='abstract', rh=RHAbstract,
-             schema=ApiAbstractSchema, summary='Abstract details', tag='Abstracts'),
+             schema=ApiAbstractSchema, summary='Details of one abstract submitted to an event', tag='Abstracts'),
 ]

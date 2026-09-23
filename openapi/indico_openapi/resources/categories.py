@@ -63,7 +63,7 @@ class RHCategoryList(RHListBase):
 
 ENDPOINTS = [
     Endpoint(rule='/categories', name='categories', rh=RHCategoryList, schema=CategorySchema, many=True,
-             summary='List categories', tag='Categories'),
+             summary='List the categories events are organised in', tag='Categories'),
     Endpoint(rule='/categories/<int:category_id>', name='category', rh=RHCategory, schema=CategorySchema,
-             summary='Category details', tag='Categories'),
+             summary='Details of one category events are organised in', tag='Categories'),
 ]

@@ -127,5 +127,5 @@ ENDPOINTS = [
              schema=ServiceRequestSchema, many=True, summary='List the services an event asked for',
              tag='Service requests'),
     Endpoint(rule='/events/<int:event_id>/requests/<int:request_id>', name='request', rh=RHServiceRequest,
-             schema=ServiceRequestSchema, summary='Service request details', tag='Service requests'),
+             schema=ServiceRequestSchema, summary='Details of one service an event asked for', tag='Service requests'),
 ]

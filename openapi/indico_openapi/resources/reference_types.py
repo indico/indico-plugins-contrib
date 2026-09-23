@@ -67,5 +67,6 @@ ENDPOINTS = [
     Endpoint(rule='/reference-types', name='reference_types', rh=RHReferenceTypeList, schema=ReferenceTypeSchema,
              many=True, summary='List the systems external identifiers point at', tag='Reference types'),
     Endpoint(rule='/reference-types/<int:reference_type_id>', name='reference_type', rh=RHReferenceType,
-             schema=ReferenceTypeSchema, summary='Reference type details', tag='Reference types'),
+             schema=ReferenceTypeSchema,
+             summary='Details of one system external identifiers point at', tag='Reference types'),
 ]

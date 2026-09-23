@@ -123,6 +123,6 @@ ENDPOINTS = [
              rh=RHDesignerTemplateList, schema=DesignerTemplateSchema, many=True,
              summary='List the badge and poster templates available to an event', tag='Designer'),
     Endpoint(rule='/events/<int:event_id>/designer-templates/<int:template_id>', name='designer_template',
-             rh=RHDesignerTemplate, schema=DesignerTemplateSchema, summary='Badge or poster template details',
+             rh=RHDesignerTemplate, schema=DesignerTemplateSchema, summary='Details of one badge or poster template',
              tag='Designer'),
 ]

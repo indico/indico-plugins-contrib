@@ -108,5 +108,5 @@ ENDPOINTS = [
     Endpoint(rule='/events/<int:event_id>/agreements', name='agreements', rh=RHAgreementList, schema=AgreementSchema,
              many=True, summary='List the agreements an event asked for', tag='Agreements'),
     Endpoint(rule='/events/<int:event_id>/agreements/<int:agreement_id>', name='agreement', rh=RHAgreement,
-             schema=AgreementSchema, summary='Agreement details', tag='Agreements'),
+             schema=AgreementSchema, summary='Details of one agreement an event asked for', tag='Agreements'),
 ]

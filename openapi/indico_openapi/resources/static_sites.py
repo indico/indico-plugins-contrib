@@ -88,8 +88,7 @@ class RHOfflineCopyList(OfflineCopyMixin, RHListBase, RHManageEventBase):
 
 ENDPOINTS = [
     Endpoint(rule='/events/<int:event_id>/offline-copies', name='offline_copies', rh=RHOfflineCopyList,
-             schema=OfflineCopySchema, many=True, summary='List the offline copies of an event',
-             tag='Offline copies'),
+             schema=OfflineCopySchema, many=True, summary='List the offline copies of an event', tag='Offline copies'),
     Endpoint(rule='/events/<int:event_id>/offline-copies/<int:site_id>', name='offline_copy', rh=RHOfflineCopy,
-             schema=OfflineCopySchema, summary='Offline copy details', tag='Offline copies'),
+             schema=OfflineCopySchema, summary='Details of one offline copy of an event', tag='Offline copies'),
 ]

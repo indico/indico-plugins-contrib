@@ -108,5 +108,5 @@ ENDPOINTS = [
     Endpoint(rule='/events/<int:event_id>/payments', name='payments', rh=RHPaymentList, schema=PaymentSchema,
              many=True, summary='List the payments of an event', tag='Payments'),
     Endpoint(rule='/events/<int:event_id>/payments/<int:payment_id>', name='payment', rh=RHPayment,
-             schema=PaymentSchema, summary='Payment details', tag='Payments'),
+             schema=PaymentSchema, summary='Details of one payment of an event', tag='Payments'),
 ]

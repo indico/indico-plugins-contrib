@@ -95,5 +95,5 @@ ENDPOINTS = [
     Endpoint(rule='/events/<int:event_id>/roles', name='roles', rh=RHEventRoleList, schema=EventRoleSchema, many=True,
              summary='List the roles of an event', tag='Roles'),
     Endpoint(rule='/events/<int:event_id>/roles/<int:role_id>', name='role', rh=RHEventRole, schema=EventRoleSchema,
-             summary='Event role details', tag='Roles'),
+             summary='Details of one role of an event', tag='Roles'),
 ]
