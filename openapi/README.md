@@ -204,7 +204,7 @@ request handlers and access checks are reused, so they cost nothing here.
 | Reservations | The bookings of those rooms, with their occurrences. | 153 | 150 |
 | Reservation history and links | Every change made to a booking since it was created, and the event, contribution or session block it was made for. | 154 | 170 |
 | Blockings | The periods a room cannot be booked, and who may still book it. | 99 | 95 |
-| Users | The people the instance knows, plus the identity of the caller. | 89 | 101 |
+| Users | The identity of the caller, plus the accounts the instance holds for whoever administers it. | 79 | 98 |
 | Affiliations | The organisations the instance defines, which is what the affiliation of a user, a speaker or a registrant points at. | 60 | 65 |
 | Favourites | The users, categories, events and rooms the caller starred, which is what their dashboard and the room booking pages open with. | 96 | 72 |
 | Personal data | The preferences the caller saved, the addresses they receive Indico mail at and the data export they asked for. | 136 | 78 |
@@ -213,7 +213,7 @@ request handlers and access checks are reused, so they cost nothing here.
 | Event labels | The labels an event can be marked with, such as `Cancelled`, as the administrators defined them. | 70 | 57 |
 | Reference types | The external systems an event, a contribution or a subcontribution can carry an identifier of, such as a DOI, with the scheme and the URL template each one builds its links from. | 71 | 41 |
 | Shared code (spec, Swagger UI, pagination, schema helpers) | Paid once: the OpenAPI document, the docs page, the list envelope and the field description machinery every resource above builds on, plus the fixtures and the comparison helper every test builds on. | 475 | 251 |
-| **Total** | | **7193** | **7376** |
+| **Total** | | **7183** | **7373** |
 
 ## Entities not covered
 
@@ -270,6 +270,11 @@ returned: a group coming from an external identity provider is known by its
 name alone, and its members are asked for on every check instead of being
 stored. The endpoints also honour the setting that hides local groups, so they
 answer 403 while it is off, exactly as the administration pages do.
+
+A profile follows the same rule: every caller reads their own at `/users/me`,
+and reading the profile of somebody else, or listing the accounts of the
+instance, is left to administrators, the audience of the user management area.
+Deleted accounts are never served.
 
 The log of an event is served with the filters the log interface uses: the area
 of the event an entry belongs to, free text over the same columns the interface
