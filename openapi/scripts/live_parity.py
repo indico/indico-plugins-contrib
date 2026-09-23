@@ -261,6 +261,7 @@ class Checker:
         self.area('reservations', self.check_reservations)
         self.area('reservation-edit-logs', self.check_reservation_edit_logs)
         self.area('reservation-links', self.check_reservation_links)
+        self.area('acl', self.check_acl)
         return self.results
 
     def check_count(self, entity, path, expected):
@@ -876,6 +877,17 @@ class Checker:
         self.check_same_ids('favorites', 'rooms', [room['id'] for room in ours],
                             self.api.get('/rooms/api/user/favorite-rooms/'))
 
+    def check_acl(self):
+        """Check the ACLs against the seed, since Indico renders them as HTML and compares to nothing."""
+        granted = set()
+        for entry in self.manifest['acl']:
+            ours = self.api.list(entry['path'])
+            granted |= {(entry['type'], name) for row in ours for name in row.get('permissions', ())}
+            self.check('acl', entry['path'], len(ours),
+                       lambda ours=ours, entry=entry: _same_principals(ours, entry))
+        catalogue = self.api.list('/permissions')
+        self.check('acl', 'permissions', len(catalogue), lambda: _describes_permissions(catalogue, granted))
+
     def check_personal_data(self):
         settings = self.api.ours('/users/me/settings')
         expected = self.manifest['settings']
@@ -945,6 +957,19 @@ def _same_settings(ours, expected):
     saved = {key: ours[key] for key in expected}
     if saved != expected:
         raise AssertionError(f'/users/me/settings served {saved} instead of {expected}')
+
+
+def _same_principals(ours, entry):
+    listed = sorted(row['identifier'] for row in ours)
+    expected = sorted(entry['identifiers'])
+    if listed != expected:
+        raise AssertionError(f'{entry["path"]} served {listed} instead of {expected}')
+
+
+def _describes_permissions(catalogue, granted):
+    known = {(permission['object_type'], permission['name']) for permission in catalogue}
+    if missing := sorted(granted - known):
+        raise AssertionError(f'/permissions leaves out {missing}')
 
 
 def _same_export_state(ours, expected):

@@ -122,13 +122,15 @@ class MenuEntrySchema(DescribedFieldsMixin, mm.Schema):
 
     Core has no schema for this either, and the entries are not necessarily
     rows: unless the organisers customised the menu, Indico builds it in memory
-    from the modules that contribute to it. The identifier of an entry is
-    therefore not served, since a transient entry has none; `name` identifies
-    the entries Indico defines and `page_id` the pages the organisers wrote.
+    from the modules that contribute to it, and such an entry has no identifier;
+    `name` identifies the entries Indico defines and `page_id` the pages the
+    organisers wrote.
     """
 
     class Meta:
         descriptions = {
+            'id': 'Numeric identifier of the entry, or `null` for an entry Indico builds in memory rather '
+                  'than storing. Only a stored entry can restrict who reads it.',
             'name': 'Identifier of the entry within the event for the entries Indico defines, such as '
                     '`timetable`, or `null` for an entry added by the organisers.',
             'title': 'Title of the entry, in the language of the caller, or an empty string for a separator.',
@@ -143,6 +145,7 @@ class MenuEntrySchema(DescribedFieldsMixin, mm.Schema):
             'children': 'Entries nested under this one, as a separator and its items.',
         }
 
+    id = fields.Function(lambda entry: entry.id if isinstance(entry, MenuEntry) else None)
     name = fields.String(allow_none=True)
     title = fields.String(attribute='localized_title')
     type = fields.Enum(MenuEntryType)
