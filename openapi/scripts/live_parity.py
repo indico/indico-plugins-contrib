@@ -42,6 +42,7 @@ import category_roles_test  # noqa: E402
 import contribution_fields_test  # noqa: E402
 import contributions_test  # noqa: E402
 import designer_test  # noqa: E402
+import editing_test  # noqa: E402
 import equipment_test  # noqa: E402
 import events_test  # noqa: E402
 import files_test  # noqa: E402
@@ -354,6 +355,7 @@ class Checker:
         self.check_abstract_emails(event)
         self.check_papers(event_id)
         self.check_reviewing(event)
+        self.check_editing(event)
         self.check_paper_setup(event)
         self.check_contribution_setup(event)
         self.check_registrations(event_id)
@@ -570,6 +572,48 @@ class Checker:
         theirs = papers['layout_review_questions'] + papers['content_review_questions']
         self.check('reviews', f'paper questions {event_id}', len(questions),
                    lambda: compare_list(questions, theirs, **reviews_test.PAPER_QUESTION_MAPPINGS))
+
+    def check_editing(self, event):
+        """Check the editables against the timeline each of them is rendered from."""
+        event_id = event['id']
+        for editable in self.api.list(f'/events/{event_id}/editables'):
+            contrib_id = editable['contribution']['id']
+            editable_type = editable['type']
+            ours = self.api.ours(f'/events/{event_id}/contributions/{contrib_id}/editables/{editable_type}')
+            theirs = self.api.get(f'/event/{event_id}/api/contributions/{contrib_id}/editing/{editable_type}')
+            revisions = ours.pop('revisions')
+            self.check('editing', f'editable {contrib_id} {editable_type}', 1,
+                       lambda ours=ours, theirs=theirs: compare(ours, theirs, **editing_test.EDITABLE_MAPPINGS))
+            self.check('editing', f'revisions {contrib_id} {editable_type}', len(revisions),
+                       lambda revisions=revisions, theirs=theirs:
+                       compare_list(revisions, theirs['revisions'], **editing_test.REVISION_MAPPINGS))
+            for revision in theirs['revisions']:
+                if not revision['comments']:
+                    continue
+                path = (f'/events/{event_id}/contributions/{contrib_id}/editables/{editable_type}'
+                        f'/revisions/{revision["id"]}/comments')
+                comments = self.api.list(path)
+                self.check('editing', f'comments {contrib_id} revision {revision["id"]}', len(comments),
+                           lambda comments=comments, revision=revision:
+                           compare_list(comments, revision['comments'], **editing_test.COMMENT_MAPPINGS))
+
+        tags = self.api.list(f'/events/{event_id}/editing/tags')
+        self.check('editing', f'tags {event_id}', len(tags),
+                   lambda: compare_list(tags, self.api.get(f'/event/{event_id}/editing/api/tags'),
+                                        same=editing_test.TAG_FIELDS))
+        for editable_type in ('paper', 'slides', 'poster'):
+            file_types = self.api.list(f'/events/{event_id}/editing/{editable_type}/file-types')
+            self.check('editing', f'file types {event_id} {editable_type}', len(file_types),
+                       lambda file_types=file_types, editable_type=editable_type:
+                       compare_list(file_types,
+                                    self.api.get(f'/event/{event_id}/editing/api/{editable_type}/file-types'),
+                                    same=editing_test.FILE_TYPE_FIELDS))
+            conditions = self.api.list(f'/events/{event_id}/editing/{editable_type}/review-conditions')
+            self.check('editing', f'review conditions {event_id} {editable_type}', len(conditions),
+                       lambda conditions=conditions, editable_type=editable_type:
+                       _same_review_conditions(
+                           conditions,
+                           self.api.get(f'/event/{event_id}/editing/api/{editable_type}/review-conditions')))
 
     def check_registrations(self, event_id):
         ours = self.api.list(f'/events/{event_id}/registration-forms')
@@ -1007,6 +1051,13 @@ def _same_questions(ours, theirs):
     expected = sorted(({field: question[field] for field in fields} for question in theirs), key=itemgetter('id'))
     if mine != expected:
         raise AssertionError(f'abstract review questions served {mine} instead of {expected}')
+
+
+def _same_review_conditions(ours, theirs):
+    """The editing page reads a condition as its identifier followed by the file types it asks for."""
+    mine = [[condition['id'], condition['file_type_ids']] for condition in ours]
+    if mine != theirs:
+        raise AssertionError(f'review conditions served {mine} instead of {theirs}')
 
 
 def _same_principals(ours, entry):
