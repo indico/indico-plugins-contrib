@@ -175,7 +175,7 @@ def test_menu_lists_the_default_entries(dummy_event, token_headers, test_client)
     assert resp.json['count'] == len(resp.json['results'])
     assert resp.json['next_offset'] is None
     timetable = next(entry for entry in resp.json['results'] if entry['name'] == 'timetable')
-    assert timetable == {'name': 'timetable', 'title': 'Timetable', 'type': 'internal_link',
+    assert timetable == {'id': None, 'name': 'timetable', 'title': 'Timetable', 'type': 'internal_link',
                          'position': timetable['position'], 'new_tab': False, 'page_id': None,
                          'url': f'/event/{dummy_event.id}/timetable/', 'children': []}
 
@@ -198,6 +198,12 @@ def test_menu_serves_a_user_link(dummy_event, custom_menu, token_headers, test_c
     assert entry['type'] == 'user_link'
     assert entry['url'] == 'https://example.com/sponsor'
     assert entry['new_tab'] is True
+
+
+def test_menu_serves_the_identifier_of_a_stored_entry(dummy_event, custom_menu, token_headers, test_client):
+    entry = custom_menu(type=MenuEntryType.user_link, title='Our sponsor', link_url='https://example.com/sponsor')
+    resp = test_client.get(f'/api/v1/events/{dummy_event.id}/menu', headers=token_headers)
+    assert entry_named(resp.json['results'], 'Our sponsor')['id'] == entry.id
 
 
 def test_menu_serves_a_separator(dummy_event, custom_menu, token_headers, test_client):

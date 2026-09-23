@@ -1382,6 +1382,58 @@ def create_personal_data(manager, users, categories, events, rooms):
                        'emails': len(manager.all_emails)}}
 
 
+def create_acls(manager, users, groups, category, dataset, location, room):
+    """Name principals in the ACLs the API serves, one entry of each shape.
+
+    Every object keeps the protection mode it was seeded with: an entry only
+    matters once the object is closed, and closing the demo objects would hide
+    them from every other comparison.
+    """
+    reader, convener = users[0], users[1]
+    group = groups[0].proxy
+    event = dataset['event']
+    block = dataset['sessions'][0]
+    contribution = dataset['contributions'][0]
+    track = dataset['tracks'][0]
+    attachment = dataset['attachments'][0]
+    menu_entry = MenuEntry.query.filter_by(event_id=event.id, type=MenuEntryType.user_link, parent_id=None).first()
+
+    category.update_principal(group, read_access=True)
+    event.update_principal(reader, read_access=True)
+    event.update_principal(group, add_permissions={'submit'})
+    block.update_principal(convener, add_permissions={'coordinate'})
+    contribution.update_principal(reader, add_permissions={'submit'})
+    track.update_principal(convener, add_permissions={'convene'})
+    room.update_principal(reader, add_permissions={'book'})
+    location.update_principal(manager, full_access=True)
+    attachment.folder.acl.add(reader)
+    attachment.acl.add(group)
+    menu_entry.acl.add(reader)
+    db.session.flush()
+
+    manager_id = manager.persistent_identifier
+    reader_id = reader.persistent_identifier
+    convener_id = convener.persistent_identifier
+    group_id = group.persistent_identifier
+    return [
+        {'path': f'/categories/{category.id}/acl', 'type': 'category', 'identifiers': [group_id]},
+        {'path': f'/events/{event.id}/acl', 'type': 'event',
+         'identifiers': [manager_id, reader_id, group_id]},
+        {'path': f'/events/{event.id}/sessions/{block.id}/acl', 'type': 'session', 'identifiers': [convener_id]},
+        {'path': f'/events/{event.id}/contributions/{contribution.id}/acl', 'type': 'contribution',
+         'identifiers': [reader_id]},
+        {'path': f'/events/{event.id}/tracks/{track.id}/acl', 'type': 'track', 'identifiers': [convener_id]},
+        {'path': f'/rooms/{room.id}/acl', 'type': 'room', 'identifiers': [reader_id]},
+        {'path': f'/locations/{location.id}/acl', 'type': 'location', 'identifiers': [manager_id]},
+        {'path': f'/events/{event.id}/attachments/{attachment.id}/acl', 'type': 'attachment',
+         'identifiers': [group_id]},
+        {'path': f'/events/{event.id}/attachment-folders/{attachment.folder.id}/acl', 'type': 'attachment folder',
+         'identifiers': [reader_id]},
+        {'path': f'/events/{event.id}/menu/{menu_entry.id}/acl', 'type': 'menu entry',
+         'identifiers': [reader_id]},
+    ]
+
+
 def main(manifest_path):
     if Category.query.filter_by(title=CATEGORY_TITLE, is_deleted=False).first():
         raise SystemExit(f'"{CATEGORY_TITLE}" already exists, delete it before seeding again')
@@ -1438,6 +1490,7 @@ def main(manifest_path):
     blockings = create_blockings(rooms, users, 40)
 
     personal = create_personal_data(manager, users, topics, [dataset['event'] for dataset in conferences], rooms)
+    acls = create_acls(manager, users, groups, demo, conferences[0], locations[0], rooms[0])
 
     token = PersonalToken(name=TOKEN_NAME, user=manager, scopes=TOKEN_SCOPES)
     plaintext = token.generate_token()
@@ -1452,6 +1505,7 @@ def main(manifest_path):
         'manager_id': manager.id,
         'manager_username': MANAGER_USERNAME,
         'settings': personal['settings'],
+        'acl': acls,
         'data_export_state': personal['export_state'],
         'category_id': demo.id,
         'topic_category_id': topics[0].id,

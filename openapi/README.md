@@ -148,13 +148,32 @@ of being reported as an error.
 | `/api/v1/event-labels/<event_label_id>` | Event label details |
 | `/api/v1/reference-types` | List the systems external identifiers point at |
 | `/api/v1/reference-types/<reference_type_id>` | Reference type details |
+| `/api/v1/permissions` | List the permissions an ACL entry can grant |
+| `/api/v1/categories/<category_id>/acl` | List the ACL of a category |
+| `/api/v1/categories/<category_id>/attachments/<attachment_id>/acl` | List the ACL of an attachment |
+| `/api/v1/categories/<category_id>/attachment-folders/<folder_id>/acl` | List the ACL of an attachment folder |
+| `/api/v1/events/<event_id>/acl` | List the ACL of an event |
+| `/api/v1/events/<event_id>/sessions/<session_id>/acl` | List the ACL of a session |
+| `/api/v1/events/<event_id>/contributions/<contrib_id>/acl` | List the ACL of a contribution |
+| `/api/v1/events/<event_id>/tracks/<track_id>/acl` | List the ACL of a track |
+| `/api/v1/events/<event_id>/menu/<entry_id>/acl` | List the ACL of a menu entry |
+| `/api/v1/events/<event_id>/attachments/<attachment_id>/acl` | List the ACL of an attachment |
+| `/api/v1/events/<event_id>/attachment-folders/<folder_id>/acl` | List the ACL of an attachment folder |
+| `/api/v1/events/<event_id>/sessions/<session_id>/attachments/<attachment_id>/acl` | List the ACL of an attachment |
+| `/api/v1/events/<event_id>/sessions/<session_id>/attachment-folders/<folder_id>/acl` | List the ACL of an attachment folder |
+| `/api/v1/events/<event_id>/contributions/<contrib_id>/attachments/<attachment_id>/acl` | List the ACL of an attachment |
+| `/api/v1/events/<event_id>/contributions/<contrib_id>/attachment-folders/<folder_id>/acl` | List the ACL of an attachment folder |
+| `/api/v1/events/<event_id>/contributions/<contrib_id>/subcontributions/<subcontrib_id>/attachments/<attachment_id>/acl` | List the ACL of an attachment |
+| `/api/v1/events/<event_id>/contributions/<contrib_id>/subcontributions/<subcontrib_id>/attachment-folders/<folder_id>/acl` | List the ACL of an attachment folder |
+| `/api/v1/rooms/<room_id>/acl` | List the ACL of a room |
+| `/api/v1/locations/<location_id>/acl` | List the ACL of a location |
 | `/api/v1/openapi.json` | OpenAPI v3 document |
 | `/api/v1/docs` | Swagger UI |
 
 ## Entities served
 
 The list below is what the API serves. It leaves out reviewing, editing, the
-instance administration area, permissions and the log of a user account, described
+instance administration area and the log of a user account, described
 under Entities not covered. The cost columns are the lines of plugin code and of plugin
 tests each entity took, counted with `wc -l` on the files it owns. Core schemas,
 request handlers and access checks are reused, so they cost nothing here.
@@ -189,7 +208,7 @@ request handlers and access checks are reused, so they cost nothing here.
 | Videoconferences | The videoconference rooms attached to an event, a contribution or a session block, and whether the service still has each one. | 115 | 155 |
 | Offline copies | The copies of an event built as static HTML, in what state each build is and where the ZIP file of a finished one is. | 95 | 87 |
 | Event series | The groupings several events are presented as one through, with the title pattern and the links they share. | 78 | 109 |
-| Event layout | The menu of an event page, the custom pages hanging off it, the images uploaded for it and the settings saying how the page is rendered. | 305 | 316 |
+| Event layout | The menu of an event page, the custom pages hanging off it, the images uploaded for it and the settings saying how the page is rendered. | 308 | 322 |
 | Event features | Which optional parts of Indico an event has turned on, out of the ones its type allows. | 61 | 60 |
 | Document templates and documents | The templates an event renders invoices and certificates from, the fields each one asks for, and the documents already generated for a registration. | 219 | 298 |
 | Designer templates | The badge and poster templates an event draws tickets from, with the drawing itself and the images it places on it. | 128 | 143 |
@@ -212,8 +231,9 @@ request handlers and access checks are reused, so they cost nothing here.
 | Groups | The groups of users the instance itself defines, and the members of each one. | 99 | 85 |
 | Event labels | The labels an event can be marked with, such as `Cancelled`, as the administrators defined them. | 70 | 57 |
 | Reference types | The external systems an event, a contribution or a subcontribution can carry an identifier of, such as a DOI, with the scheme and the URL template each one builds its links from. | 71 | 41 |
+| Protection and permissions | The ACL of every object that holds one, entry by entry, with what each principal is granted, plus the catalogue saying what every permission name allows. | 385 | 225 |
 | Shared code (spec, Swagger UI, pagination, schema helpers) | Paid once: the OpenAPI document, the docs page, the list envelope and the field description machinery every resource above builds on, plus the fixtures and the comparison helper every test builds on. | 475 | 251 |
-| **Total** | | **7183** | **7373** |
+| **Total** | | **7571** | **7604** |
 
 ## Entities not covered
 
@@ -227,7 +247,6 @@ per role, 450 to 500 when it also needs several endpoints of its own.
 | Paper and abstract reviews, ratings and comments | Reviewing is written under the assumption that only the people in the process read it, and each role sees a different part of the same review. Exposing it through an API means reimplementing those rules rather than reusing them. | 600 to 700 |
 | Editing (`events/editing`) | The editing workflow is reviewing material under another name: revisions, review comments and file type settings. It also already has its own REST API, used by its React frontend. | 500 to 600 |
 | Instance administration | Settings, announcements, news, legal texts, authentication, OAuth applications, IP networks and the search service are either instance configuration or a view over the entities above. | 600 or more |
-| Protection and permissions | The access lists of events, categories, sessions, contributions, tracks, menu entries, rooms and blockings. Reading one means resolving every kind of principal it can hold, from a user to a group, an email address, an IP network, an event role or a registration form, and each surface grants a different set of permissions. It is also the one payload that says who may read the rest, so serving it needs a design of its own rather than another resource. | 500 to 600 |
 | User logs | The audit trail of one account: the profile changes, the permissions granted and the mail sent to it. Indico shows it in the administration area alone and never to the account it belongs to, so serving it here would mean answering one caller with the record of another, which the personal endpoints never do. Identities, API keys and personal tokens are credentials and are not served at all either. | 150 to 200 |
 
 ### Where Indico serves them today
@@ -240,7 +259,6 @@ whether the data is reachable but in what shape and to whom.
 | --- | --- | --- |
 | Paper and abstract reviews, ratings and comments | `/event/<event_id>/manage/abstracts/abstracts.json`, `/event/<event_id>/manage/papers/assignment-list/export-json`, and the abstract and paper pages | JSON, but only as a whole-event dump sent as a file attachment and only to managers. The per-role view of a single review is HTML. |
 | Editing | `/event/<event_id>/editing/api/...` and the editable timeline of each contribution | JSON. It already is a REST API, written for its own React frontend. |
-| Protection and permissions | The protection page of each object, plus `/event/<event_id>/manage/protection/acl` | HTML. The inherited access list is rendered into the page, and the only JSON behind it is the principal search, which answers to POST. |
 | User logs | `/user/<user_id>/logs`, with JSON at `/user/<user_id>/api/logs` | JSON behind an HTML page, served to instance administrators alone. |
 | Instance administration | The pages under `/admin/` | HTML forms, except `/admin/logs/api/logs` and `/admin/version-check`. |
 
@@ -275,6 +293,24 @@ A profile follows the same rule: every caller reads their own at `/users/me`,
 and reading the profile of somebody else, or listing the accounts of the
 instance, is left to administrators, the audience of the user management area.
 Deleted accounts are never served.
+
+The ACL of an object is served to whoever manages that object, the audience of
+the protection page showing it today. An entry names a principal, with the
+identifier and the name Indico prints next to it, and says whether it grants
+reading, full management or a list of named permissions. What a parent grants is
+not repeated: an object inheriting its protection is read by walking up the
+chain, exactly as the access check does. A permission an entry holds but its
+object no longer defines is left out, since it grants nothing. The access key of
+an object is never served: holding it is enough to read what it protects. A
+track is the one object whose ACL answers to the managers of its event rather
+than to its own entries, because its permissions belong to the abstract
+reviewing workflow and its programme is edited from the event, which is where
+Indico checks. Attachments, their folders and menu entries name principals and
+grant them nothing beyond reading, so their entries carry no permissions at all,
+and a blocking is the one object whose ACL was already served: the principals
+that may still book the rooms are part of the blocking itself, which is how the
+room booking interface shows them. Since a name stored in an entry means nothing
+on its own, `/permissions` describes what each one allows, per kind of object.
 
 The log of an event is served with the filters the log interface uses: the area
 of the event an entry belongs to, free text over the same columns the interface
@@ -641,8 +677,8 @@ Survey submissions, agreements, reminders, payments, service requests,
 videoconferences, offline copies, event layout, event features, the documents
 generated for a registration, session types, registration invitations, paper
 templates, abstract notifications, reference types, event labels, note
-revisions, user preferences, email addresses and data exports are the entities
-served without a parity test. The interface only exports submissions as CSV or Excel, behind a
+revisions, user preferences, email addresses, data exports and access lists are
+the entities served without a parity test. The interface only exports submissions as CSV or Excel, behind a
 POST, so the survey test compares the questionnaire instead. For agreements, the
 legacy endpoint answers with the people an agreement definition asks to sign, and
 those definitions come from plugins, so there is nobody to list unless a plugin
@@ -668,7 +704,12 @@ link behind a paper template and nothing behind the rest. The preferences and th
 email addresses of a caller are rendered as forms, which answer to POST, and the
 one JSON endpoint of the data export is the call that starts an export rather
 than one that describes it, so the three of them are checked against the values
-the demo data seeds instead.
+the demo data seeds instead. An ACL has nothing to compare against either: the
+protection page renders its own entries into a form, and the one endpoint behind
+it, `/event/<event_id>/manage/protection/acl`, answers with an HTML fragment
+listing what the parents grant. The seeded entries are what the ACLs are checked
+against, and every permission they hand out is looked up in the catalogue the
+API serves.
 
 Reference types and event labels are managed from an administration page that
 answers HTML, and neither catalogue is served as JSON anywhere, so there is
@@ -687,8 +728,8 @@ The tests above run on rows built by fixtures. `scripts/seed_demo_data.py` fills
 a running instance with rows for every entity served, and
 `scripts/live_parity.py` repeats the comparisons over HTTP against it, importing
 the mappings from the test modules so the two cannot drift apart. The entities
-with no payload to compare against are checked by count, and the layout and the
-features by value, against what the seed wrote to its manifest.
+with no payload to compare against are checked by count, and the layout, the
+features and the ACLs by value, against what the seed wrote to its manifest.
 `scripts/purge_demo_data.py` removes the dataset again. Service requests are the
 one entity the seed leaves out: a request needs a plugin that defines its type,
 and none of the plugins shipped with Indico does.
