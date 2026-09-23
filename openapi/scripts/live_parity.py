@@ -60,6 +60,7 @@ import registrations_test  # noqa: E402
 import reservation_edit_logs_test  # noqa: E402
 import reservation_links_test  # noqa: E402
 import reservations_test  # noqa: E402
+import reviews_test  # noqa: E402
 import roles_test  # noqa: E402
 import room_attributes_test  # noqa: E402
 import room_availability_test  # noqa: E402
@@ -352,6 +353,7 @@ class Checker:
         self.check_abstracts(event_id)
         self.check_abstract_emails(event)
         self.check_papers(event_id)
+        self.check_reviewing(event)
         self.check_paper_setup(event)
         self.check_contribution_setup(event)
         self.check_registrations(event_id)
@@ -529,6 +531,45 @@ class Checker:
         self.check('papers', f'detail {contrib_id}', 1,
                    lambda: compare(one, theirs, same=(*papers_test.PAPER_FIELDS, 'revisions'),
                                    derived=papers_test.PAPER_DERIVED))
+
+    def check_reviewing(self, event):
+        """Check the reviews and the comments against the exports the reviewing pages download."""
+        event_id = event['id']
+        abstracts = self.api.get(f'/event/{event_id}/manage/abstracts/abstracts.json')
+        for abstract in abstracts['abstracts']:
+            if abstract['reviews']:
+                ours = self.api.list(f'/events/{event_id}/abstracts/{abstract["id"]}/reviews')
+                self.check('reviews', f'abstract {abstract["id"]}', len(ours),
+                           lambda ours=ours, theirs=abstract['reviews']:
+                           compare_list(ours, theirs, **reviews_test.ABSTRACT_REVIEW_MAPPINGS))
+            if abstract['comments']:
+                ours = self.api.list(f'/events/{event_id}/abstracts/{abstract["id"]}/comments')
+                self.check('reviews', f'abstract comments {abstract["id"]}', len(ours),
+                           lambda ours=ours, theirs=abstract['comments']:
+                           compare_list(ours, theirs, same=reviews_test.COMMENT_FIELDS))
+        questions = self.api.list(f'/events/{event_id}/abstract-review-questions')
+        self.check('reviews', f'abstract questions {event_id}', len(questions),
+                   lambda: _same_questions(questions, abstracts['questions']))
+
+        papers = self.api.get(f'/event/{event_id}/manage/papers/assignment-list/export-json')
+        for paper in papers['papers']:
+            contrib_id = paper['contribution']['id']
+            for revision in paper['revisions']:
+                base = f'/events/{event_id}/contributions/{contrib_id}/paper/revisions/{revision["id"]}'
+                if revision['reviews']:
+                    ours = self.api.list(f'{base}/reviews')
+                    self.check('reviews', f'paper {contrib_id} revision {revision["id"]}', len(ours),
+                               lambda ours=ours, theirs=revision['reviews']:
+                               compare_list(ours, theirs, **reviews_test.PAPER_REVIEW_MAPPINGS))
+                if revision['comments']:
+                    ours = self.api.list(f'{base}/comments')
+                    self.check('reviews', f'paper comments {contrib_id} revision {revision["id"]}', len(ours),
+                               lambda ours=ours, theirs=revision['comments']:
+                               compare_list(ours, theirs, **reviews_test.PAPER_COMMENT_MAPPINGS))
+        questions = self.api.list(f'/events/{event_id}/paper-review-questions')
+        theirs = papers['layout_review_questions'] + papers['content_review_questions']
+        self.check('reviews', f'paper questions {event_id}', len(questions),
+                   lambda: compare_list(questions, theirs, **reviews_test.PAPER_QUESTION_MAPPINGS))
 
     def check_registrations(self, event_id):
         ours = self.api.list(f'/events/{event_id}/registration-forms')
@@ -957,6 +998,15 @@ def _same_settings(ours, expected):
     saved = {key: ours[key] for key in expected}
     if saved != expected:
         raise AssertionError(f'/users/me/settings served {saved} instead of {expected}')
+
+
+def _same_questions(ours, theirs):
+    """The abstracts export describes a question with four fields, and the rest of it is rendered as HTML alone."""
+    fields = ('id', 'title', 'position', 'no_score')
+    mine = sorted(({field: question[field] for field in fields} for question in ours), key=itemgetter('id'))
+    expected = sorted(({field: question[field] for field in fields} for question in theirs), key=itemgetter('id'))
+    if mine != expected:
+        raise AssertionError(f'abstract review questions served {mine} instead of {expected}')
 
 
 def _same_principals(ours, entry):

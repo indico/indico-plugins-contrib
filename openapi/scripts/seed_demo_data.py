@@ -53,10 +53,18 @@ from indico.modules.designer.models.images import DesignerImageFile
 from indico.modules.designer.models.templates import DesignerTemplate
 from indico.modules.events import Event
 from indico.modules.events.abstracts.models.abstracts import Abstract, AbstractState
+from indico.modules.events.abstracts.models.comments import AbstractComment
 from indico.modules.events.abstracts.models.email_logs import AbstractEmailLogEntry
 from indico.modules.events.abstracts.models.email_templates import AbstractEmailTemplate
 from indico.modules.events.abstracts.models.files import AbstractFile
 from indico.modules.events.abstracts.models.persons import AbstractPersonLink
+from indico.modules.events.abstracts.models.review_questions import AbstractReviewQuestion
+from indico.modules.events.abstracts.models.review_ratings import AbstractReviewRating
+from indico.modules.events.abstracts.models.reviews import (
+    AbstractAction,
+    AbstractCommentVisibility,
+    AbstractReview,
+)
 from indico.modules.events.agreements.models.agreements import Agreement, AgreementState
 from indico.modules.events.contributions.models.contributions import Contribution
 from indico.modules.events.contributions.models.fields import (
@@ -85,8 +93,17 @@ from indico.modules.events.models.roles import EventRole
 from indico.modules.events.models.series import EventSeries
 from indico.modules.events.notes.models.notes import EventNote
 from indico.modules.events.papers.file_types import PaperFileType
+from indico.modules.events.papers.models.comments import PaperReviewComment
 from indico.modules.events.papers.models.files import PaperFile
 from indico.modules.events.papers.models.papers import Paper
+from indico.modules.events.papers.models.review_questions import PaperReviewQuestion
+from indico.modules.events.papers.models.review_ratings import PaperReviewRating
+from indico.modules.events.papers.models.reviews import (
+    PaperAction,
+    PaperCommentVisibility,
+    PaperReview,
+    PaperReviewType,
+)
 from indico.modules.events.papers.models.revisions import PaperRevision, PaperRevisionState
 from indico.modules.events.papers.models.templates import PaperTemplate
 from indico.modules.events.payment.models.transactions import PaymentTransaction, TransactionStatus
@@ -503,6 +520,58 @@ def create_papers(contributions, users, index):
         db.session.flush()
         papers.append(paper)
     return papers
+
+
+def create_reviewing(event, abstracts, papers, tracks, users, index):
+    """Seed the reviewing of the abstracts and the papers of an event.
+
+    Every question is a rating but one, so the demo carries both the answers
+    that count towards the score of a review and the ones that do not.
+    """
+    abstract_questions = [AbstractReviewQuestion(event=event, field_type='rating', title='Originality',
+                                                 description='How novel the work is.',
+                                                 field_data={'min': 0, 'max': 5}),
+                          AbstractReviewQuestion(event=event, field_type='text', title='Remarks for the judges')]
+    paper_questions = [PaperReviewQuestion(event=event, type=PaperReviewType.content, field_type='rating',
+                                           title='Soundness', description='How solid the results are.',
+                                           field_data={'min': 0, 'max': 5}),
+                       PaperReviewQuestion(event=event, type=PaperReviewType.layout, field_type='rating',
+                                           title='Formatting', field_data={'min': 0, 'max': 5})]
+    db.session.add_all(abstract_questions + paper_questions)
+    db.session.flush()
+
+    abstract_reviews, abstract_comments = [], []
+    for i, abstract in enumerate(abstracts[:4]):
+        track = pick(tracks, index + i)
+        abstract.reviewed_for_tracks = {track}
+        reviewer = pick(users, index + i)
+        review = AbstractReview(abstract=abstract, user=reviewer, track=track, comment='Fits the track.',
+                                proposed_action=AbstractAction.accept)
+        db.session.add_all([AbstractReviewRating(review=review, question=abstract_questions[0], value=3 + i % 3),
+                            AbstractReviewRating(review=review, question=abstract_questions[1],
+                                                 value='Nothing else to add.')])
+        abstract_reviews.append(review)
+        abstract_comments.append(AbstractComment(abstract=abstract, user=reviewer,
+                                                 text='Could the authors extend the description?',
+                                                 visibility=AbstractCommentVisibility.contributors))
+    db.session.add_all(abstract_comments)
+
+    paper_reviews, paper_comments = [], []
+    for i, paper in enumerate(papers[:4]):
+        revision = paper.last_revision
+        reviewer = pick(users, index + i + 1)
+        review = PaperReview(revision=revision, user=reviewer, type=PaperReviewType.content,
+                             comment='The results hold.', proposed_action=PaperAction.accept)
+        db.session.add(PaperReviewRating(review=review, question=paper_questions[0], value=4 + i % 2))
+        paper_reviews.append(review)
+        paper_comments.append(PaperReviewComment(paper_revision=revision, user=reviewer,
+                                                 text='Please check the references.',
+                                                 visibility=PaperCommentVisibility.contributors))
+    db.session.add_all(paper_comments)
+    db.session.flush()
+    return {'abstract_questions': abstract_questions, 'paper_questions': paper_questions,
+            'abstract_reviews': abstract_reviews, 'abstract_comments': abstract_comments,
+            'paper_reviews': paper_reviews, 'paper_comments': paper_comments}
 
 
 def create_regform(event, users, count, index):
@@ -1252,6 +1321,7 @@ def seed_conference(category, manager, users, index, start, reference_types, lab
     abstract_email_templates, abstract_emails = create_abstract_emails(event, abstracts, manager)
     papers = create_papers(contributions[:8], users, index)
     paper_template, paper_file_types = create_paper_setup(event)
+    reviewing = create_reviewing(event, abstracts, papers, tracks, users, index)
     regform, registrations = create_regform(event, users, 15, index * 3)
     invitations = create_invitations(regform, registrations, index)
     payments = create_payments(registrations, manager)
@@ -1285,7 +1355,7 @@ def seed_conference(category, manager, users, index, start, reference_types, lab
         'contribution_types': contribution_types, 'contribution_fields': contribution_fields,
         'session_types': session_types, 'paper_templates': [paper_template], 'paper_file_types': paper_file_types,
         'abstract_email_templates': abstract_email_templates, 'abstract_emails': abstract_emails,
-        'invitations': invitations, 'registration_tags': registration_tags,
+        'invitations': invitations, 'registration_tags': registration_tags, **reviewing,
     }
 
 

@@ -9,7 +9,7 @@
 import re
 
 from apispec import APISpec
-from apispec.ext.marshmallow import MarshmallowPlugin
+from apispec.ext.marshmallow import MarshmallowPlugin, resolver
 from marshmallow import fields
 
 from indico.core.marshmallow import mm
@@ -35,6 +35,7 @@ Do not send both: Indico rejects a request that carries a token and a session
 cookie at the same time.
 """.strip()
 
+_API_PREFIX_RE = re.compile(r'^Api')
 _PARAM_RE = re.compile(r'<(?:(?P<converter>[^:>]+):)?(?P<name>[^>]+)>')
 _CONVERTER_TYPES = {'int': 'integer', 'float': 'number'}
 _page_schemas = {}
@@ -53,6 +54,16 @@ def page_schema(schema_cls):
                                                                    'page, or `null` when this is the last one.'}),
         })
     return _page_schemas[schema_cls]
+
+
+def _component_name(schema):
+    """Name a component after the resource it serves.
+
+    A schema is prefixed with ``Api`` when its plain name would shadow a core
+    one that Indico nests by name, which the registry of marshmallow resolves
+    globally. The prefix is an artefact of that, not part of the contract.
+    """
+    return _API_PREFIX_RE.sub('', resolver(schema))
 
 
 def _path_and_params(rule):
@@ -86,7 +97,8 @@ def _operation(endpoint, params):
 
 def build_spec():
     spec = APISpec(title='Indico REST API', version=SPEC_VERSION, openapi_version=OPENAPI_VERSION,
-                   plugins=[MarshmallowPlugin()], info={'description': DESCRIPTION})
+                   plugins=[MarshmallowPlugin(schema_name_resolver=_component_name)],
+                   info={'description': DESCRIPTION})
     spec.components.security_scheme('bearer', {'type': 'http', 'scheme': 'bearer',
                                                'description': 'Indico personal token or OAuth access token'})
     for endpoint in ENDPOINTS:
