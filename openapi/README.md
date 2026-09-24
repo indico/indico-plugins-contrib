@@ -192,74 +192,74 @@ request handlers and access checks are reused, so they cost nothing here.
 
 | Entity | Why it is served | Code | Tests |
 | --- | --- | --- | --- |
-| Events | Everything else hangs off an event, and its dates, description, location, category and external identifiers are what a caller asks for first. | 150 | 182 |
-| Categories | The tree events are organised in, needed to walk from the instance root down to a single event. | 69 | 76 |
-| Contributions | The talks of an event, with their speakers, times and room. The entity most often read from outside. | 159 | 132 |
-| Contribution types and fields | The types an event sorts its talks into and the extra questions it asks about each one, which is what the values carried by a contribution point at. | 169 | 186 |
-| Subcontributions | The parts a contribution is split into, each with its own speakers and material. | 80 | 114 |
-| Sessions | The blocks contributions are grouped in, with their own conveners, location and colours. | 93 | 104 |
-| Session types | The types an event sorts its sessions into. | 65 | 77 |
-| Timetable | The schedule itself, the only view that says when each contribution, session block and break happens. | 134 | 205 |
-| Tracks | The programme an event is divided into. Abstracts and contributions point at it. | 74 | 100 |
-| Event persons | Speakers, chairs, conveners and authors, with the affiliation each one was entered with. | 142 | 156 |
-| Registration forms, registrations and tags | What an event asks registrants for, section by section and field by field, whether the form is open, who registered, in what state, for what price and with what answers, plus the tags the organisers group registrations with. | 568 | 662 |
-| Registration invitations | Who an event invited to register, in what state each invitation is and which registration it turned into. | 113 | 126 |
-| Abstracts | The submissions to a call for abstracts, with their state, tracks, authors and files. | 158 | 200 |
-| Abstract notifications | The templates a call for abstracts notifies its submitters with, and the mail each abstract actually triggered. | 183 | 162 |
-| Papers | The files submitted for a contribution, with every revision and the judgment of each one. | 157 | 193 |
-| Paper templates and file types | The template an author starts a paper from and the file types a submission is accepted in. | 158 | 175 |
-| Surveys and submissions | The questionnaires an event runs, question by question, and the answers it collected. | 210 | 193 |
-| Agreements | Who an event asked to sign something and who answered. | 112 | 105 |
-| Event roles | The groups of users an event grants permissions to, and the people holding each one. | 99 | 104 |
-| Category roles | The same, one level up: the groups a category grants permissions to, which every event under it inherits. | 91 | 102 |
-| Event move requests | The events asking to be moved into a category, in what state each request is and who answered it. | 95 | 109 |
-| Reminders | The emails an event has scheduled for its participants, with their recipient filters and their message. | 140 | 101 |
-| Event and category logs | Every management action an event or a category recorded, with the values that changed, which is the only account of who did what. | 227 | 306 |
-| Payments | What each registrant was charged, through which provider, and whether the payment went through. | 112 | 129 |
-| Service requests | The services an event asked the instance to provide, in what state each request is, and who accepted or rejected it. | 131 | 157 |
-| Videoconferences | The videoconference rooms attached to an event, a contribution or a session block, and whether the service still has each one. | 115 | 155 |
-| Offline copies | The copies of an event built as static HTML, in what state each build is and where the ZIP file of a finished one is. | 95 | 87 |
-| Event series | The groupings several events are presented as one through, with the title pattern and the links they share. | 78 | 109 |
-| Event layout | The menu of an event page, the custom pages hanging off it, the images uploaded for it and the settings saying how the page is rendered. | 308 | 322 |
-| Event features | Which optional parts of Indico an event has turned on, out of the ones its type allows. | 61 | 60 |
-| Document templates and documents | The templates an event renders invoices and certificates from, the fields each one asks for, and the documents already generated for a registration. | 219 | 298 |
-| Designer templates | The badge and poster templates an event draws tickets from, with the drawing itself and the images it places on it. | 128 | 143 |
-| Notes | The minutes attached to an event, a session, a contribution or a subcontribution, and every version each one went through. | 152 | 139 |
-| Attachments | The material and links attached to any of those, and the folders holding them. | 225 | 126 |
-| Locations | The places rooms belong to. | 86 | 93 |
-| Map areas | The parts of the map the room booking interface opens on. | 70 | 66 |
-| Rooms | The rooms that can be booked, with their capacity, equipment and managers. | 113 | 118 |
-| Equipment types and room features | The equipment a room can have and the features a room search filters by, which is what the equipment of a room points at. | 123 | 109 |
-| Room attributes | The values an instance stores per room on top of the columns Indico defines itself, which is where a local identifier or an owner ends up. | 66 | 77 |
-| Room availability | The hours a room can be booked for and the periods it cannot, which is what a booking request is checked against. | 89 | 94 |
-| Reservations | The bookings of those rooms, with their occurrences. | 153 | 150 |
-| Reservation history and links | Every change made to a booking since it was created, and the event, contribution or session block it was made for. | 154 | 170 |
-| Blockings | The periods a room cannot be booked, and who may still book it. | 99 | 95 |
-| Users | The identity of the caller, plus the accounts the instance holds for whoever administers it. | 79 | 98 |
-| Affiliations | The organisations the instance defines, which is what the affiliation of a user, a speaker or a registrant points at. | 60 | 65 |
-| Favourites | The users, categories, events and rooms the caller starred, which is what their dashboard and the room booking pages open with. | 96 | 72 |
-| Personal data | The preferences the caller saved, the addresses they receive Indico mail at and the data export they asked for. | 136 | 78 |
-| Files | The files uploaded to the instance, with the name, type and size of each one. | 77 | 65 |
-| Groups | The groups of users the instance itself defines, and the members of each one. | 99 | 85 |
-| Event labels | The labels an event can be marked with, such as `Cancelled`, as the administrators defined them. | 70 | 57 |
-| Reference types | The external systems an event, a contribution or a subcontribution can carry an identifier of, such as a DOI, with the scheme and the URL template each one builds its links from. | 71 | 41 |
-| Protection and permissions | The ACL of every object that holds one, entry by entry, with what each principal is granted, plus the catalogue saying what every permission name allows. | 385 | 225 |
-| Reviews, ratings and comments | What the reviewers of an abstract and of a paper wrote about it, with the answer given to every question of the reviewing form and the comments left along the way, plus the questions themselves. | 288 | 416 |
-| Editables, revisions and editing settings | The paper, slides or poster a contribution is edited into, revision by revision, with the files of each one, the comments left on it and the tags, file types and review conditions the workflow is configured with. | 361 | 353 |
-| Shared code (spec, Swagger UI, pagination, schema helpers) | Paid once: the OpenAPI document, the docs page, the list envelope and the field description machinery every resource above builds on, plus the fixtures and the comparison helper every test builds on. | 487 | 275 |
-| **Total** | | **8232** | **8397** |
+| Events | Everything else hangs off an event, and its dates, description, location, category and external identifiers are what a caller asks for first. | 187 | 236 |
+| Categories | The tree events are organised in, needed to walk from the instance root down to a single event. | 82 | 88 |
+| Contributions | The talks of an event, with their speakers, times and room. The entity most often read from outside. | 183 | 175 |
+| Contribution types and fields | The types an event sorts its talks into and the extra questions it asks about each one, which is what the values carried by a contribution point at. | 203 | 225 |
+| Subcontributions | The parts a contribution is split into, each with its own speakers and material. | 96 | 169 |
+| Sessions | The blocks contributions are grouped in, with their own conveners, location and colours. | 119 | 131 |
+| Session types | The types an event sorts its sessions into. | 78 | 85 |
+| Timetable | The schedule itself, the only view that says when each contribution, session block and break happens. | 158 | 240 |
+| Tracks | The programme an event is divided into. Abstracts and contributions point at it. | 84 | 102 |
+| Event persons | Speakers, chairs, conveners and authors, with the affiliation each one was entered with. | 160 | 169 |
+| Registration forms, registrations and tags | What an event asks registrants for, section by section and field by field, whether the form is open, who registered, in what state, for what price and with what answers, plus the tags the organisers group registrations with. | 689 | 808 |
+| Registration invitations | Who an event invited to register, in what state each invitation is and which registration it turned into. | 144 | 157 |
+| Abstracts | The submissions to a call for abstracts, with their state, tracks, authors and files. | 191 | 235 |
+| Abstract notifications | The templates a call for abstracts notifies its submitters with, and the mail each abstract actually triggered. | 230 | 205 |
+| Papers | The files submitted for a contribution, with every revision and the judgment of each one. | 186 | 237 |
+| Paper templates and file types | The template an author starts a paper from and the file types a submission is accepted in. | 192 | 206 |
+| Surveys and submissions | The questionnaires an event runs, question by question, and the answers it collected. | 251 | 213 |
+| Agreements | Who an event asked to sign something and who answered. | 139 | 118 |
+| Event roles | The groups of users an event grants permissions to, and the people holding each one. | 109 | 104 |
+| Category roles | The same, one level up: the groups a category grants permissions to, which every event under it inherits. | 101 | 113 |
+| Event move requests | The events asking to be moved into a category, in what state each request is and who answered it. | 118 | 137 |
+| Reminders | The emails an event has scheduled for its participants, with their recipient filters and their message. | 175 | 106 |
+| Event and category logs | Every management action an event or a category recorded, with the values that changed, which is the only account of who did what. | 268 | 339 |
+| Payments | What each registrant was charged, through which provider, and whether the payment went through. | 127 | 145 |
+| Service requests | The services an event asked the instance to provide, in what state each request is, and who accepted or rejected it. | 158 | 178 |
+| Videoconferences | The videoconference rooms attached to an event, a contribution or a session block, and whether the service still has each one. | 139 | 171 |
+| Offline copies | The copies of an event built as static HTML, in what state each build is and where the ZIP file of a finished one is. | 105 | 94 |
+| Event series | The groupings several events are presented as one through, with the title pattern and the links they share. | 90 | 121 |
+| Event layout | The menu of an event page, the custom pages hanging off it, the images uploaded for it and the settings saying how the page is rendered. | 359 | 344 |
+| Event features | Which optional parts of Indico an event has turned on, out of the ones its type allows. | 73 | 75 |
+| Document templates and documents | The templates an event renders invoices and certificates from, the fields each one asks for, and the documents already generated for a registration. | 258 | 343 |
+| Designer templates | The badge and poster templates an event draws tickets from, with the drawing itself and the images it places on it. | 139 | 163 |
+| Notes | The minutes attached to an event, a session, a contribution or a subcontribution, and every version each one went through. | 173 | 158 |
+| Attachments | The material and links attached to any of those, and the folders holding them. | 299 | 154 |
+| Locations | The places rooms belong to. | 96 | 93 |
+| Map areas | The parts of the map the room booking interface opens on. | 82 | 85 |
+| Rooms | The rooms that can be booked, with their capacity, equipment and managers. | 149 | 150 |
+| Equipment types and room features | The equipment a room can have and the features a room search filters by, which is what the equipment of a room points at. | 148 | 115 |
+| Room attributes | The values an instance stores per room on top of the columns Indico defines itself, which is where a local identifier or an owner ends up. | 74 | 89 |
+| Room availability | The hours a room can be booked for and the periods it cannot, which is what a booking request is checked against. | 101 | 105 |
+| Reservations | The bookings of those rooms, with their occurrences. | 191 | 194 |
+| Reservation history and links | Every change made to a booking since it was created, and the event, contribution or session block it was made for. | 174 | 198 |
+| Blockings | The periods a room cannot be booked, and who may still book it. | 111 | 96 |
+| Users | The identity of the caller, plus the accounts the instance holds for whoever administers it. | 97 | 110 |
+| Affiliations | The organisations the instance defines, which is what the affiliation of a user, a speaker or a registrant points at. | 73 | 84 |
+| Favourites | The users, categories, events and rooms the caller starred, which is what their dashboard and the room booking pages open with. | 120 | 74 |
+| Personal data | The preferences the caller saved, the addresses they receive Indico mail at and the data export they asked for. | 153 | 104 |
+| Files | The files uploaded to the instance, with the name, type and size of each one. | 89 | 63 |
+| Groups | The groups of users the instance itself defines, and the members of each one. | 109 | 85 |
+| Event labels | The labels an event can be marked with, such as `Cancelled`, as the administrators defined them. | 81 | 61 |
+| Reference types | The external systems an event, a contribution or a subcontribution can carry an identifier of, such as a DOI, with the scheme and the URL template each one builds its links from. | 87 | 41 |
+| Protection and permissions | The ACL of every object that holds one, entry by entry, with what each principal is granted, plus the catalogue saying what every permission name allows. | 507 | 248 |
+| Reviews, ratings and comments | What the reviewers of an abstract and of a paper wrote about it, with the answer given to every question of the reviewing form and the comments left along the way, plus the questions themselves. | 343 | 588 |
+| Editables, revisions and editing settings | The paper, slides or poster a contribution is edited into, revision by revision, with the files of each one, the comments left on it and the tags, file types and review conditions the workflow is configured with. | 433 | 431 |
+| Shared code (spec, Swagger UI, pagination, schema helpers) | Paid once: the OpenAPI document, the docs page, the list envelope and the field description machinery every resource above builds on, plus the fixtures and the comparison helper every test builds on. | 502 | 322 |
+| **Total** | | **9783** | **9880** |
 
 ## Entities not covered
 
 The cost column is what adding each one would take, estimated from the measured
-bands above: 150 to 200 lines for an entity with one core schema and plain
-access rules, 300 to 350 when the payload nests other objects or hides fields
-per role, 450 to 500 when it also needs several endpoints of its own.
+bands above: 180 to 240 lines for an entity with one core schema and plain
+access rules, 360 to 420 when the payload nests other objects or hides fields
+per role, 540 to 600 when it also needs several endpoints of its own.
 
 | Entity | Why | Estimated cost |
 | --- | --- | --- |
-| Instance administration | Settings, announcements, news, legal texts, authentication, OAuth applications, IP networks and the search service are either instance configuration or a view over the entities above. | 600 or more |
-| User logs | The audit trail of one account: the profile changes, the permissions granted and the mail sent to it. Indico shows it in the administration area alone and never to the account it belongs to, so serving it here would mean answering one caller with the record of another, which the personal endpoints never do. Identities, API keys and personal tokens are credentials and are not served at all either. | 150 to 200 |
+| Instance administration | Settings, announcements, news, legal texts, authentication, OAuth applications, IP networks and the search service are either instance configuration or a view over the entities above. | 700 or more |
+| User logs | The audit trail of one account: the profile changes, the permissions granted and the mail sent to it. Indico shows it in the administration area alone and never to the account it belongs to, so serving it here would mean answering one caller with the record of another, which the personal endpoints never do. Identities, API keys and personal tokens are credentials and are not served at all either. | 180 to 240 |
 
 ### Where Indico serves them today
 
