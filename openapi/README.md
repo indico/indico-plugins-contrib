@@ -853,3 +853,9 @@ curl -H 'Authorization: Bearer indp_...' https://indico.example.com/api/v1/event
 
 Indico rejects a request that carries a token and a session cookie at the same
 time, so never send both.
+
+## Changelog
+
+### 3.3
+
+- Initial release
