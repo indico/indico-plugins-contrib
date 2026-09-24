@@ -5,7 +5,6 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-
 from pathlib import Path
 
 import flask_swagger_ui
@@ -18,8 +17,7 @@ from indico_openapi.resources import ENDPOINTS
 
 SWAGGER_UI_DIST = Path(flask_swagger_ui.__file__).parent / 'dist'
 
-blueprint = IndicoPluginBlueprint('openapi', __name__, url_prefix='/api/v1',
-                                  static_folder=str(SWAGGER_UI_DIST))
+blueprint = IndicoPluginBlueprint('openapi', __name__, url_prefix='/api/v1', static_folder=str(SWAGGER_UI_DIST))
 
 blueprint.add_url_rule('/openapi.json', 'spec', RHSpec)
 blueprint.add_url_rule('/docs', 'docs', RHDocs)

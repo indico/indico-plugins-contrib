@@ -5,7 +5,6 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-
 import pytest
 
 from indico.core.db.sqlalchemy.descriptions import RenderMode
@@ -45,8 +44,9 @@ def test_note_list(dummy_event, dummy_note, dummy_contribution, create_note, tok
     assert f'/contributions/{dummy_contribution.id}/' in resp.json['results'][1]['url']
 
 
-def test_note_of_protected_contribution_is_not_listed(db, dummy_event, dummy_contribution, create_note,
-                                                      outsider_headers, test_client):
+def test_note_of_protected_contribution_is_not_listed(
+    db, dummy_event, dummy_contribution, create_note, outsider_headers, test_client
+):
     create_note(dummy_contribution, '<p>Secret</p>')
     dummy_contribution.protection_mode = ProtectionMode.protected
     db.session.flush()
@@ -55,8 +55,9 @@ def test_note_of_protected_contribution_is_not_listed(db, dummy_event, dummy_con
     assert resp.json['results'] == []
 
 
-def test_note_of_protected_contribution_denied(db, dummy_event, dummy_contribution, create_note, outsider_headers,
-                                               test_client):
+def test_note_of_protected_contribution_denied(
+    db, dummy_event, dummy_contribution, create_note, outsider_headers, test_client
+):
     note = create_note(dummy_contribution, '<p>Secret</p>')
     dummy_contribution.protection_mode = ProtectionMode.protected
     db.session.flush()
@@ -80,8 +81,9 @@ def test_note_matches_current_api(dummy_event, dummy_note, token_headers, test_c
     same_json(new, current, same=NOTE_FIELDS, renamed={'author_id': ('user', None)})
 
 
-def test_note_list_matches_current_api(dummy_event, dummy_note, dummy_contribution, create_note, token_headers,
-                                       test_client, indico_api, same_json_list):
+def test_note_list_matches_current_api(
+    dummy_event, dummy_note, dummy_contribution, create_note, token_headers, test_client, indico_api, same_json_list
+):
     create_note(dummy_contribution, '<p>Contribution minutes</p>')
     contrib_url = f'/export/note/{dummy_event.id}/contribution/{dummy_contribution.id}.json'
     current = [indico_api(f'/export/note/{dummy_event.id}.json')['results'], indico_api(contrib_url)['results']]
@@ -99,8 +101,7 @@ def revised_note(db, create_note, dummy_event, dummy_user):
 
 @pytest.mark.usefixtures('event_manager')
 def test_note_revision_list_is_newest_first(dummy_event, revised_note, token_headers, test_client):
-    resp = test_client.get(f'/api/v1/events/{dummy_event.id}/notes/{revised_note.id}/revisions',
-                           headers=token_headers)
+    resp = test_client.get(f'/api/v1/events/{dummy_event.id}/notes/{revised_note.id}/revisions', headers=token_headers)
     assert resp.status_code == 200
     assert [revision['html'] for revision in resp.json['results']] == ['<p>Better minutes</p>', '<p>Minutes</p>']
     assert resp.json['results'][0]['id'] == revised_note.current_revision.id
@@ -109,31 +110,49 @@ def test_note_revision_list_is_newest_first(dummy_event, revised_note, token_hea
 @pytest.mark.usefixtures('event_manager')
 def test_note_revision_details(dummy_event, revised_note, dummy_user, token_headers, test_client):
     revision = revised_note.revisions[0]
-    resp = test_client.get(f'/api/v1/events/{dummy_event.id}/notes/{revised_note.id}/revisions/{revision.id}',
-                           headers=token_headers)
+    resp = test_client.get(
+        f'/api/v1/events/{dummy_event.id}/notes/{revised_note.id}/revisions/{revision.id}', headers=token_headers
+    )
     assert resp.status_code == 200
-    assert resp.json == {'id': revision.id, 'created_dt': revision.created_dt.isoformat(), 'user_id': dummy_user.id,
-                         'render_mode': 'html', 'source': '<p>Minutes</p>', 'html': '<p>Minutes</p>'}
+    assert resp.json == {
+        'id': revision.id,
+        'created_dt': revision.created_dt.isoformat(),
+        'user_id': dummy_user.id,
+        'render_mode': 'html',
+        'source': '<p>Minutes</p>',
+        'html': '<p>Minutes</p>',
+    }
 
 
 def test_note_revisions_are_manager_only(dummy_event, revised_note, outsider_headers, test_client):
     # the note itself is served to whoever can read the object, while the content it no longer shows is not
-    assert test_client.get(f'/api/v1/events/{dummy_event.id}/notes/{revised_note.id}',
-                           headers=outsider_headers).status_code == 200
-    resp = test_client.get(f'/api/v1/events/{dummy_event.id}/notes/{revised_note.id}/revisions',
-                           headers=outsider_headers)
+    assert (
+        test_client.get(
+            f'/api/v1/events/{dummy_event.id}/notes/{revised_note.id}', headers=outsider_headers
+        ).status_code
+        == 200
+    )
+    resp = test_client.get(
+        f'/api/v1/events/{dummy_event.id}/notes/{revised_note.id}/revisions', headers=outsider_headers
+    )
     assert resp.status_code == 403
     assert 'error' in resp.json
     revision = revised_note.revisions[0]
-    assert test_client.get(f'/api/v1/events/{dummy_event.id}/notes/{revised_note.id}/revisions/{revision.id}',
-                           headers=outsider_headers).status_code == 403
+    assert (
+        test_client.get(
+            f'/api/v1/events/{dummy_event.id}/notes/{revised_note.id}/revisions/{revision.id}', headers=outsider_headers
+        ).status_code
+        == 403
+    )
 
 
 @pytest.mark.usefixtures('event_manager')
-def test_note_revision_of_another_note_is_not_found(dummy_event, revised_note, dummy_contribution, create_note,
-                                                    token_headers, test_client):
+def test_note_revision_of_another_note_is_not_found(
+    dummy_event, revised_note, dummy_contribution, create_note, token_headers, test_client
+):
     other = create_note(dummy_contribution, '<p>Contribution minutes</p>')
     revision = revised_note.revisions[0]
-    resp = test_client.get(f'/api/v1/events/{dummy_event.id}/notes/{other.id}/revisions/{revision.id}',
-                           headers=token_headers)
+    resp = test_client.get(
+        f'/api/v1/events/{dummy_event.id}/notes/{other.id}/revisions/{revision.id}', headers=token_headers
+    )
     assert resp.status_code == 404

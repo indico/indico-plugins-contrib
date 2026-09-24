@@ -5,7 +5,6 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-
 from operator import attrgetter
 
 from flask import request, session
@@ -77,9 +76,9 @@ class ContributionSchema(DescribedFieldsMixin, FullContributionSchema):
             'track': 'Track the contribution belongs to, if any.',
             'type': 'Contribution type, such as `Poster` or `Oral`.',
             'custom_fields': 'Values of the custom fields defined by the event, without the ones '
-                             'restricted to managers.',
+            'restricted to managers.',
             'persons': 'Speakers and authors, in display order. Email, phone and address are only '
-                       'present for users who can manage the contribution.',
+            'present for users who can manage the contribution.',
             'references': 'Identifiers of the contribution in other systems, such as a DOI.',
         }
 
@@ -88,8 +87,9 @@ class ContributionSchema(DescribedFieldsMixin, FullContributionSchema):
     track = fields.Nested(TrackReferenceSchema)
     type = fields.Nested(ContributionTypeReferenceSchema)
     custom_fields = fields.List(fields.Nested(CustomFieldValueSchema), attribute='field_values')
-    persons = SortedList(fields.Nested(ContributionPersonSchema), attribute='person_links',
-                         sort_key=attrgetter('display_order_key'))
+    persons = SortedList(
+        fields.Nested(ContributionPersonSchema), attribute='person_links', sort_key=attrgetter('display_order_key')
+    )
     references = fields.List(fields.Nested(ExternalReferenceSchema))
 
 
@@ -101,8 +101,9 @@ class ContributionMixin:
     """
 
     def _can_view_unpublished(self):
-        return (self.event.can_manage(session.user, permission='contributions') or
-                has_contributions_with_user_as_submitter(self.event, session.user))
+        return self.event.can_manage(
+            session.user, permission='contributions'
+        ) or has_contributions_with_user_as_submitter(self.event, session.user)
 
     def _check_published(self):
         if not contribution_settings.get(self.event, 'published') and not self._can_view_unpublished():
@@ -110,18 +111,26 @@ class ContributionMixin:
 
     def _schema(self, **kwargs):
         can_manage = self.event.can_manage(session.user, permission='contributions')
-        return ContributionSchema(context={'hide_restricted_data': not can_manage,
-                                           'user_can_manage': can_manage,
-                                           'user_owns_abstract': False}, **kwargs)
+        return ContributionSchema(
+            context={
+                'hide_restricted_data': not can_manage,
+                'user_can_manage': can_manage,
+                'user_owns_abstract': False,
+            },
+            **kwargs,
+        )
 
 
 @json_errors
 class RHContribution(ContributionMixin, RHProtectedEventBase):
     def _process_args(self):
         RHProtectedEventBase._process_args(self)
-        self.contrib = (Contribution.query.with_parent(self.event)
-                        .filter_by(id=request.view_args['contrib_id'], is_deleted=False)
-                        .first_or_404())
+        self.contrib = (
+            Contribution.query
+            .with_parent(self.event)
+            .filter_by(id=request.view_args['contrib_id'], is_deleted=False)
+            .first_or_404()
+        )
 
     def _check_access(self):
         RHProtectedEventBase._check_access(self)
@@ -142,17 +151,33 @@ class RHContributionList(ContributionMixin, RHListBase, RHProtectedEventBase):
         self._check_published()
 
     def _query(self):
-        return (Contribution.query.with_parent(self.event)
-                .filter(~Contribution.is_deleted)
-                .order_by(Contribution.friendly_id))
+        return (
+            Contribution.query
+            .with_parent(self.event)
+            .filter(~Contribution.is_deleted)
+            .order_by(Contribution.friendly_id)
+        )
 
     def _dump_schema(self):
         return self._schema(many=True)
 
 
 ENDPOINTS = [
-    Endpoint(rule='/events/<int:event_id>/contributions', name='contributions', rh=RHContributionList,
-             schema=ContributionSchema, many=True, summary='List the contributions of an event', tag='Contributions'),
-    Endpoint(rule='/events/<int:event_id>/contributions/<int:contrib_id>', name='contribution', rh=RHContribution,
-             schema=ContributionSchema, summary='Details of one contribution of an event', tag='Contributions'),
+    Endpoint(
+        rule='/events/<int:event_id>/contributions',
+        name='contributions',
+        rh=RHContributionList,
+        schema=ContributionSchema,
+        many=True,
+        summary='List the contributions of an event',
+        tag='Contributions',
+    ),
+    Endpoint(
+        rule='/events/<int:event_id>/contributions/<int:contrib_id>',
+        name='contribution',
+        rh=RHContribution,
+        schema=ContributionSchema,
+        summary='Details of one contribution of an event',
+        tag='Contributions',
+    ),
 ]

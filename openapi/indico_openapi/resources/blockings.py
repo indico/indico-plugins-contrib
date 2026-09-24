@@ -5,7 +5,6 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-
 from flask import request
 from marshmallow import fields
 
@@ -42,7 +41,7 @@ class BlockingSchema(DescribedFieldsMixin, CoreBlockingSchema):
             'reason': 'Why the rooms were blocked, as entered by the person who blocked them.',
             'created_by': 'Full name of the person who created the blocking.',
             'allowed': 'Identifiers of the users and groups that may still book the rooms while the blocking is '
-                       'active, such as `["User:42"]`.',
+            'active, such as `["User:42"]`.',
             'blocked_rooms': 'Rooms the blocking applies to, along with the answer of their managers.',
         }
 
@@ -50,8 +49,9 @@ class BlockingSchema(DescribedFieldsMixin, CoreBlockingSchema):
 
 
 class BlockingListArgs(ListArgs):
-    room_id = fields.Integer(load_default=None,
-                             metadata={'description': 'Only list the blockings that apply to this room.'})
+    room_id = fields.Integer(
+        load_default=None, metadata={'description': 'Only list the blockings that apply to this room.'}
+    )
 
 
 class BlockingMixin:
@@ -69,8 +69,7 @@ class BlockingMixin:
 @json_errors
 class RHBlocking(BlockingMixin, RHRoomBookingBase):
     def _process_args(self):
-        self.blocking = (self._blocking_query()
-                         .filter(Blocking.id == request.view_args['blocking_id']).first_or_404())
+        self.blocking = self._blocking_query().filter(Blocking.id == request.view_args['blocking_id']).first_or_404()
 
     def _process_GET(self):
         return BlockingSchema().jsonify(self.blocking)
@@ -92,8 +91,21 @@ class RHBlockingList(BlockingMixin, RHListBase, RHRoomBookingBase):
 
 
 ENDPOINTS = [
-    Endpoint(rule='/blockings', name='blockings', rh=RHBlockingList, schema=BlockingSchema, many=True,
-             summary='List the blockings that keep rooms from being booked', tag='Blockings'),
-    Endpoint(rule='/blockings/<int:blocking_id>', name='blocking', rh=RHBlocking, schema=BlockingSchema,
-             summary='Details of one blocking that keeps rooms from being booked', tag='Blockings'),
+    Endpoint(
+        rule='/blockings',
+        name='blockings',
+        rh=RHBlockingList,
+        schema=BlockingSchema,
+        many=True,
+        summary='List the blockings that keep rooms from being booked',
+        tag='Blockings',
+    ),
+    Endpoint(
+        rule='/blockings/<int:blocking_id>',
+        name='blocking',
+        rh=RHBlocking,
+        schema=BlockingSchema,
+        summary='Details of one blocking that keeps rooms from being booked',
+        tag='Blockings',
+    ),
 ]

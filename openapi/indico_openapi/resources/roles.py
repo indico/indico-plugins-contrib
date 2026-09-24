@@ -5,7 +5,6 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-
 from operator import itemgetter
 
 from flask import request, session
@@ -65,9 +64,7 @@ class RoleMixin:
             raise Forbidden
 
     def _role_query(self):
-        return (EventRole.query.with_parent(self.event)
-                .options(joinedload('members'))
-                .order_by(EventRole.code))
+        return EventRole.query.with_parent(self.event).options(joinedload('members')).order_by(EventRole.code)
 
 
 @json_errors
@@ -92,8 +89,21 @@ class RHEventRoleList(RoleMixin, RHListBase, RHProtectedEventBase):
 
 
 ENDPOINTS = [
-    Endpoint(rule='/events/<int:event_id>/roles', name='roles', rh=RHEventRoleList, schema=EventRoleSchema, many=True,
-             summary='List the roles of an event', tag='Roles'),
-    Endpoint(rule='/events/<int:event_id>/roles/<int:role_id>', name='role', rh=RHEventRole, schema=EventRoleSchema,
-             summary='Details of one role of an event', tag='Roles'),
+    Endpoint(
+        rule='/events/<int:event_id>/roles',
+        name='roles',
+        rh=RHEventRoleList,
+        schema=EventRoleSchema,
+        many=True,
+        summary='List the roles of an event',
+        tag='Roles',
+    ),
+    Endpoint(
+        rule='/events/<int:event_id>/roles/<int:role_id>',
+        name='role',
+        rh=RHEventRole,
+        schema=EventRoleSchema,
+        summary='Details of one role of an event',
+        tag='Roles',
+    ),
 ]

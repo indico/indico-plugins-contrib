@@ -5,7 +5,6 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-
 from flask import request, session
 from marshmallow import fields, post_dump
 from werkzeug.exceptions import Forbidden
@@ -48,8 +47,21 @@ class AttachmentFolderReferenceSchema(DescribedFieldsMixin, mm.SQLAlchemyAutoSch
 class AttachmentSchema(DescribedFieldsMixin, mm.SQLAlchemyAutoSchema):
     class Meta:
         model = Attachment
-        fields = ('id', 'type', 'title', 'description', 'modified_dt', 'is_protected', 'download_url', 'link_url',
-                  'filename', 'content_type', 'size', 'checksum', 'folder')
+        fields = (
+            'id',
+            'type',
+            'title',
+            'description',
+            'modified_dt',
+            'is_protected',
+            'download_url',
+            'link_url',
+            'filename',
+            'content_type',
+            'size',
+            'checksum',
+            'folder',
+        )
         descriptions = {
             'id': 'Numeric identifier of the attachment, unique across the whole instance.',
             'type': 'Kind of attachment: `file` for an uploaded file, `link` for an external URL.',
@@ -75,7 +87,7 @@ class AttachmentSchema(DescribedFieldsMixin, mm.SQLAlchemyAutoSchema):
 
     @post_dump
     def _drop_fields_of_the_other_type(self, data, **kwargs):
-        for key in (LINK_FIELDS if data['type'] == AttachmentType.file.name else FILE_FIELDS):
+        for key in LINK_FIELDS if data['type'] == AttachmentType.file.name else FILE_FIELDS:
             del data[key]
         return data
 
@@ -93,13 +105,15 @@ class AttachmentMixin:
         raise NotImplementedError
 
     def _attachment_query(self):
-        folder_ids = (self.linked_object.attachment_folders
-                      .filter_by(is_deleted=False)
-                      .with_entities(AttachmentFolder.id))
-        return (Attachment.query
-                .filter(~Attachment.is_deleted, Attachment.folder_id.in_(folder_ids))
-                .join(Attachment.folder)
-                .order_by(AttachmentFolder.is_default.desc(), db.func.lower(Attachment.title), Attachment.id))
+        folder_ids = self.linked_object.attachment_folders.filter_by(is_deleted=False).with_entities(
+            AttachmentFolder.id
+        )
+        return (
+            Attachment.query
+            .filter(~Attachment.is_deleted, Attachment.folder_id.in_(folder_ids))
+            .join(Attachment.folder)
+            .order_by(AttachmentFolder.is_default.desc(), db.func.lower(Attachment.title), Attachment.id)
+        )
 
     def _is_visible(self, attachment):
         return attachment.folder.can_view(session.user) and attachment.can_access(session.user)
@@ -197,32 +211,89 @@ _CONTRIB = '/events/<int:event_id>/contributions/<int:contrib_id>'
 _SUBCONTRIB = f'{_CONTRIB}/subcontributions/<int:subcontrib_id>'
 
 ENDPOINTS = [
-    Endpoint(rule='/events/<int:event_id>/attachments', name='event_attachments', rh=RHEventAttachmentList,
-             schema=AttachmentSchema, many=True, summary='List the attachments of an event', tag='Attachments'),
-    Endpoint(rule='/events/<int:event_id>/attachments/<int:attachment_id>', name='event_attachment',
-             rh=RHEventAttachment, schema=AttachmentSchema,
-             summary='Details of one attachment of an event', tag='Attachments'),
-    Endpoint(rule='/events/<int:event_id>/sessions/<int:session_id>/attachments', name='session_attachments',
-             rh=RHSessionAttachmentList, schema=AttachmentSchema, many=True,
-             summary='List the attachments of a session', tag='Attachments'),
-    Endpoint(rule='/events/<int:event_id>/sessions/<int:session_id>/attachments/<int:attachment_id>',
-             name='session_attachment', rh=RHSessionAttachment, schema=AttachmentSchema,
-             summary='Details of one attachment of a session', tag='Attachments'),
-    Endpoint(rule=f'{_CONTRIB}/attachments', name='contribution_attachments', rh=RHContributionAttachmentList,
-             schema=AttachmentSchema, many=True, summary='List the attachments of a contribution', tag='Attachments'),
-    Endpoint(rule=f'{_CONTRIB}/attachments/<int:attachment_id>', name='contribution_attachment',
-             rh=RHContributionAttachment, schema=AttachmentSchema,
-             summary='Details of one attachment of a contribution', tag='Attachments'),
-    Endpoint(rule=f'{_SUBCONTRIB}/attachments', name='subcontribution_attachments',
-             rh=RHSubContributionAttachmentList, schema=AttachmentSchema, many=True,
-             summary='List the attachments of a subcontribution', tag='Attachments'),
-    Endpoint(rule=f'{_SUBCONTRIB}/attachments/<int:attachment_id>', name='subcontribution_attachment',
-             rh=RHSubContributionAttachment, schema=AttachmentSchema,
-             summary='Details of one attachment of a subcontribution', tag='Attachments'),
-    Endpoint(rule='/categories/<int:category_id>/attachments', name='category_attachments',
-             rh=RHCategoryAttachmentList, schema=AttachmentSchema, many=True,
-             summary='List the attachments of a category', tag='Attachments'),
-    Endpoint(rule='/categories/<int:category_id>/attachments/<int:attachment_id>', name='category_attachment',
-             rh=RHCategoryAttachment, schema=AttachmentSchema,
-             summary='Details of one attachment of a category', tag='Attachments'),
+    Endpoint(
+        rule='/events/<int:event_id>/attachments',
+        name='event_attachments',
+        rh=RHEventAttachmentList,
+        schema=AttachmentSchema,
+        many=True,
+        summary='List the attachments of an event',
+        tag='Attachments',
+    ),
+    Endpoint(
+        rule='/events/<int:event_id>/attachments/<int:attachment_id>',
+        name='event_attachment',
+        rh=RHEventAttachment,
+        schema=AttachmentSchema,
+        summary='Details of one attachment of an event',
+        tag='Attachments',
+    ),
+    Endpoint(
+        rule='/events/<int:event_id>/sessions/<int:session_id>/attachments',
+        name='session_attachments',
+        rh=RHSessionAttachmentList,
+        schema=AttachmentSchema,
+        many=True,
+        summary='List the attachments of a session',
+        tag='Attachments',
+    ),
+    Endpoint(
+        rule='/events/<int:event_id>/sessions/<int:session_id>/attachments/<int:attachment_id>',
+        name='session_attachment',
+        rh=RHSessionAttachment,
+        schema=AttachmentSchema,
+        summary='Details of one attachment of a session',
+        tag='Attachments',
+    ),
+    Endpoint(
+        rule=f'{_CONTRIB}/attachments',
+        name='contribution_attachments',
+        rh=RHContributionAttachmentList,
+        schema=AttachmentSchema,
+        many=True,
+        summary='List the attachments of a contribution',
+        tag='Attachments',
+    ),
+    Endpoint(
+        rule=f'{_CONTRIB}/attachments/<int:attachment_id>',
+        name='contribution_attachment',
+        rh=RHContributionAttachment,
+        schema=AttachmentSchema,
+        summary='Details of one attachment of a contribution',
+        tag='Attachments',
+    ),
+    Endpoint(
+        rule=f'{_SUBCONTRIB}/attachments',
+        name='subcontribution_attachments',
+        rh=RHSubContributionAttachmentList,
+        schema=AttachmentSchema,
+        many=True,
+        summary='List the attachments of a subcontribution',
+        tag='Attachments',
+    ),
+    Endpoint(
+        rule=f'{_SUBCONTRIB}/attachments/<int:attachment_id>',
+        name='subcontribution_attachment',
+        rh=RHSubContributionAttachment,
+        schema=AttachmentSchema,
+        summary='Details of one attachment of a subcontribution',
+        tag='Attachments',
+    ),
+    Endpoint(
+        rule='/categories/<int:category_id>/attachments',
+        name='category_attachments',
+        rh=RHCategoryAttachmentList,
+        schema=AttachmentSchema,
+        many=True,
+        summary='List the attachments of a category',
+        tag='Attachments',
+    ),
+    Endpoint(
+        rule='/categories/<int:category_id>/attachments/<int:attachment_id>',
+        name='category_attachment',
+        rh=RHCategoryAttachment,
+        schema=AttachmentSchema,
+        summary='Details of one attachment of a category',
+        tag='Attachments',
+    ),
 ]

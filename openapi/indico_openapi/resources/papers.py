@@ -5,7 +5,6 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-
 from flask import request, session
 from marshmallow import fields, pre_dump
 from werkzeug.exceptions import Forbidden
@@ -47,8 +46,19 @@ class PaperFileSchema(DescribedFieldsMixin, CorePaperFileSchema):
 
 class PaperRevisionSchema(DescribedFieldsMixin, CorePaperRevisionSchema):
     class Meta(CorePaperRevisionSchema.Meta):
-        fields = ('id', 'number', 'state', 'submitted_dt', 'submitter', 'judgment_dt', 'judge', 'judgment_comment',
-                  'is_last_revision', 'files', 'spotlight_file')
+        fields = (
+            'id',
+            'number',
+            'state',
+            'submitted_dt',
+            'submitter',
+            'judgment_dt',
+            'judge',
+            'judgment_comment',
+            'is_last_revision',
+            'files',
+            'spotlight_file',
+        )
         descriptions = {
             'id': 'Numeric identifier of the revision, unique across the whole instance.',
             'number': 'Position of the revision among the revisions of the paper, starting at `1`.',
@@ -109,25 +119,31 @@ class PaperMixin:
     EVENT_FEATURE = 'papers'
 
     def _contribution_query(self):
-        return (Contribution.query.with_parent(self.event)
-                .filter(~Contribution.is_deleted, Contribution._paper_last_revision.has())
-                .order_by(Contribution.friendly_id))
+        return (
+            Contribution.query
+            .with_parent(self.event)
+            .filter(~Contribution.is_deleted, Contribution._paper_last_revision.has())
+            .order_by(Contribution.friendly_id)
+        )
 
     def _can_see(self, contrib):
         paper = contrib.paper
-        return (contrib.is_user_associated(session.user, check_abstract=True) or
-                contrib.can_submit_proceedings(session.user) or
-                self.event.cfp.is_manager(session.user) or
-                paper.can_review(session.user) or
-                paper.can_judge(session.user))
+        return (
+            contrib.is_user_associated(session.user, check_abstract=True)
+            or contrib.can_submit_proceedings(session.user)
+            or self.event.cfp.is_manager(session.user)
+            or paper.can_review(session.user)
+            or paper.can_judge(session.user)
+        )
 
 
 @json_errors
 class RHPaper(PaperMixin, RHProtectedEventBase):
     def _process_args(self):
         RHProtectedEventBase._process_args(self)
-        self.contrib = (self._contribution_query()
-                        .filter(Contribution.id == request.view_args['contrib_id']).first_or_404())
+        self.contrib = (
+            self._contribution_query().filter(Contribution.id == request.view_args['contrib_id']).first_or_404()
+        )
 
     def _check_access(self):
         RHProtectedEventBase._check_access(self)
@@ -150,8 +166,21 @@ class RHPaperList(PaperMixin, RHListBase, RHProtectedEventBase):
 
 
 ENDPOINTS = [
-    Endpoint(rule='/events/<int:event_id>/papers', name='papers', rh=RHPaperList, schema=PaperSchema, many=True,
-             summary='List the papers of an event', tag='Papers'),
-    Endpoint(rule='/events/<int:event_id>/contributions/<int:contrib_id>/paper', name='paper', rh=RHPaper,
-             schema=PaperDetailsSchema, summary='The paper of a contribution, with its revisions', tag='Papers'),
+    Endpoint(
+        rule='/events/<int:event_id>/papers',
+        name='papers',
+        rh=RHPaperList,
+        schema=PaperSchema,
+        many=True,
+        summary='List the papers of an event',
+        tag='Papers',
+    ),
+    Endpoint(
+        rule='/events/<int:event_id>/contributions/<int:contrib_id>/paper',
+        name='paper',
+        rh=RHPaper,
+        schema=PaperDetailsSchema,
+        summary='The paper of a contribution, with its revisions',
+        tag='Papers',
+    ),
 ]

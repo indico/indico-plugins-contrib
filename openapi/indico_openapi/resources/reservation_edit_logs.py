@@ -5,7 +5,6 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-
 from flask import request, session
 from werkzeug.exceptions import Forbidden
 
@@ -53,16 +52,22 @@ class RHReservationEditLogList(RHListBase, RHRoomBookingBase):
             raise Forbidden
 
     def _query(self):
-        return (ReservationEditLog.query
-                .filter(ReservationEditLog.reservation_id == self.reservation.id)
-                .order_by(ReservationEditLog.timestamp, ReservationEditLog.id))
+        return ReservationEditLog.query.filter(ReservationEditLog.reservation_id == self.reservation.id).order_by(
+            ReservationEditLog.timestamp, ReservationEditLog.id
+        )
 
     def _can_access(self, obj):
         return True
 
 
 ENDPOINTS = [
-    Endpoint(rule='/reservations/<int:reservation_id>/edit-logs', name='reservation_edit_logs',
-             rh=RHReservationEditLogList, schema=ReservationEditLogSchema, many=True,
-             summary='List the history of a room booking', tag='Reservations'),
+    Endpoint(
+        rule='/reservations/<int:reservation_id>/edit-logs',
+        name='reservation_edit_logs',
+        rh=RHReservationEditLogList,
+        schema=ReservationEditLogSchema,
+        many=True,
+        summary='List the history of a room booking',
+        tag='Reservations',
+    ),
 ]

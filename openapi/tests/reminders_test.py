@@ -5,7 +5,6 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -60,14 +59,20 @@ def test_reminder_serves_its_offset(dummy_event, create_reminder, token_headers,
 
 
 @pytest.mark.usefixtures('event_manager')
-def test_reminder_serves_its_participant_filters(db, dummy_event, dummy_regform, create_regform, create_reminder,
-                                                 token_headers, test_client):
+def test_reminder_serves_its_participant_filters(
+    db, dummy_event, dummy_regform, create_regform, create_reminder, token_headers, test_client
+):
     other_form = create_regform(dummy_event, 'Another form')
     tag = RegistrationTag(event=dummy_event, title='VIP', color='blue')
     db.session.add(tag)
     db.session.flush()
-    reminder = create_reminder(datetime(2026, 9, 1, 8, 0, tzinfo=UTC), send_to_participants=True,
-                               all_tags=True, forms={other_form, dummy_regform}, tags={tag})
+    reminder = create_reminder(
+        datetime(2026, 9, 1, 8, 0, tzinfo=UTC),
+        send_to_participants=True,
+        all_tags=True,
+        forms={other_form, dummy_regform},
+        tags={tag},
+    )
     resp = test_client.get(f'/api/v1/events/{dummy_event.id}/reminders/{reminder.id}', headers=token_headers)
     assert resp.json['send_to_participants'] is True
     assert resp.json['all_tags'] is True
@@ -76,8 +81,7 @@ def test_reminder_serves_its_participant_filters(db, dummy_event, dummy_regform,
 
 
 @pytest.mark.usefixtures('event_manager')
-def test_reminder_list_is_ordered_by_schedule(dummy_event, dummy_reminder, create_reminder, token_headers,
-                                              test_client):
+def test_reminder_list_is_ordered_by_schedule(dummy_event, dummy_reminder, create_reminder, token_headers, test_client):
     later = create_reminder(datetime(2026, 9, 2, 8, 0, tzinfo=UTC))
     resp = test_client.get(f'/api/v1/events/{dummy_event.id}/reminders', headers=token_headers)
     assert resp.status_code == 200
@@ -92,8 +96,9 @@ def test_reminders_are_manager_only(dummy_event, dummy_reminder, token_headers, 
     assert resp.status_code == 403
 
 
-def test_reminder_of_another_event_is_not_found(db, dummy_reminder, create_event, dummy_user, token_headers,
-                                                test_client):
+def test_reminder_of_another_event_is_not_found(
+    db, dummy_reminder, create_event, dummy_user, token_headers, test_client
+):
     other = create_event()
     other.update_principal(dummy_user, full_access=True)
     db.session.flush()

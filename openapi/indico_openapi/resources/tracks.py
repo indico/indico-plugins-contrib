@@ -5,7 +5,6 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-
 from flask import request
 from marshmallow import fields
 
@@ -47,9 +46,7 @@ class TrackSchema(DescribedFieldsMixin, CoreTrackSchema):
 class RHTrack(RHProtectedEventBase):
     def _process_args(self):
         RHProtectedEventBase._process_args(self)
-        self.track = (Track.query.with_parent(self.event)
-                      .filter_by(id=request.view_args['track_id'])
-                      .first_or_404())
+        self.track = Track.query.with_parent(self.event).filter_by(id=request.view_args['track_id']).first_or_404()
 
     def _process_GET(self):
         return TrackSchema().jsonify(self.track)
@@ -67,8 +64,21 @@ class RHTrackList(RHListBase, RHProtectedEventBase):
 
 
 ENDPOINTS = [
-    Endpoint(rule='/events/<int:event_id>/tracks', name='tracks', rh=RHTrackList, schema=TrackSchema, many=True,
-             summary='List the tracks of an event', tag='Tracks'),
-    Endpoint(rule='/events/<int:event_id>/tracks/<int:track_id>', name='track', rh=RHTrack, schema=TrackSchema,
-             summary='Details of one track of an event', tag='Tracks'),
+    Endpoint(
+        rule='/events/<int:event_id>/tracks',
+        name='tracks',
+        rh=RHTrackList,
+        schema=TrackSchema,
+        many=True,
+        summary='List the tracks of an event',
+        tag='Tracks',
+    ),
+    Endpoint(
+        rule='/events/<int:event_id>/tracks/<int:track_id>',
+        name='track',
+        rh=RHTrack,
+        schema=TrackSchema,
+        summary='Details of one track of an event',
+        tag='Tracks',
+    ),
 ]

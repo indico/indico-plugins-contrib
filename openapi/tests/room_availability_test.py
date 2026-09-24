@@ -40,8 +40,9 @@ def test_bookable_hours_list(dummy_room, create_bookable_hours, token_headers, t
     hours = create_bookable_hours(time(8, 30), time(18, 0), weekday='mon')
     resp = test_client.get(f'/api/v1/rooms/{dummy_room.id}/bookable-hours', headers=token_headers)
     assert resp.status_code == 200
-    assert resp.json['results'] == [{'id': hours.id, 'room_id': dummy_room.id, 'start_time': '08:30:00',
-                                     'end_time': '18:00:00', 'weekday': 'mon'}]
+    assert resp.json['results'] == [
+        {'id': hours.id, 'room_id': dummy_room.id, 'start_time': '08:30:00', 'end_time': '18:00:00', 'weekday': 'mon'}
+    ]
 
 
 def test_bookable_hours_are_sorted(dummy_room, create_bookable_hours, token_headers, test_client):
@@ -55,12 +56,12 @@ def test_nonbookable_period_list(dummy_room, create_nonbookable_period, token_he
     create_nonbookable_period(datetime(2026, 12, 24, 0, 0), datetime(2027, 1, 2, 23, 59))
     resp = test_client.get(f'/api/v1/rooms/{dummy_room.id}/nonbookable-periods', headers=token_headers)
     assert resp.status_code == 200
-    assert resp.json['results'] == [{'room_id': dummy_room.id, 'start_dt': '2026-12-24T00:00:00',
-                                     'end_dt': '2027-01-02T23:59:00'}]
+    assert resp.json['results'] == [
+        {'room_id': dummy_room.id, 'start_dt': '2026-12-24T00:00:00', 'end_dt': '2027-01-02T23:59:00'}
+    ]
 
 
-def test_availability_of_a_deleted_room_is_not_found(db, dummy_room, create_bookable_hours, token_headers,
-                                                     test_client):
+def test_availability_of_a_deleted_room_is_not_found(db, dummy_room, create_bookable_hours, token_headers, test_client):
     create_bookable_hours(time(8, 0), time(18, 0))
     dummy_room.is_deleted = True
     db.session.flush()
@@ -77,18 +78,28 @@ NONBOOKABLE_PERIOD_FIELDS = ('start_dt', 'end_dt')
 
 
 @pytest.mark.usefixtures('admin_headers')
-def test_availability_matches_current_api(dummy_room, create_bookable_hours, create_nonbookable_period, token_headers,
-                                          test_client, indico_api, same_json_list):
+def test_availability_matches_current_api(
+    dummy_room, create_bookable_hours, create_nonbookable_period, token_headers, test_client, indico_api, same_json_list
+):
     hours = create_bookable_hours(time(8, 30), time(18, 0), weekday='mon')
     create_nonbookable_period(datetime(2026, 12, 24, 0, 0), datetime(2027, 1, 2, 23, 59))
     # only the administration interface serves the availability of a room as stored, rather than per date
     current = indico_api(f'/rooms/api/admin/rooms/{dummy_room.id}/availability')
     url = f'/api/v1/rooms/{dummy_room.id}'
     new = test_client.get(f'{url}/bookable-hours', headers=token_headers).json
-    same_json_list(new['results'], current['bookable_hours'], same=BOOKABLE_HOURS_FIELDS,
-                   derived={'id': lambda _: hours.id, 'room_id': lambda _: dummy_room.id}, key='start_time')
+    same_json_list(
+        new['results'],
+        current['bookable_hours'],
+        same=BOOKABLE_HOURS_FIELDS,
+        derived={'id': lambda _: hours.id, 'room_id': lambda _: dummy_room.id},
+        key='start_time',
+    )
     new = test_client.get(f'{url}/nonbookable-periods', headers=token_headers).json
     # the administration interface only edits whole days, so it drops the time of both ends
-    same_json_list(new['results'], current['nonbookable_periods'],
-                   renamed={'start_dt': ('start_dt', as_day), 'end_dt': ('end_dt', as_day)},
-                   derived={'room_id': lambda _: dummy_room.id}, key='start_dt')
+    same_json_list(
+        new['results'],
+        current['nonbookable_periods'],
+        renamed={'start_dt': ('start_dt', as_day), 'end_dt': ('end_dt', as_day)},
+        derived={'room_id': lambda _: dummy_room.id},
+        key='start_dt',
+    )

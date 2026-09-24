@@ -5,7 +5,6 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-
 from datetime import timedelta
 from decimal import Decimal
 
@@ -56,8 +55,9 @@ def published_reg(db, dummy_regform, dummy_reg):
 
 
 def add_field(db, section, title, input_type, settings, **kwargs):
-    field = RegistrationFormField(registration_form=section.registration_form, parent=section, title=title,
-                                  input_type=input_type, **kwargs)
+    field = RegistrationFormField(
+        registration_form=section.registration_form, parent=section, title=title, input_type=input_type, **kwargs
+    )
     field.data, field.versioned_data = field.field_impl.process_field_data(settings)
     db.session.add(field)
     db.session.flush()
@@ -79,12 +79,19 @@ def custom_section(db, dummy_regform):
 
 @pytest.fixture
 def choice_field(db, custom_section):
-    choices = [{'id': CHOICE_IDS[0], 'caption': 'Vegetarian', 'price': 5, 'places_limit': 0, 'is_enabled': True},
-               {'id': CHOICE_IDS[1], 'caption': 'Anything', 'price': 0, 'places_limit': 10, 'is_enabled': True}]
-    return add_field(db, custom_section, 'Diet', 'single_choice',
-                     {'item_type': 'dropdown', 'with_extra_slots': False, 'default_item': CHOICE_IDS[1],
-                      'choices': choices},
-                     description='Pick one.', is_required=True)
+    choices = [
+        {'id': CHOICE_IDS[0], 'caption': 'Vegetarian', 'price': 5, 'places_limit': 0, 'is_enabled': True},
+        {'id': CHOICE_IDS[1], 'caption': 'Anything', 'price': 0, 'places_limit': 10, 'is_enabled': True},
+    ]
+    return add_field(
+        db,
+        custom_section,
+        'Diet',
+        'single_choice',
+        {'item_type': 'dropdown', 'with_extra_slots': False, 'default_item': CHOICE_IDS[1], 'choices': choices},
+        description='Pick one.',
+        is_required=True,
+    )
 
 
 @pytest.fixture
@@ -102,8 +109,12 @@ def manager_field(db, dummy_regform):
 
 @pytest.fixture
 def answered_reg(db, dummy_regform, dummy_reg, choice_field, checkbox_field, manager_field):
-    values = {'first_name': dummy_reg.first_name, 'last_name': dummy_reg.last_name, 'email': dummy_reg.email,
-              'affiliation': {'id': None, 'text': 'ACME'}}
+    values = {
+        'first_name': dummy_reg.first_name,
+        'last_name': dummy_reg.last_name,
+        'email': dummy_reg.email,
+        'affiliation': {'id': None, 'text': 'ACME'},
+    }
     for field in dummy_regform.active_fields:
         if field.personal_data_type:
             answer(db, dummy_reg, field, values.get(field.personal_data_type.name, field.field_impl.default_value))
@@ -132,8 +143,9 @@ def test_registration_form_list(dummy_event, open_regform, token_headers, test_c
 
 
 def test_registration_form_details(dummy_event, open_regform, token_headers, test_client):
-    resp = test_client.get(f'/api/v1/events/{dummy_event.id}/registration-forms/{open_regform.id}',
-                           headers=token_headers)
+    resp = test_client.get(
+        f'/api/v1/events/{dummy_event.id}/registration-forms/{open_regform.id}', headers=token_headers
+    )
     assert resp.status_code == 200
     assert resp.json['id'] == open_regform.id
     assert resp.json['title'] == open_regform.title
@@ -144,8 +156,9 @@ def test_registration_form_hidden_until_scheduled(dummy_event, dummy_regform, ou
     resp = test_client.get(f'/api/v1/events/{dummy_event.id}/registration-forms', headers=outsider_headers)
     assert resp.status_code == 200
     assert resp.json['results'] == []
-    resp = test_client.get(f'/api/v1/events/{dummy_event.id}/registration-forms/{dummy_regform.id}',
-                           headers=outsider_headers)
+    resp = test_client.get(
+        f'/api/v1/events/{dummy_event.id}/registration-forms/{dummy_regform.id}', headers=outsider_headers
+    )
     assert resp.status_code == 403
 
 
@@ -190,18 +203,21 @@ def test_published_registration_hides_restricted_fields(dummy_event, published_r
     assert 'checked_in' not in reg
 
 
-def test_published_registration_shows_checkin_when_enabled(db, dummy_event, published_reg, outsider_headers,
-                                                           test_client):
+def test_published_registration_shows_checkin_when_enabled(
+    db, dummy_event, published_reg, outsider_headers, test_client
+):
     published_reg.registration_form.publish_checkin_enabled = True
     db.session.flush()
-    resp = test_client.get(f'/api/v1/events/{dummy_event.id}/registrations/{published_reg.id}',
-                           headers=outsider_headers)
+    resp = test_client.get(
+        f'/api/v1/events/{dummy_event.id}/registrations/{published_reg.id}', headers=outsider_headers
+    )
     assert resp.status_code == 200
     assert resp.json['checked_in'] == published_reg.checked_in
 
 
-def test_registration_without_consent_is_hidden(db, dummy_event, dummy_regform, dummy_reg, outsider_headers,
-                                                test_client):
+def test_registration_without_consent_is_hidden(
+    db, dummy_event, dummy_regform, dummy_reg, outsider_headers, test_client
+):
     dummy_regform.publish_registrations_public = PublishRegistrationsMode.show_with_consent
     dummy_reg.consent_to_publish = RegistrationVisibility.nobody
     db.session.flush()
@@ -213,8 +229,9 @@ def test_registration_without_consent_is_hidden(db, dummy_event, dummy_regform, 
     assert [r['id'] for r in resp.json['results']] == [dummy_reg.id]
 
 
-def test_registration_published_to_participants_only(db, dummy_event, dummy_regform, dummy_reg, create_registration,
-                                                     outsider, outsider_headers, test_client):
+def test_registration_published_to_participants_only(
+    db, dummy_event, dummy_regform, dummy_reg, create_registration, outsider, outsider_headers, test_client
+):
     dummy_regform.publish_registrations_participants = PublishRegistrationsMode.show_all
     dummy_regform.publish_registrations_public = PublishRegistrationsMode.hide_all
     db.session.flush()
@@ -222,8 +239,9 @@ def test_registration_published_to_participants_only(db, dummy_event, dummy_regf
     assert test_client.get(url, headers=outsider_headers).json['results'] == []
     dummy_event.registrations.append(create_registration(outsider, dummy_regform))
     db.session.flush()
-    assert {r['id'] for r in test_client.get(url, headers=outsider_headers).json['results']} == \
-        {reg.id for reg in dummy_regform.registrations}
+    assert {r['id'] for r in test_client.get(url, headers=outsider_headers).json['results']} == {
+        reg.id for reg in dummy_regform.registrations
+    }
 
 
 def test_manager_sees_every_registration(db, dummy_event, dummy_user, dummy_reg, token_headers, test_client):
@@ -252,10 +270,12 @@ def test_registrations_require_the_feature(db, dummy_event, dummy_regform, token
     assert resp.status_code == 404
 
 
-def test_registration_form_sections(dummy_event, open_regform, choice_field, checkbox_field, token_headers,
-                                    test_client):
-    resp = test_client.get(f'/api/v1/events/{dummy_event.id}/registration-forms/{open_regform.id}/sections',
-                           headers=token_headers)
+def test_registration_form_sections(
+    dummy_event, open_regform, choice_field, checkbox_field, token_headers, test_client
+):
+    resp = test_client.get(
+        f'/api/v1/events/{dummy_event.id}/registration-forms/{open_regform.id}/sections', headers=token_headers
+    )
     assert resp.status_code == 200
     assert [section['title'] for section in resp.json['results']] == ['Personal Data', 'Preferences']
     personal = resp.json['results'][0]
@@ -273,37 +293,53 @@ def test_registration_form_sections(dummy_event, open_regform, choice_field, che
     assert preferences['description'] == 'Tell us more.'
     assert [field['title'] for field in preferences['fields']] == ['Diet', 'Newsletter']
     diet = preferences['fields'][0]
-    assert diet == {'id': choice_field.id, 'section_id': preferences['id'], 'position': 1, 'title': 'Diet',
-                    'description': 'Pick one.', 'input_type': 'single_choice', 'is_required': True,
-                    'personal_data_type': None, 'price': None, 'default_value': {CHOICE_IDS[1]: 1},
-                    'show_if_field_id': None, 'show_if_values': None, 'is_purged': False,
-                    'choices': [{'id': CHOICE_IDS[0], 'caption': 'Vegetarian', 'price': 5.0, 'places_limit': 0,
-                                 'is_enabled': True},
-                                {'id': CHOICE_IDS[1], 'caption': 'Anything', 'price': 0.0, 'places_limit': 10,
-                                 'is_enabled': True}]}
+    assert diet == {
+        'id': choice_field.id,
+        'section_id': preferences['id'],
+        'position': 1,
+        'title': 'Diet',
+        'description': 'Pick one.',
+        'input_type': 'single_choice',
+        'is_required': True,
+        'personal_data_type': None,
+        'price': None,
+        'default_value': {CHOICE_IDS[1]: 1},
+        'show_if_field_id': None,
+        'show_if_values': None,
+        'is_purged': False,
+        'choices': [
+            {'id': CHOICE_IDS[0], 'caption': 'Vegetarian', 'price': 5.0, 'places_limit': 0, 'is_enabled': True},
+            {'id': CHOICE_IDS[1], 'caption': 'Anything', 'price': 0.0, 'places_limit': 10, 'is_enabled': True},
+        ],
+    }
     newsletter = preferences['fields'][1]
     assert newsletter['input_type'] == 'checkbox'
     assert newsletter['price'] == 0
     assert newsletter['default_value'] is False
 
 
-def test_registration_form_section_details(dummy_event, open_regform, custom_section, choice_field, token_headers,
-                                           test_client):
-    resp = test_client.get(f'/api/v1/events/{dummy_event.id}/registration-forms/{open_regform.id}/sections'
-                           f'/{custom_section.id}', headers=token_headers)
+def test_registration_form_section_details(
+    dummy_event, open_regform, custom_section, choice_field, token_headers, test_client
+):
+    resp = test_client.get(
+        f'/api/v1/events/{dummy_event.id}/registration-forms/{open_regform.id}/sections/{custom_section.id}',
+        headers=token_headers,
+    )
     assert resp.status_code == 200
     assert resp.json['id'] == custom_section.id
     assert [field['id'] for field in resp.json['fields']] == [choice_field.id]
 
 
-def test_registration_form_sections_skip_disabled_items(db, dummy_event, open_regform, custom_section, choice_field,
-                                                        checkbox_field, token_headers, test_client):
+def test_registration_form_sections_skip_disabled_items(
+    db, dummy_event, open_regform, custom_section, choice_field, checkbox_field, token_headers, test_client
+):
     checkbox_field.is_enabled = False
     other = RegistrationFormSection(registration_form=open_regform, title='Disabled', is_enabled=False)
     db.session.add(other)
     db.session.flush()
-    resp = test_client.get(f'/api/v1/events/{dummy_event.id}/registration-forms/{open_regform.id}/sections',
-                           headers=token_headers)
+    resp = test_client.get(
+        f'/api/v1/events/{dummy_event.id}/registration-forms/{open_regform.id}/sections', headers=token_headers
+    )
     assert [section['title'] for section in resp.json['results']] == ['Personal Data', 'Preferences']
     assert [field['id'] for field in resp.json['results'][1]['fields']] == [choice_field.id]
 
@@ -317,33 +353,41 @@ def test_manager_only_sections_are_hidden(dummy_event, open_regform, manager_fie
 
 
 @pytest.mark.usefixtures('registration_manager')
-def test_manager_only_sections_are_served_to_managers(dummy_event, open_regform, manager_field, token_headers,
-                                                      test_client):
+def test_manager_only_sections_are_served_to_managers(
+    dummy_event, open_regform, manager_field, token_headers, test_client
+):
     url = f'/api/v1/events/{dummy_event.id}/registration-forms/{open_regform.id}/sections'
-    assert [s['title'] for s in test_client.get(url, headers=token_headers).json['results']] == ['Personal Data',
-                                                                                                 'Internal']
+    assert [s['title'] for s in test_client.get(url, headers=token_headers).json['results']] == [
+        'Personal Data',
+        'Internal',
+    ]
     resp = test_client.get(f'{url}/{manager_field.parent.id}', headers=token_headers)
     assert resp.json['is_manager_only']
     assert [field['title'] for field in resp.json['fields']] == ['Badge note']
 
 
-def test_registration_form_sections_follow_form_access(dummy_event, dummy_regform, custom_section, outsider_headers,
-                                                       test_client):
+def test_registration_form_sections_follow_form_access(
+    dummy_event, dummy_regform, custom_section, outsider_headers, test_client
+):
     url = f'/api/v1/events/{dummy_event.id}/registration-forms/{dummy_regform.id}/sections'
     assert test_client.get(url, headers=outsider_headers).status_code == 403
     assert test_client.get(f'{url}/{custom_section.id}', headers=outsider_headers).status_code == 403
 
 
-def test_section_of_another_form_is_not_found(dummy_event, open_regform, custom_section, create_regform,
-                                              token_headers, test_client):
+def test_section_of_another_form_is_not_found(
+    dummy_event, open_regform, custom_section, create_regform, token_headers, test_client
+):
     other = create_regform(dummy_event, 'Another form')
-    resp = test_client.get(f'/api/v1/events/{dummy_event.id}/registration-forms/{other.id}/sections'
-                           f'/{custom_section.id}', headers=token_headers)
+    resp = test_client.get(
+        f'/api/v1/events/{dummy_event.id}/registration-forms/{other.id}/sections/{custom_section.id}',
+        headers=token_headers,
+    )
     assert resp.status_code == 404
 
 
-def test_registration_details_carry_the_answers(dummy_event, answered_reg, choice_field, checkbox_field,
-                                                token_headers, test_client):
+def test_registration_details_carry_the_answers(
+    dummy_event, answered_reg, choice_field, checkbox_field, token_headers, test_client
+):
     resp = test_client.get(f'/api/v1/events/{dummy_event.id}/registrations/{answered_reg.id}', headers=token_headers)
     assert resp.status_code == 200
     assert [section['title'] for section in resp.json['sections']] == ['Personal Data', 'Preferences']
@@ -368,9 +412,17 @@ def test_registration_details_carry_the_answers(dummy_event, answered_reg, choic
     assert Decimal(newsletter['price']) == 0
 
 
-def test_registration_answers_follow_the_summary_page(db, dummy_event, answered_reg, choice_field, checkbox_field,
-                                                      manager_field, registration_manager, token_headers,
-                                                      test_client):
+def test_registration_answers_follow_the_summary_page(
+    db,
+    dummy_event,
+    answered_reg,
+    choice_field,
+    checkbox_field,
+    manager_field,
+    registration_manager,
+    token_headers,
+    test_client,
+):
     checkbox_field.is_deleted = True
     db.session.flush()
     url = f'/api/v1/events/{dummy_event.id}/registrations/{answered_reg.id}'
@@ -385,8 +437,9 @@ def test_registration_answers_follow_the_summary_page(db, dummy_event, answered_
     assert [f['title'] for f in section_named(sections, 'Preferences')['fields']] == ['Diet']
 
 
-def test_registration_answers_skip_hidden_conditional_fields(db, dummy_event, answered_reg, choice_field,
-                                                             checkbox_field, token_headers, test_client):
+def test_registration_answers_skip_hidden_conditional_fields(
+    db, dummy_event, answered_reg, choice_field, checkbox_field, token_headers, test_client
+):
     checkbox_field.show_if_field = choice_field
     checkbox_field.show_if_values = [CHOICE_IDS[1]]
     db.session.flush()
@@ -395,8 +448,9 @@ def test_registration_answers_skip_hidden_conditional_fields(db, dummy_event, an
     assert [f['title'] for f in section_named(sections, 'Preferences')['fields']] == ['Diet']
 
 
-def test_registration_answers_leave_purged_values_out(db, dummy_event, answered_reg, checkbox_field, token_headers,
-                                                      test_client):
+def test_registration_answers_leave_purged_values_out(
+    db, dummy_event, answered_reg, checkbox_field, token_headers, test_client
+):
     checkbox_field.is_purged = True
     db.session.flush()
     url = f'/api/v1/events/{dummy_event.id}/registrations/{answered_reg.id}'
@@ -411,8 +465,9 @@ def test_registration_list_has_no_answers(dummy_event, answered_reg, token_heade
     assert 'sections' not in resp.json['results'][0]
 
 
-def test_published_registration_follows_the_participant_list(db, dummy_event, dummy_regform, answered_reg,
-                                                             choice_field, outsider_headers, test_client):
+def test_published_registration_follows_the_participant_list(
+    db, dummy_event, dummy_regform, answered_reg, choice_field, outsider_headers, test_client
+):
     dummy_regform.publish_registrations_public = PublishRegistrationsMode.show_all
     dummy_regform.publish_registrations_participants = PublishRegistrationsMode.show_all
     db.session.flush()
@@ -436,14 +491,27 @@ def test_published_registration_follows_the_participant_list(db, dummy_event, du
     assert section_named(reg['sections'], 'Preferences')['fields'][0]['value'] == 'Vegetarian'
 
 
-REGFORM_FIELDS = ('id', 'event_id', 'title', 'introduction', 'start_dt', 'end_dt', 'is_open',
-                  'registration_count')
+REGFORM_FIELDS = ('id', 'event_id', 'title', 'introduction', 'start_dt', 'end_dt', 'is_open', 'registration_count')
 
-REGISTRATION_FIELDS = ('id', 'event_id', 'full_name', 'email', 'state', 'checked_in', 'checked_in_dt', 'is_paid',
-                       'currency', 'formatted_price', 'tags')
+REGISTRATION_FIELDS = (
+    'id',
+    'event_id',
+    'full_name',
+    'email',
+    'state',
+    'checked_in',
+    'checked_in_dt',
+    'is_paid',
+    'currency',
+    'formatted_price',
+    'tags',
+)
 
-REGISTRATION_KEYS = {'registration_form_id': 'regform_id', 'submitted_dt': 'registration_date',
-                     'price': ('price', float)}
+REGISTRATION_KEYS = {
+    'registration_form_id': 'regform_id',
+    'submitted_dt': 'registration_date',
+    'price': ('price', float),
+}
 
 PERSONAL_KEYS = {'first_name': 'firstName', 'last_name': 'surname'}
 
@@ -452,33 +520,46 @@ def from_personal_data(name):
     return lambda current: current['personal_data'].get(PERSONAL_KEYS.get(name, name), '')
 
 
-PERSONAL_DATA = {name: from_personal_data(name)
-                 for name in ('first_name', 'last_name', 'affiliation', 'title', 'address', 'phone', 'country',
-                              'position')}
+PERSONAL_DATA = {
+    name: from_personal_data(name)
+    for name in ('first_name', 'last_name', 'affiliation', 'title', 'address', 'phone', 'country', 'position')
+}
 
 
 @pytest.fixture
 def merged_registrations(dummy_event, open_regform, indico_api):
     def _merge():
-        legacy = {int(reg['registrant_id']): reg
-                  for reg in indico_api(f'/api/events/{dummy_event.id}/registrants')['registrants']}
+        legacy = {
+            int(reg['registrant_id']): reg
+            for reg in indico_api(f'/api/events/{dummy_event.id}/registrants')['registrants']
+        }
         checkin = indico_api(f'/api/checkin/event/{dummy_event.id}/forms/{open_regform.id}/registrations/')
         return [{**legacy[reg['id']], **reg} for reg in checkin]
 
     return _merge
 
 
-def test_registration_form_matches_current_api(dummy_event, open_regform, dummy_reg, registration_manager,
-                                               token_headers, test_client, indico_api, same_json):
+def test_registration_form_matches_current_api(
+    dummy_event, open_regform, dummy_reg, registration_manager, token_headers, test_client, indico_api, same_json
+):
     current = next(f for f in indico_api(f'/api/checkin/event/{dummy_event.id}/forms/') if f['id'] == open_regform.id)
-    new = test_client.get(f'/api/v1/events/{dummy_event.id}/registration-forms/{open_regform.id}',
-                          headers=token_headers).json
+    new = test_client.get(
+        f'/api/v1/events/{dummy_event.id}/registration-forms/{open_regform.id}', headers=token_headers
+    ).json
     same_json(new, current, same=REGFORM_FIELDS)
 
 
-def test_registration_form_list_matches_current_api(dummy_event, open_regform, dummy_reg, create_regform,
-                                                    registration_manager, token_headers, test_client, indico_api,
-                                                    same_json_list):
+def test_registration_form_list_matches_current_api(
+    dummy_event,
+    open_regform,
+    dummy_reg,
+    create_regform,
+    registration_manager,
+    token_headers,
+    test_client,
+    indico_api,
+    same_json_list,
+):
     create_regform(dummy_event, 'Another form')
     current = indico_api(f'/api/checkin/event/{dummy_event.id}/forms/')
     new = test_client.get(f'/api/v1/events/{dummy_event.id}/registration-forms', headers=token_headers).json['results']
@@ -490,21 +571,33 @@ def without_sections(registration):
     return {key: value for key, value in registration.items() if key != 'sections'}
 
 
-def test_registration_matches_current_api(dummy_event, dummy_reg, merged_registrations, registration_manager,
-                                          token_headers, test_client, same_json):
+def test_registration_matches_current_api(
+    dummy_event, dummy_reg, merged_registrations, registration_manager, token_headers, test_client, same_json
+):
     current = next(reg for reg in merged_registrations() if reg['id'] == dummy_reg.id)
     new = test_client.get(f'/api/v1/events/{dummy_event.id}/registrations/{dummy_reg.id}', headers=token_headers).json
-    same_json(without_sections(new), current, same=REGISTRATION_FIELDS, renamed=REGISTRATION_KEYS,
-              derived=PERSONAL_DATA)
+    same_json(
+        without_sections(new), current, same=REGISTRATION_FIELDS, renamed=REGISTRATION_KEYS, derived=PERSONAL_DATA
+    )
 
 
-def test_registration_list_matches_current_api(dummy_event, open_regform, dummy_reg, create_registration, outsider,
-                                               merged_registrations, registration_manager, token_headers, test_client,
-                                               same_json_list):
+def test_registration_list_matches_current_api(
+    dummy_event,
+    open_regform,
+    dummy_reg,
+    create_registration,
+    outsider,
+    merged_registrations,
+    registration_manager,
+    token_headers,
+    test_client,
+    same_json_list,
+):
     dummy_event.registrations.append(create_registration(outsider, open_regform))
     new = test_client.get(f'/api/v1/events/{dummy_event.id}/registrations', headers=token_headers).json['results']
-    same_json_list(new, merged_registrations(), same=REGISTRATION_FIELDS, renamed=REGISTRATION_KEYS,
-                   derived=PERSONAL_DATA)
+    same_json_list(
+        new, merged_registrations(), same=REGISTRATION_FIELDS, renamed=REGISTRATION_KEYS, derived=PERSONAL_DATA
+    )
 
 
 def affiliation_text(value):
@@ -514,16 +607,29 @@ def affiliation_text(value):
 
 SECTION_FIELDS = ('id', 'position', 'title', 'description')
 FIELD_FIELDS = ('id', 'position', 'title', 'description')
-FIELD_KEYS = {'input_type': ('input_type', lambda t: 'text' if t == 'affiliation' else t),
-              'default_value': ('default_value', affiliation_text)}
+FIELD_KEYS = {
+    'input_type': ('input_type', lambda t: 'text' if t == 'affiliation' else t),
+    'default_value': ('default_value', affiliation_text),
+}
 CHOICE_KEYS = {'placesLimit': 'places_limit', 'isEnabled': 'is_enabled'}
 ANSWER_FIELDS = ('id', 'title')
 ANSWER_KEYS = {'input_type': FIELD_KEYS['input_type'], 'data': ('data', affiliation_text)}
 
 # the rest of the form definition, the rendered value of an answer and its price are only ever embedded in
 # HTML pages, so there is no JSON to compare them against
-DEFINITION_ONLY = {'is_required', 'personal_data_type', 'show_if_field_id', 'show_if_values', 'is_purged',
-                   'registration_form_id', 'is_manager_only', 'is_personal_data', 'fields', 'value', 'price'}
+DEFINITION_ONLY = {
+    'is_required',
+    'personal_data_type',
+    'show_if_field_id',
+    'show_if_values',
+    'is_purged',
+    'registration_form_id',
+    'is_manager_only',
+    'is_personal_data',
+    'fields',
+    'value',
+    'price',
+}
 
 
 def comparable(item):
@@ -535,8 +641,10 @@ def as_choices(rename_keys):
         # a country field lists the countries as choices, without an id, and those are not served
         if not any('id' in choice for choice in current.get('choices', [])):
             return None
-        return [{key: choice[key] for key in ('id', 'caption', 'price', 'places_limit', 'is_enabled')}
-                for choice in rename_keys(CHOICE_KEYS)(current['choices'])]
+        return [
+            {key: choice[key] for key in ('id', 'caption', 'price', 'places_limit', 'is_enabled')}
+            for choice in rename_keys(CHOICE_KEYS)(current['choices'])
+        ]
 
     return _choices
 
@@ -548,35 +656,65 @@ def as_price(current):
 @pytest.fixture
 def current_registration_data(dummy_event, open_regform, indico_api):
     def _get(registration):
-        return indico_api(f'/api/checkin/event/{dummy_event.id}/forms/{open_regform.id}/registrations/'
-                          f'{registration.id}')['registration_data']
+        return indico_api(
+            f'/api/checkin/event/{dummy_event.id}/forms/{open_regform.id}/registrations/{registration.id}'
+        )['registration_data']
 
     return _get
 
 
-def test_registration_form_sections_match_current_api(dummy_event, open_regform, answered_reg, manager_field,
-                                                      registration_manager, token_headers, test_client,
-                                                      current_registration_data, same_json_list, rename_keys):
+def test_registration_form_sections_match_current_api(
+    dummy_event,
+    open_regform,
+    answered_reg,
+    manager_field,
+    registration_manager,
+    token_headers,
+    test_client,
+    current_registration_data,
+    same_json_list,
+    rename_keys,
+):
     current = current_registration_data(answered_reg)
-    new = test_client.get(f'/api/v1/events/{dummy_event.id}/registration-forms/{open_regform.id}/sections',
-                          headers=token_headers).json['results']
+    new = test_client.get(
+        f'/api/v1/events/{dummy_event.id}/registration-forms/{open_regform.id}/sections', headers=token_headers
+    ).json['results']
     same_json_list([comparable(section) for section in new], current, same=SECTION_FIELDS)
     for section in new:
         their_section = next(s for s in current if s['id'] == section['id'])
-        same_json_list([{**comparable(field), 'price': field['price']} for field in section['fields']],
-                       their_section['fields'], same=FIELD_FIELDS, renamed=FIELD_KEYS,
-                       derived={'section_id': lambda cur, section=section: section['id'],
-                                'price': as_price, 'choices': as_choices(rename_keys)})
+        same_json_list(
+            [{**comparable(field), 'price': field['price']} for field in section['fields']],
+            their_section['fields'],
+            same=FIELD_FIELDS,
+            renamed=FIELD_KEYS,
+            derived={
+                'section_id': lambda cur, section=section: section['id'],
+                'price': as_price,
+                'choices': as_choices(rename_keys),
+            },
+        )
 
 
-def test_registration_answers_match_current_api(dummy_event, answered_reg, manager_field, registration_manager,
-                                                token_headers, test_client, current_registration_data,
-                                                same_json_list):
+def test_registration_answers_match_current_api(
+    dummy_event,
+    answered_reg,
+    manager_field,
+    registration_manager,
+    token_headers,
+    test_client,
+    current_registration_data,
+    same_json_list,
+):
     current = current_registration_data(answered_reg)
-    new = test_client.get(f'/api/v1/events/{dummy_event.id}/registrations/{answered_reg.id}',
-                          headers=token_headers).json['sections']
+    new = test_client.get(
+        f'/api/v1/events/{dummy_event.id}/registrations/{answered_reg.id}', headers=token_headers
+    ).json['sections']
     for section in new:
         their_section = next(s for s in current if s['id'] == section['id'])
         assert section['title'] == their_section['title']
-        same_json_list([comparable(field) for field in section['fields']], their_section['fields'],
-                       same=ANSWER_FIELDS, renamed=ANSWER_KEYS)
+        same_json_list(
+            [comparable(field) for field in section['fields']],
+            their_section['fields'],
+            same=ANSWER_FIELDS,
+            renamed=ANSWER_KEYS,
+        )

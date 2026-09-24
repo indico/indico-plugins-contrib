@@ -28,15 +28,22 @@ def poster_type(create_contribution_type):
 
 
 def test_contribution_type_details(dummy_event, poster_type, token_headers, test_client):
-    resp = test_client.get(f'/api/v1/events/{dummy_event.id}/contribution-types/{poster_type.id}',
-                           headers=token_headers)
+    resp = test_client.get(
+        f'/api/v1/events/{dummy_event.id}/contribution-types/{poster_type.id}', headers=token_headers
+    )
     assert resp.status_code == 200
-    assert resp.json == {'id': poster_type.id, 'event_id': dummy_event.id, 'name': 'Poster',
-                         'description': 'Shown in the poster session.', 'is_private': False}
+    assert resp.json == {
+        'id': poster_type.id,
+        'event_id': dummy_event.id,
+        'name': 'Poster',
+        'description': 'Shown in the poster session.',
+        'is_private': False,
+    }
 
 
-def test_contribution_type_list_is_sorted_by_name(dummy_event, poster_type, create_contribution_type, token_headers,
-                                                  test_client):
+def test_contribution_type_list_is_sorted_by_name(
+    dummy_event, poster_type, create_contribution_type, token_headers, test_client
+):
     talk = create_contribution_type('Talk', is_private=True)
     keynote = create_contribution_type('keynote')
     resp = test_client.get(f'/api/v1/events/{dummy_event.id}/contribution-types', headers=token_headers)
@@ -48,8 +55,9 @@ def test_contribution_type_list_is_sorted_by_name(dummy_event, poster_type, crea
 def test_contribution_type_denied_without_event_access(db, dummy_event, poster_type, outsider_headers, test_client):
     dummy_event.protection_mode = ProtectionMode.protected
     db.session.flush()
-    resp = test_client.get(f'/api/v1/events/{dummy_event.id}/contribution-types/{poster_type.id}',
-                           headers=outsider_headers)
+    resp = test_client.get(
+        f'/api/v1/events/{dummy_event.id}/contribution-types/{poster_type.id}', headers=outsider_headers
+    )
     assert resp.status_code == 403
     assert 'error' in resp.json
     resp = test_client.get(f'/api/v1/events/{dummy_event.id}/contribution-types', headers=outsider_headers)
@@ -63,12 +71,14 @@ def test_contribution_type_of_another_event_is_not_found(db, poster_type, create
     assert resp.status_code == 404
 
 
-def test_contribution_type_matches_current_api(db, dummy_event, dummy_contribution, poster_type, token_headers,
-                                               test_client, indico_api, same_json):
+def test_contribution_type_matches_current_api(
+    db, dummy_event, dummy_contribution, poster_type, token_headers, test_client, indico_api, same_json
+):
     dummy_contribution.type = poster_type
     db.session.flush()
     current = indico_api(f'/event/{dummy_event.id}/contributions/{dummy_contribution.id}.json')['type']
-    new = test_client.get(f'/api/v1/events/{dummy_event.id}/contribution-types/{poster_type.id}',
-                          headers=token_headers).json
+    new = test_client.get(
+        f'/api/v1/events/{dummy_event.id}/contribution-types/{poster_type.id}', headers=token_headers
+    ).json
     # the current API only names the type of a contribution; the rest of its definition is in an HTML dialog
     same_json({key: value for key, value in new.items() if key in ('id', 'name')}, current, same=('id', 'name'))

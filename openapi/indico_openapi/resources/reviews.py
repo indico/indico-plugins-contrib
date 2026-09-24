@@ -5,7 +5,6 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-
 from flask import request, session
 from marshmallow import fields, post_dump
 from werkzeug.exceptions import Forbidden, NotFound
@@ -93,18 +92,29 @@ class AbstractReviewSchema(DescribedFieldsMixin, CoreAbstractReviewSchema):
     """One review of an abstract, written for a single track."""
 
     class Meta(CoreAbstractReviewSchema.Meta):
-        fields = ('id', 'user', 'track', 'comment', 'proposed_action', 'proposed_contrib_type',
-                  'proposed_related_abstract', 'proposed_tracks', 'score', 'ratings', 'created_dt', 'modified_dt')
+        fields = (
+            'id',
+            'user',
+            'track',
+            'comment',
+            'proposed_action',
+            'proposed_contrib_type',
+            'proposed_related_abstract',
+            'proposed_tracks',
+            'score',
+            'ratings',
+            'created_dt',
+            'modified_dt',
+        )
         descriptions = {
             'id': 'Numeric identifier of the review.',
             'user': 'Reviewer who wrote the review.',
             'track': 'Track the abstract was reviewed for, or `null` when the review was written without one.',
             'comment': 'Comment the reviewer left, as Markdown.',
             'proposed_action': 'What the reviewer proposes: `accept`, `reject`, `change_tracks`, `mark_as_duplicate` '
-                               'or `merge`.',
+            'or `merge`.',
             'proposed_contrib_type': 'Contribution type proposed with an acceptance, or `null`.',
-            'proposed_related_abstract': 'Abstract this one was proposed to be merged into or to duplicate, '
-                                         'or `null`.',
+            'proposed_related_abstract': 'Abstract this one was proposed to be merged into or to duplicate, or `null`.',
             'proposed_tracks': 'Tracks proposed instead of the current ones, set only with `change_tracks`.',
             'score': 'Average of the answers that count towards a score, or `null` when there is none.',
             'ratings': 'Answers the reviewer gave to the questions of the reviewing form.',
@@ -129,7 +139,7 @@ class AbstractCommentSchema(DescribedFieldsMixin, CoreAbstractCommentSchema):
         fields = ('id', 'user', 'text', 'visibility', 'created_dt', 'modified_dt', 'modified_by')
         descriptions = COMMENT_DESCRIPTIONS | {
             'visibility': 'Who the comment was addressed to: `judges`, `conveners`, `reviewers`, `contributors` '
-                          'or `users`.',
+            'or `users`.',
         }
 
     user = fields.Nested(UserReferenceSchema)
@@ -141,8 +151,17 @@ class ApiPaperReviewQuestionSchema(DescribedFieldsMixin, CorePaperReviewQuestion
     """One question the reviewers of a paper answer."""
 
     class Meta(CorePaperReviewQuestionSchema.Meta):
-        fields = ('id', 'type', 'title', 'description', 'field_type', 'field_data', 'is_required', 'no_score',
-                  'position')
+        fields = (
+            'id',
+            'type',
+            'title',
+            'description',
+            'field_type',
+            'field_data',
+            'is_required',
+            'no_score',
+            'position',
+        )
         descriptions = QUESTION_DESCRIPTIONS | {
             'type': 'Kind of reviewing the question belongs to: `layout` or `content`.',
         }
@@ -267,22 +286,58 @@ class RHPaperReviewQuestions(PaperMixin, RHProtectedEventBase):
 
 
 ENDPOINTS = [
-    Endpoint(rule='/events/<int:event_id>/abstracts/<int:abstract_id>/reviews', name='abstract_reviews',
-             rh=RHAbstractReviews, schema=AbstractReviewSchema, many=True,
-             summary='List the reviews of an abstract', tag='Abstracts'),
-    Endpoint(rule='/events/<int:event_id>/abstracts/<int:abstract_id>/comments', name='abstract_comments',
-             rh=RHAbstractComments, schema=AbstractCommentSchema, many=True,
-             summary='List the comments left on an abstract', tag='Abstracts'),
-    Endpoint(rule='/events/<int:event_id>/abstract-review-questions', name='abstract_review_questions',
-             rh=RHAbstractReviewQuestions, schema=AbstractReviewQuestionSchema, many=True,
-             summary='List the questions abstract reviewers answer', tag='Abstracts'),
-    Endpoint(rule='/events/<int:event_id>/contributions/<int:contrib_id>/paper/revisions/<int:revision_id>/reviews',
-             name='paper_reviews', rh=RHPaperRevisionReviews, schema=PaperReviewSchema, many=True,
-             summary='List the reviews of a paper revision', tag='Papers'),
-    Endpoint(rule='/events/<int:event_id>/contributions/<int:contrib_id>/paper/revisions/<int:revision_id>/comments',
-             name='paper_comments', rh=RHPaperRevisionComments, schema=PaperCommentSchema, many=True,
-             summary='List the comments left on a paper revision', tag='Papers'),
-    Endpoint(rule='/events/<int:event_id>/paper-review-questions', name='paper_review_questions',
-             rh=RHPaperReviewQuestions, schema=ApiPaperReviewQuestionSchema, many=True,
-             summary='List the questions paper reviewers answer', tag='Papers'),
+    Endpoint(
+        rule='/events/<int:event_id>/abstracts/<int:abstract_id>/reviews',
+        name='abstract_reviews',
+        rh=RHAbstractReviews,
+        schema=AbstractReviewSchema,
+        many=True,
+        summary='List the reviews of an abstract',
+        tag='Abstracts',
+    ),
+    Endpoint(
+        rule='/events/<int:event_id>/abstracts/<int:abstract_id>/comments',
+        name='abstract_comments',
+        rh=RHAbstractComments,
+        schema=AbstractCommentSchema,
+        many=True,
+        summary='List the comments left on an abstract',
+        tag='Abstracts',
+    ),
+    Endpoint(
+        rule='/events/<int:event_id>/abstract-review-questions',
+        name='abstract_review_questions',
+        rh=RHAbstractReviewQuestions,
+        schema=AbstractReviewQuestionSchema,
+        many=True,
+        summary='List the questions abstract reviewers answer',
+        tag='Abstracts',
+    ),
+    Endpoint(
+        rule='/events/<int:event_id>/contributions/<int:contrib_id>/paper/revisions/<int:revision_id>/reviews',
+        name='paper_reviews',
+        rh=RHPaperRevisionReviews,
+        schema=PaperReviewSchema,
+        many=True,
+        summary='List the reviews of a paper revision',
+        tag='Papers',
+    ),
+    Endpoint(
+        rule='/events/<int:event_id>/contributions/<int:contrib_id>/paper/revisions/<int:revision_id>/comments',
+        name='paper_comments',
+        rh=RHPaperRevisionComments,
+        schema=PaperCommentSchema,
+        many=True,
+        summary='List the comments left on a paper revision',
+        tag='Papers',
+    ),
+    Endpoint(
+        rule='/events/<int:event_id>/paper-review-questions',
+        name='paper_review_questions',
+        rh=RHPaperReviewQuestions,
+        schema=ApiPaperReviewQuestionSchema,
+        many=True,
+        summary='List the questions paper reviewers answer',
+        tag='Papers',
+    ),
 ]

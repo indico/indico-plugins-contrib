@@ -5,7 +5,6 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-
 from flask import request
 from marshmallow import fields
 
@@ -72,8 +71,9 @@ class RoomFeatureMixin:
 @json_errors
 class RHEquipmentType(EquipmentTypeMixin, RHRoomBookingBase):
     def _process_args(self):
-        self.equipment = (self._equipment_query()
-                          .filter(EquipmentType.id == request.view_args['equipment_type_id']).first_or_404())
+        self.equipment = (
+            self._equipment_query().filter(EquipmentType.id == request.view_args['equipment_type_id']).first_or_404()
+        )
 
     def _process_GET(self):
         return EquipmentTypeSchema().jsonify(self.equipment)
@@ -93,8 +93,7 @@ class RHEquipmentTypeList(EquipmentTypeMixin, RHListBase, RHRoomBookingBase):
 @json_errors
 class RHRoomFeature(RoomFeatureMixin, RHRoomBookingBase):
     def _process_args(self):
-        self.feature = (self._feature_query()
-                        .filter(RoomFeature.id == request.view_args['feature_id']).first_or_404())
+        self.feature = self._feature_query().filter(RoomFeature.id == request.view_args['feature_id']).first_or_404()
 
     def _process_GET(self):
         return RoomFeatureSchema().jsonify(self.feature)
@@ -112,12 +111,38 @@ class RHRoomFeatureList(RoomFeatureMixin, RHListBase, RHRoomBookingBase):
 
 
 ENDPOINTS = [
-    Endpoint(rule='/equipment-types', name='equipment_types', rh=RHEquipmentTypeList, schema=EquipmentTypeSchema,
-             many=True, summary='List the equipment a room can have', tag='Rooms'),
-    Endpoint(rule='/equipment-types/<int:equipment_type_id>', name='equipment_type', rh=RHEquipmentType,
-             schema=EquipmentTypeSchema, summary='Details of one kind of equipment a room can have', tag='Rooms'),
-    Endpoint(rule='/room-features', name='room_features', rh=RHRoomFeatureList, schema=RoomFeatureSchema, many=True,
-             summary='List the features a room can be searched by', tag='Rooms'),
-    Endpoint(rule='/room-features/<int:feature_id>', name='room_feature', rh=RHRoomFeature, schema=RoomFeatureSchema,
-             summary='Details of one feature a room can be searched by', tag='Rooms'),
+    Endpoint(
+        rule='/equipment-types',
+        name='equipment_types',
+        rh=RHEquipmentTypeList,
+        schema=EquipmentTypeSchema,
+        many=True,
+        summary='List the equipment a room can have',
+        tag='Rooms',
+    ),
+    Endpoint(
+        rule='/equipment-types/<int:equipment_type_id>',
+        name='equipment_type',
+        rh=RHEquipmentType,
+        schema=EquipmentTypeSchema,
+        summary='Details of one kind of equipment a room can have',
+        tag='Rooms',
+    ),
+    Endpoint(
+        rule='/room-features',
+        name='room_features',
+        rh=RHRoomFeatureList,
+        schema=RoomFeatureSchema,
+        many=True,
+        summary='List the features a room can be searched by',
+        tag='Rooms',
+    ),
+    Endpoint(
+        rule='/room-features/<int:feature_id>',
+        name='room_feature',
+        rh=RHRoomFeature,
+        schema=RoomFeatureSchema,
+        summary='Details of one feature a room can be searched by',
+        tag='Rooms',
+    ),
 ]

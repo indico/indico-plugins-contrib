@@ -5,7 +5,6 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-
 from flask import request, session
 from werkzeug.exceptions import Forbidden
 
@@ -20,12 +19,12 @@ class FileSchema(DescribedFieldsMixin, CoreFileSchema):
     class Meta(CoreFileSchema.Meta):
         descriptions = {
             'uuid': 'Identifier of the file, unique across the whole instance. It is also what authorises '
-                    'reading the file, so it is never handed out to somebody who may not.',
+            'reading the file, so it is never handed out to somebody who may not.',
             'filename': 'Name the file was uploaded under.',
             'content_type': 'MIME type of the file, such as `application/pdf`.',
             'size': 'Size of the file in bytes.',
             'claimed': 'Whether the file is attached to something. Unclaimed files are leftovers of an upload '
-                       'that went nowhere and get deleted automatically.',
+            'that went nowhere and get deleted automatically.',
             'created_dt': 'Moment the file was uploaded, in UTC.',
         }
 
@@ -70,8 +69,21 @@ class RHFileList(RHListBase, RHProtected):
 
 
 ENDPOINTS = [
-    Endpoint(rule='/files', name='files', rh=RHFileList, schema=FileSchema, many=True,
-             summary='List the files uploaded to the instance', tag='Files'),
-    Endpoint(rule='/files/<uuid:uuid>', name='file', rh=RHFile, schema=FileSchema,
-             summary='Details of one file uploaded to the instance', tag='Files'),
+    Endpoint(
+        rule='/files',
+        name='files',
+        rh=RHFileList,
+        schema=FileSchema,
+        many=True,
+        summary='List the files uploaded to the instance',
+        tag='Files',
+    ),
+    Endpoint(
+        rule='/files/<uuid:uuid>',
+        name='file',
+        rh=RHFile,
+        schema=FileSchema,
+        summary='Details of one file uploaded to the instance',
+        tag='Files',
+    ),
 ]

@@ -5,7 +5,6 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-
 from flask import request
 
 from indico.core.marshmallow import mm
@@ -65,9 +64,9 @@ class RHBookableHoursList(RoomAvailabilityMixin, RHListBase, RHRoomBookingBase):
     schema = BookableHoursSchema
 
     def _query(self):
-        return (BookableHours.query
-                .filter(BookableHours.room_id == self.room.id)
-                .order_by(BookableHours.start_time, BookableHours.end_time, BookableHours.id))
+        return BookableHours.query.filter(BookableHours.room_id == self.room.id).order_by(
+            BookableHours.start_time, BookableHours.end_time, BookableHours.id
+        )
 
 
 @json_errors
@@ -75,15 +74,28 @@ class RHNonBookablePeriodList(RoomAvailabilityMixin, RHListBase, RHRoomBookingBa
     schema = NonBookablePeriodSchema
 
     def _query(self):
-        return (NonBookablePeriod.query
-                .filter(NonBookablePeriod.room_id == self.room.id)
-                .order_by(NonBookablePeriod.start_dt, NonBookablePeriod.end_dt))
+        return NonBookablePeriod.query.filter(NonBookablePeriod.room_id == self.room.id).order_by(
+            NonBookablePeriod.start_dt, NonBookablePeriod.end_dt
+        )
 
 
 ENDPOINTS = [
-    Endpoint(rule='/rooms/<int:room_id>/bookable-hours', name='room_bookable_hours', rh=RHBookableHoursList,
-             schema=BookableHoursSchema, many=True, summary='List the hours a room can be booked for', tag='Rooms'),
-    Endpoint(rule='/rooms/<int:room_id>/nonbookable-periods', name='room_nonbookable_periods',
-             rh=RHNonBookablePeriodList, schema=NonBookablePeriodSchema, many=True,
-             summary='List the periods a room cannot be booked for', tag='Rooms'),
+    Endpoint(
+        rule='/rooms/<int:room_id>/bookable-hours',
+        name='room_bookable_hours',
+        rh=RHBookableHoursList,
+        schema=BookableHoursSchema,
+        many=True,
+        summary='List the hours a room can be booked for',
+        tag='Rooms',
+    ),
+    Endpoint(
+        rule='/rooms/<int:room_id>/nonbookable-periods',
+        name='room_nonbookable_periods',
+        rh=RHNonBookablePeriodList,
+        schema=NonBookablePeriodSchema,
+        many=True,
+        summary='List the periods a room cannot be booked for',
+        tag='Rooms',
+    ),
 ]

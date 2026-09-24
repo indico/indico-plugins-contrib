@@ -5,7 +5,6 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-
 from indico.modules.rb import rb_settings
 from indico.modules.rb.models.photos import Photo
 
@@ -75,10 +74,33 @@ def test_room_requires_login(dummy_room, test_client):
     assert resp.status_code == 403
 
 
-ROOM_FIELDS = ('id', 'name', 'full_name', 'verbose_name', 'location_id', 'location_name', 'site', 'building',
-               'floor', 'number', 'division', 'capacity', 'surface_area', 'latitude', 'longitude', 'telephone',
-               'key_location', 'comments', 'owner_name', 'is_public', 'is_reservable',
-               'reservations_need_confirmation', 'max_advance_days', 'has_photo', 'map_url')
+ROOM_FIELDS = (
+    'id',
+    'name',
+    'full_name',
+    'verbose_name',
+    'location_id',
+    'location_name',
+    'site',
+    'building',
+    'floor',
+    'number',
+    'division',
+    'capacity',
+    'surface_area',
+    'latitude',
+    'longitude',
+    'telephone',
+    'key_location',
+    'comments',
+    'owner_name',
+    'is_public',
+    'is_reservable',
+    'reservations_need_confirmation',
+    'max_advance_days',
+    'has_photo',
+    'map_url',
+)
 
 
 def as_photo_url(current):
@@ -92,20 +114,26 @@ def as_equipment_ids(indico_api):
     return lambda names: sorted(ids[name] for name in names)
 
 
-def test_room_matches_current_api(db, dummy_room, create_equipment_type, token_headers, test_client, indico_api,
-                                  same_json):
+def test_room_matches_current_api(
+    db, dummy_room, create_equipment_type, token_headers, test_client, indico_api, same_json
+):
     dummy_room.available_equipment.append(create_equipment_type('Video conference'))
     db.session.flush()
     current = indico_api(f'/rooms/api/rooms/{dummy_room.id}')
     current['available_equipment'].sort()
     new = test_client.get(f'/api/v1/rooms/{dummy_room.id}', headers=token_headers).json
-    same_json(new, current, same=ROOM_FIELDS,
-              renamed={'available_equipment': ('available_equipment', as_equipment_ids(indico_api))},
-              derived={'photo_url': as_photo_url})
+    same_json(
+        new,
+        current,
+        same=ROOM_FIELDS,
+        renamed={'available_equipment': ('available_equipment', as_equipment_ids(indico_api))},
+        derived={'photo_url': as_photo_url},
+    )
 
 
-def test_room_list_matches_current_api(db, dummy_room, create_room, create_equipment_type, token_headers, test_client,
-                                       indico_api, same_json_list):
+def test_room_list_matches_current_api(
+    db, dummy_room, create_room, create_equipment_type, token_headers, test_client, indico_api, same_json_list
+):
     dummy_room.available_equipment.append(create_equipment_type('Video conference'))
     create_room(building='9')
     db.session.flush()
@@ -113,6 +141,10 @@ def test_room_list_matches_current_api(db, dummy_room, create_room, create_equip
     for room in current:
         room['available_equipment'].sort()
     new = test_client.get('/api/v1/rooms', headers=token_headers).json['results']
-    same_json_list(new, current, same=ROOM_FIELDS,
-                   renamed={'available_equipment': ('available_equipment', as_equipment_ids(indico_api))},
-                   derived={'photo_url': as_photo_url})
+    same_json_list(
+        new,
+        current,
+        same=ROOM_FIELDS,
+        renamed={'available_equipment': ('available_equipment', as_equipment_ids(indico_api))},
+        derived={'photo_url': as_photo_url},
+    )

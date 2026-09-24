@@ -28,15 +28,23 @@ class AbstractEmailSchema(DescribedFieldsMixin, mm.SQLAlchemyAutoSchema):
 
     class Meta:
         model = AbstractEmailLogEntry
-        fields = ('id', 'abstract_id', 'email_template_id', 'template_title', 'sent_dt', 'sent_by', 'recipients',
-                  'subject', 'body')
+        fields = (
+            'id',
+            'abstract_id',
+            'email_template_id',
+            'template_title',
+            'sent_dt',
+            'sent_by',
+            'recipients',
+            'subject',
+            'body',
+        )
         descriptions = {
             'id': 'Numeric identifier of the log entry, unique across the whole instance.',
             'abstract_id': 'Identifier of the abstract the email was about.',
             'email_template_id': 'Identifier of the template the email was built from, or `null` when the template '
-                                 'was deleted.',
-            'template_title': 'Name the template had when the email was sent, or `null` when it was not sent from '
-                              'one.',
+            'was deleted.',
+            'template_title': 'Name the template had when the email was sent, or `null` when it was not sent from one.',
             'sent_dt': 'Moment the email was sent, in UTC.',
             'sent_by': 'User whose action sent the email, or `null` when it was not sent by a person.',
             'recipients': 'Every address the email was sent to, in copy included.',
@@ -61,16 +69,18 @@ class AbstractEmailMixin(AbstractMixin):
             raise Forbidden
 
     def _email_query(self):
-        return (AbstractEmailLogEntry.query.with_parent(self.abstract)
-                .order_by(AbstractEmailLogEntry.sent_dt, AbstractEmailLogEntry.id))
+        return AbstractEmailLogEntry.query.with_parent(self.abstract).order_by(
+            AbstractEmailLogEntry.sent_dt, AbstractEmailLogEntry.id
+        )
 
 
 @json_errors
 class RHAbstractEmail(AbstractEmailMixin, RHProtectedEventBase):
     def _process_args(self):
         AbstractEmailMixin._process_args(self)
-        self.entry = (self._email_query()
-                      .filter(AbstractEmailLogEntry.id == request.view_args['email_id']).first_or_404())
+        self.entry = (
+            self._email_query().filter(AbstractEmailLogEntry.id == request.view_args['email_id']).first_or_404()
+        )
 
     def _process_GET(self):
         return AbstractEmailSchema().jsonify(self.entry)
@@ -88,10 +98,21 @@ class RHAbstractEmailList(AbstractEmailMixin, RHListBase, RHProtectedEventBase):
 
 
 ENDPOINTS = [
-    Endpoint(rule='/events/<int:event_id>/abstracts/<int:abstract_id>/emails', name='abstract_emails',
-             rh=RHAbstractEmailList, schema=AbstractEmailSchema, many=True,
-             summary='List the notifications sent about an abstract', tag='Abstracts'),
-    Endpoint(rule='/events/<int:event_id>/abstracts/<int:abstract_id>/emails/<int:email_id>', name='abstract_email',
-             rh=RHAbstractEmail, schema=AbstractEmailSchema,
-             summary='Details of one notification sent about an abstract', tag='Abstracts'),
+    Endpoint(
+        rule='/events/<int:event_id>/abstracts/<int:abstract_id>/emails',
+        name='abstract_emails',
+        rh=RHAbstractEmailList,
+        schema=AbstractEmailSchema,
+        many=True,
+        summary='List the notifications sent about an abstract',
+        tag='Abstracts',
+    ),
+    Endpoint(
+        rule='/events/<int:event_id>/abstracts/<int:abstract_id>/emails/<int:email_id>',
+        name='abstract_email',
+        rh=RHAbstractEmail,
+        schema=AbstractEmailSchema,
+        summary='Details of one notification sent about an abstract',
+        tag='Abstracts',
+    ),
 ]

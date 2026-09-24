@@ -5,7 +5,6 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-
 from operator import itemgetter
 
 from flask import request
@@ -57,9 +56,7 @@ class CategoryRoleMixin:
     """
 
     def _role_query(self):
-        return (CategoryRole.query.with_parent(self.category)
-                .options(joinedload('members'))
-                .order_by(CategoryRole.code))
+        return CategoryRole.query.with_parent(self.category).options(joinedload('members')).order_by(CategoryRole.code)
 
 
 @json_errors
@@ -84,8 +81,21 @@ class RHCategoryRoleList(CategoryRoleMixin, RHListBase, RHManageCategoryBase):
 
 
 ENDPOINTS = [
-    Endpoint(rule='/categories/<int:category_id>/roles', name='category_roles', rh=RHCategoryRoleList,
-             schema=CategoryRoleSchema, many=True, summary='List the roles of a category', tag='Categories'),
-    Endpoint(rule='/categories/<int:category_id>/roles/<int:role_id>', name='category_role', rh=RHCategoryRole,
-             schema=CategoryRoleSchema, summary='Details of one role of a category', tag='Categories'),
+    Endpoint(
+        rule='/categories/<int:category_id>/roles',
+        name='category_roles',
+        rh=RHCategoryRoleList,
+        schema=CategoryRoleSchema,
+        many=True,
+        summary='List the roles of a category',
+        tag='Categories',
+    ),
+    Endpoint(
+        rule='/categories/<int:category_id>/roles/<int:role_id>',
+        name='category_role',
+        rh=RHCategoryRole,
+        schema=CategoryRoleSchema,
+        summary='Details of one role of a category',
+        tag='Categories',
+    ),
 ]

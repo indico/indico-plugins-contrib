@@ -5,7 +5,6 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-
 from datetime import timedelta
 
 import pytest
@@ -26,8 +25,16 @@ def create_survey(db, dummy_event):
         params.setdefault('end_dt', now_utc() + timedelta(days=1))
         survey = Survey(event=dummy_event, title=title, **params)
         section = SurveySection(survey=survey, title='General', display_as_section=True, position=1)
-        SurveyQuestion(survey=survey, parent=section, title='Your name', description='As you want it published',
-                       field_type='text', is_required=True, position=1, field_data={})
+        SurveyQuestion(
+            survey=survey,
+            parent=section,
+            title='Your name',
+            description='As you want it published',
+            field_type='text',
+            is_required=True,
+            position=1,
+            field_data={},
+        )
         db.session.add(survey)
         db.session.flush()
         return survey
@@ -84,8 +91,15 @@ def test_survey_questions(dummy_survey, dummy_event, outsider_headers, test_clie
 
 def test_survey_questions_are_sorted(db, dummy_survey, dummy_event, outsider_headers, test_client):
     section = SurveySection(survey=dummy_survey, title='Extra', display_as_section=True, position=0)
-    SurveyQuestion(survey=dummy_survey, parent=section, title='Anything else?', field_type='text', is_required=False,
-                   position=1, field_data={})
+    SurveyQuestion(
+        survey=dummy_survey,
+        parent=section,
+        title='Anything else?',
+        field_type='text',
+        is_required=False,
+        position=1,
+        field_data={},
+    )
     db.session.flush()
     resp = test_client.get(f'/api/v1/events/{dummy_event.id}/surveys/{dummy_survey.id}', headers=outsider_headers)
     assert [q['title'] for q in resp.json['questions']] == ['Anything else?', 'Your name']
@@ -99,8 +113,7 @@ def test_survey_list(dummy_survey, create_survey, dummy_event, outsider_headers,
     assert 'questions' not in resp.json['results'][0]
 
 
-def test_survey_that_has_not_started_is_hidden(dummy_survey, create_survey, dummy_event, outsider_headers,
-                                               test_client):
+def test_survey_that_has_not_started_is_hidden(dummy_survey, create_survey, dummy_event, outsider_headers, test_client):
     upcoming = create_survey('Upcoming survey', start_dt=None, end_dt=None)
     resp = test_client.get(f'/api/v1/events/{dummy_event.id}/surveys', headers=outsider_headers)
     assert [s['id'] for s in resp.json['results']] == [dummy_survey.id]
@@ -116,8 +129,9 @@ def test_private_survey_is_hidden(dummy_survey, create_survey, dummy_event, outs
     assert resp.status_code == 403
 
 
-def test_survey_manager_sees_every_survey(dummy_survey, create_survey, dummy_event, survey_manager,
-                                          token_headers, test_client):
+def test_survey_manager_sees_every_survey(
+    dummy_survey, create_survey, dummy_event, survey_manager, token_headers, test_client
+):
     private = create_survey('Private survey', private=True)
     upcoming = create_survey('Upcoming survey', start_dt=None, end_dt=None)
     resp = test_client.get(f'/api/v1/events/{dummy_event.id}/surveys', headers=token_headers)
@@ -151,43 +165,49 @@ def test_surveys_denied_without_event_access(db, dummy_survey, dummy_event, outs
     assert resp.status_code == 403
 
 
-def test_survey_submissions(dummy_survey, dummy_submission, dummy_event, survey_manager, token_headers,
-                            test_client):
-    resp = test_client.get(f'/api/v1/events/{dummy_event.id}/surveys/{dummy_survey.id}/submissions',
-                           headers=token_headers)
+def test_survey_submissions(dummy_survey, dummy_submission, dummy_event, survey_manager, token_headers, test_client):
+    resp = test_client.get(
+        f'/api/v1/events/{dummy_event.id}/surveys/{dummy_survey.id}/submissions', headers=token_headers
+    )
     assert resp.status_code == 200
     submission = resp.json['results'][0]
     assert submission['id'] == dummy_submission.id
     assert submission['survey_id'] == dummy_survey.id
     assert submission['survey_title'] == 'Feedback'
     assert submission['is_anonymous'] is False
-    assert submission['answers'] == [{'question_id': next(iter(dummy_survey.questions)).id,
-                                      'question_title': 'Your name',
-                                      'answer': 'Alice'}]
+    assert submission['answers'] == [
+        {'question_id': next(iter(dummy_survey.questions)).id, 'question_title': 'Your name', 'answer': 'Alice'}
+    ]
 
 
-def test_survey_submissions_skip_drafts(db, dummy_survey, dummy_submission, dummy_event, dummy_user,
-                                        survey_manager, token_headers, test_client):
+def test_survey_submissions_skip_drafts(
+    db, dummy_survey, dummy_submission, dummy_event, dummy_user, survey_manager, token_headers, test_client
+):
     db.session.add(SurveySubmission(survey=dummy_survey, user=dummy_user, is_submitted=False))
     db.session.flush()
-    resp = test_client.get(f'/api/v1/events/{dummy_event.id}/surveys/{dummy_survey.id}/submissions',
-                           headers=token_headers)
+    resp = test_client.get(
+        f'/api/v1/events/{dummy_event.id}/surveys/{dummy_survey.id}/submissions', headers=token_headers
+    )
     assert [s['id'] for s in resp.json['results']] == [dummy_submission.id]
 
 
-def test_anonymous_submission_keeps_the_respondent_hidden(db, dummy_survey, dummy_event, survey_manager,
-                                                         token_headers, test_client):
+def test_anonymous_submission_keeps_the_respondent_hidden(
+    db, dummy_survey, dummy_event, survey_manager, token_headers, test_client
+):
     submission = SurveySubmission(survey=dummy_survey, is_anonymous=True, is_submitted=True, submitted_dt=now_utc())
     db.session.add(submission)
     db.session.flush()
-    resp = test_client.get(f'/api/v1/events/{dummy_event.id}/surveys/{dummy_survey.id}/submissions',
-                           headers=token_headers)
+    resp = test_client.get(
+        f'/api/v1/events/{dummy_event.id}/surveys/{dummy_survey.id}/submissions', headers=token_headers
+    )
     assert resp.json['results'][0]['is_anonymous'] is True
     assert not {'user', 'user_id'} & set(resp.json['results'][0])
 
 
-def test_survey_submissions_are_manager_only(dummy_survey, dummy_submission, dummy_event, outsider_headers,
-                                             test_client):
-    resp = test_client.get(f'/api/v1/events/{dummy_event.id}/surveys/{dummy_survey.id}/submissions',
-                           headers=outsider_headers)
+def test_survey_submissions_are_manager_only(
+    dummy_survey, dummy_submission, dummy_event, outsider_headers, test_client
+):
+    resp = test_client.get(
+        f'/api/v1/events/{dummy_event.id}/surveys/{dummy_survey.id}/submissions', headers=outsider_headers
+    )
     assert resp.status_code == 403

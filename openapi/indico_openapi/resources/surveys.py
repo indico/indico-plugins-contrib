@@ -5,7 +5,6 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-
 from operator import itemgetter
 
 from flask import request, session
@@ -31,8 +30,8 @@ class SurveyAnswerSchema(DescribedFieldsMixin, CoreSurveyAnswerSchema):
             'question_id': 'Identifier of the question that was answered.',
             'question_title': 'Title of the question that was answered.',
             'answer': 'Value the respondent gave, shaped after the type of the question: a string for `text`, a '
-                      'number for `number`, a boolean for `bool`, an option for `single_choice` and a list of '
-                      'options for `multiselect`.',
+            'number for `number`, a boolean for `bool`, an option for `single_choice` and a list of '
+            'options for `multiselect`.',
         }
 
 
@@ -45,7 +44,7 @@ class SurveySubmissionSchema(DescribedFieldsMixin, CoreSurveySubmissionSchema):
             'survey_title': 'Title of the survey that was answered.',
             'submitted_dt': 'Moment the survey was submitted, in UTC.',
             'is_anonymous': 'Whether the submission was made anonymously. The respondent is never exposed, so an '
-                            'anonymous submission only differs in that Indico itself does not know who sent it.',
+            'anonymous submission only differs in that Indico itself does not know who sent it.',
             'answers': 'Answers given to the questions of the survey.',
         }
 
@@ -61,8 +60,17 @@ class SurveyQuestionSchema(DescribedFieldsMixin, mm.SQLAlchemyAutoSchema):
 
     class Meta:
         model = SurveyQuestion
-        fields = ('id', 'title', 'description', 'section_title', 'section_position', 'position', 'is_required',
-                  'field_type', 'field_data')
+        fields = (
+            'id',
+            'title',
+            'description',
+            'section_title',
+            'section_position',
+            'position',
+            'is_required',
+            'field_type',
+            'field_data',
+        )
         descriptions = {
             'id': 'Numeric identifier of the question, unique across the whole instance.',
             'title': 'Question as it is shown to the respondent.',
@@ -72,9 +80,9 @@ class SurveyQuestionSchema(DescribedFieldsMixin, mm.SQLAlchemyAutoSchema):
             'position': 'Place of the question inside its section, starting at 1.',
             'is_required': 'Whether the question has to be answered to submit the survey.',
             'field_type': 'Type of answer the question takes: `text`, `number`, `bool`, `single_choice` or '
-                          '`multiselect`.',
+            '`multiselect`.',
             'field_data': 'Settings of the field, such as the `options` of a choice question or the `max_length` of '
-                          'a text one.',
+            'a text one.',
         }
 
     section_title = fields.String(attribute='parent.title')
@@ -91,8 +99,19 @@ class SurveySchema(DescribedFieldsMixin, mm.SQLAlchemyAutoSchema):
 
     class Meta:
         model = Survey
-        fields = ('id', 'title', 'introduction', 'anonymous', 'require_user', 'private', 'submission_limit',
-                  'start_dt', 'end_dt', 'state', 'is_active')
+        fields = (
+            'id',
+            'title',
+            'introduction',
+            'anonymous',
+            'require_user',
+            'private',
+            'submission_limit',
+            'start_dt',
+            'end_dt',
+            'state',
+            'is_active',
+        )
         descriptions = {
             'id': 'Numeric identifier of the survey, unique across the whole instance.',
             'title': 'Title of the survey.',
@@ -100,13 +119,13 @@ class SurveySchema(DescribedFieldsMixin, mm.SQLAlchemyAutoSchema):
             'anonymous': 'Whether submissions are stored without a link to their author.',
             'require_user': 'Whether answering requires being logged in.',
             'private': 'Whether the survey is only reachable through its direct link instead of being listed in '
-                       'the event.',
+            'the event.',
             'submission_limit': 'Maximum number of submissions accepted, or `null` when there is no limit.',
             'start_dt': 'Moment the survey opens, in UTC, or `null` while it has not been scheduled.',
             'end_dt': 'Moment the survey closes, in UTC, or `null` when it stays open.',
             'state': 'Where the survey stands: `not_ready` while it has no questions, `ready_to_open` before it '
-                     'starts, `active_and_clean` once open without submissions, `active_and_answered` once it has '
-                     'some, `limit_reached` when it hit its submission limit and `finished` after it closed.',
+            'starts, `active_and_clean` once open without submissions, `active_and_answered` once it has '
+            'some, `limit_reached` when it hit its submission limit and `finished` after it closed.',
             'is_active': 'Whether the survey is accepting submissions right now.',
             'questions': 'Questions of the survey, in the order they are asked.',
         }
@@ -143,9 +162,12 @@ class SurveyMixin:
         self.can_manage = self.event.can_manage(session.user, permission='surveys')
 
     def _survey_query(self):
-        return (Survey.query.with_parent(self.event)
-                .filter(~Survey.is_deleted)
-                .order_by(db.func.lower(Survey.title), Survey.id))
+        return (
+            Survey.query
+            .with_parent(self.event)
+            .filter(~Survey.is_deleted)
+            .order_by(db.func.lower(Survey.title), Survey.id)
+        )
 
     def _can_see(self, survey):
         return self.can_manage or (survey.is_visible and not survey.private)
@@ -191,20 +213,39 @@ class RHSurveySubmissionList(SurveyMixin, RHListBase, RHProtectedEventBase):
             raise Forbidden
 
     def _query(self):
-        return (SurveySubmission.query
-                .filter(SurveySubmission.survey_id == self.survey.id, SurveySubmission.is_submitted)
-                .order_by(SurveySubmission.friendly_id))
+        return SurveySubmission.query.filter(
+            SurveySubmission.survey_id == self.survey.id, SurveySubmission.is_submitted
+        ).order_by(SurveySubmission.friendly_id)
 
     def _can_access(self, obj):
         return True
 
 
 ENDPOINTS = [
-    Endpoint(rule='/events/<int:event_id>/surveys', name='surveys', rh=RHSurveyList, schema=SurveySchema, many=True,
-             summary='List the surveys of an event', tag='Surveys'),
-    Endpoint(rule='/events/<int:event_id>/surveys/<int:survey_id>', name='survey', rh=RHSurvey,
-             schema=SurveyDetailsSchema, summary='Details of one survey of an event', tag='Surveys'),
-    Endpoint(rule='/events/<int:event_id>/surveys/<int:survey_id>/submissions', name='survey_submissions',
-             rh=RHSurveySubmissionList, schema=SurveySubmissionSchema, many=True,
-             summary='List the submitted answers of a survey', tag='Surveys'),
+    Endpoint(
+        rule='/events/<int:event_id>/surveys',
+        name='surveys',
+        rh=RHSurveyList,
+        schema=SurveySchema,
+        many=True,
+        summary='List the surveys of an event',
+        tag='Surveys',
+    ),
+    Endpoint(
+        rule='/events/<int:event_id>/surveys/<int:survey_id>',
+        name='survey',
+        rh=RHSurvey,
+        schema=SurveyDetailsSchema,
+        summary='Details of one survey of an event',
+        tag='Surveys',
+    ),
+    Endpoint(
+        rule='/events/<int:event_id>/surveys/<int:survey_id>/submissions',
+        name='survey_submissions',
+        rh=RHSurveySubmissionList,
+        schema=SurveySubmissionSchema,
+        many=True,
+        summary='List the submitted answers of a survey',
+        tag='Surveys',
+    ),
 ]

@@ -5,7 +5,6 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-
 from flask import request
 from marshmallow import fields
 
@@ -23,8 +22,17 @@ class MoveRequestSchema(DescribedFieldsMixin, mm.SQLAlchemyAutoSchema):
 
     class Meta:
         model = EventMoveRequest
-        fields = ('id', 'category_id', 'event_id', 'state', 'requestor', 'requestor_comment', 'moderator',
-                  'moderator_comment', 'requested_dt')
+        fields = (
+            'id',
+            'category_id',
+            'event_id',
+            'state',
+            'requestor',
+            'requestor_comment',
+            'moderator',
+            'moderator_comment',
+            'requested_dt',
+        )
         descriptions = {
             'id': 'Numeric identifier of the request, unique across the whole instance.',
             'category_id': 'Identifier of the category the event would be moved into.',
@@ -43,8 +51,9 @@ class MoveRequestSchema(DescribedFieldsMixin, mm.SQLAlchemyAutoSchema):
 
 
 class MoveRequestListArgs(ListArgs):
-    state = fields.Enum(MoveRequestState, load_default=None,
-                        metadata={'description': 'Only list the requests in this state.'})
+    state = fields.Enum(
+        MoveRequestState, load_default=None, metadata={'description': 'Only list the requests in this state.'}
+    )
 
 
 class MoveRequestMixin:
@@ -56,16 +65,18 @@ class MoveRequestMixin:
     """
 
     def _request_query(self):
-        return (EventMoveRequest.query.with_parent(self.category)
-                .order_by(EventMoveRequest.requested_dt, EventMoveRequest.id))
+        return EventMoveRequest.query.with_parent(self.category).order_by(
+            EventMoveRequest.requested_dt, EventMoveRequest.id
+        )
 
 
 @json_errors
 class RHMoveRequest(MoveRequestMixin, RHManageCategoryBase):
     def _process_args(self):
         RHManageCategoryBase._process_args(self)
-        self.move_request = (self._request_query()
-                             .filter(EventMoveRequest.id == request.view_args['request_id']).first_or_404())
+        self.move_request = (
+            self._request_query().filter(EventMoveRequest.id == request.view_args['request_id']).first_or_404()
+        )
 
     def _process_GET(self):
         return MoveRequestSchema().jsonify(self.move_request)
@@ -87,10 +98,21 @@ class RHMoveRequestList(MoveRequestMixin, RHListBase, RHManageCategoryBase):
 
 
 ENDPOINTS = [
-    Endpoint(rule='/categories/<int:category_id>/move-requests', name='move_requests', rh=RHMoveRequestList,
-             schema=MoveRequestSchema, many=True, summary='List the event move requests of a category',
-             tag='Categories'),
-    Endpoint(rule='/categories/<int:category_id>/move-requests/<int:request_id>', name='move_request',
-             rh=RHMoveRequest, schema=MoveRequestSchema,
-             summary='Details of one request to move an event into a category', tag='Categories'),
+    Endpoint(
+        rule='/categories/<int:category_id>/move-requests',
+        name='move_requests',
+        rh=RHMoveRequestList,
+        schema=MoveRequestSchema,
+        many=True,
+        summary='List the event move requests of a category',
+        tag='Categories',
+    ),
+    Endpoint(
+        rule='/categories/<int:category_id>/move-requests/<int:request_id>',
+        name='move_request',
+        rh=RHMoveRequest,
+        schema=MoveRequestSchema,
+        summary='Details of one request to move an event into a category',
+        tag='Categories',
+    ),
 ]

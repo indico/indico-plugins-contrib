@@ -35,15 +35,17 @@ def dummy_registration_tag(create_registration_tag):
 
 @pytest.mark.usefixtures('event_manager')
 def test_registration_tag_details(dummy_event, dummy_registration_tag, token_headers, test_client):
-    resp = test_client.get(f'/api/v1/events/{dummy_event.id}/registration-tags/{dummy_registration_tag.id}',
-                           headers=token_headers)
+    resp = test_client.get(
+        f'/api/v1/events/{dummy_event.id}/registration-tags/{dummy_registration_tag.id}', headers=token_headers
+    )
     assert resp.status_code == 200
     assert resp.json == {'id': dummy_registration_tag.id, 'title': 'VIP', 'color': 'blue'}
 
 
 @pytest.mark.usefixtures('event_manager')
-def test_registration_tag_list_is_sorted_by_title(dummy_event, dummy_registration_tag, create_registration_tag,
-                                                  token_headers, test_client):
+def test_registration_tag_list_is_sorted_by_title(
+    dummy_event, dummy_registration_tag, create_registration_tag, token_headers, test_client
+):
     other = create_registration_tag('Catering')
     resp = test_client.get(f'/api/v1/events/{dummy_event.id}/registration-tags', headers=token_headers)
     assert resp.status_code == 200
@@ -55,13 +57,18 @@ def test_registration_tags_are_manager_only(dummy_event, dummy_registration_tag,
     resp = test_client.get(f'/api/v1/events/{dummy_event.id}/registration-tags', headers=outsider_headers)
     assert resp.status_code == 403
     assert 'error' in resp.json
-    assert test_client.get(f'/api/v1/events/{dummy_event.id}/registration-tags/{dummy_registration_tag.id}',
-                           headers=outsider_headers).status_code == 403
+    assert (
+        test_client.get(
+            f'/api/v1/events/{dummy_event.id}/registration-tags/{dummy_registration_tag.id}', headers=outsider_headers
+        ).status_code
+        == 403
+    )
 
 
 @pytest.mark.usefixtures('event_manager')
-def test_registration_tag_of_another_event_is_not_found(dummy_event, dummy_registration_tag, create_event,
-                                                        create_registration_tag, token_headers, test_client):
+def test_registration_tag_of_another_event_is_not_found(
+    dummy_event, dummy_registration_tag, create_event, create_registration_tag, token_headers, test_client
+):
     other = create_event()
     tag = create_registration_tag('Speaker', event=other)
     resp = test_client.get(f'/api/v1/events/{dummy_event.id}/registration-tags/{tag.id}', headers=token_headers)
@@ -72,8 +79,9 @@ TAG_FIELDS = ('id', 'title', 'color')
 
 
 @pytest.mark.usefixtures('event_manager')
-def test_registration_tag_list_matches_current_api(dummy_event, dummy_registration_tag, create_registration_tag,
-                                                   token_headers, test_client, indico_api, same_json_list):
+def test_registration_tag_list_matches_current_api(
+    dummy_event, dummy_registration_tag, create_registration_tag, token_headers, test_client, indico_api, same_json_list
+):
     create_registration_tag('Catering')
     current = indico_api(f'/api/checkin/event/{dummy_event.id}/')['registration_tags']
     new = test_client.get(f'/api/v1/events/{dummy_event.id}/registration-tags', headers=token_headers).json

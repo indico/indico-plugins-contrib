@@ -5,7 +5,6 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-
 from flask import request, session
 from marshmallow import fields
 from werkzeug.exceptions import Forbidden
@@ -61,17 +60,38 @@ class AbstractFileSchema(DescribedFieldsMixin, CoreAbstractFileSchema):
 
 class ApiAbstractSchema(DescribedFieldsMixin, CoreAbstractSchema):
     class Meta(CoreAbstractSchema.Meta):
-        fields = ('id', 'friendly_id', 'title', 'content', 'state', 'submitted_dt', 'modified_dt', 'judgment_dt',
-                  'submitter', 'modified_by', 'judge', 'submission_comment', 'judgment_comment',
-                  'submitted_contrib_type', 'accepted_contrib_type', 'accepted_track', 'submitted_for_tracks',
-                  'reviewed_for_tracks', 'duplicate_of_id', 'merged_into_id', 'persons', 'custom_fields', 'files')
+        fields = (
+            'id',
+            'friendly_id',
+            'title',
+            'content',
+            'state',
+            'submitted_dt',
+            'modified_dt',
+            'judgment_dt',
+            'submitter',
+            'modified_by',
+            'judge',
+            'submission_comment',
+            'judgment_comment',
+            'submitted_contrib_type',
+            'accepted_contrib_type',
+            'accepted_track',
+            'submitted_for_tracks',
+            'reviewed_for_tracks',
+            'duplicate_of_id',
+            'merged_into_id',
+            'persons',
+            'custom_fields',
+            'files',
+        )
         descriptions = {
             'id': 'Numeric identifier of the abstract, unique across the whole instance.',
             'friendly_id': 'Number shown to users, unique within the event and stable once assigned.',
             'title': 'Title of the abstract.',
             'content': 'Body of the abstract, as plain text.',
             'state': 'Where the abstract stands: `submitted`, `withdrawn`, `accepted`, `rejected`, `merged`, '
-                     '`duplicate` or `invited`.',
+            '`duplicate` or `invited`.',
             'submitted_dt': 'Moment the abstract was submitted, in UTC.',
             'modified_dt': 'Moment the abstract was last edited, in UTC, or `null` when never edited.',
             'judgment_dt': 'Moment the abstract was judged, in UTC, or `null` when it has not been judged.',
@@ -151,8 +171,21 @@ class RHAbstractList(AbstractMixin, RHListBase, RHProtectedEventBase):
 
 
 ENDPOINTS = [
-    Endpoint(rule='/events/<int:event_id>/abstracts', name='abstracts', rh=RHAbstractList, schema=ApiAbstractSchema,
-             many=True, summary='List the abstracts of an event', tag='Abstracts'),
-    Endpoint(rule='/events/<int:event_id>/abstracts/<int:abstract_id>', name='abstract', rh=RHAbstract,
-             schema=ApiAbstractSchema, summary='Details of one abstract submitted to an event', tag='Abstracts'),
+    Endpoint(
+        rule='/events/<int:event_id>/abstracts',
+        name='abstracts',
+        rh=RHAbstractList,
+        schema=ApiAbstractSchema,
+        many=True,
+        summary='List the abstracts of an event',
+        tag='Abstracts',
+    ),
+    Endpoint(
+        rule='/events/<int:event_id>/abstracts/<int:abstract_id>',
+        name='abstract',
+        rh=RHAbstract,
+        schema=ApiAbstractSchema,
+        summary='Details of one abstract submitted to an event',
+        tag='Abstracts',
+    ),
 ]

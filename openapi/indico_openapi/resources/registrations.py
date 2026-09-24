@@ -5,7 +5,6 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-
 from flask import request, session
 from marshmallow import fields, post_dump
 from werkzeug.exceptions import Forbidden
@@ -26,10 +25,18 @@ from indico_openapi.resources.base import DescribedFieldsMixin, Endpoint, RHList
 from indico_openapi.schemas import RegistrationTagSchema
 
 
-PERSONAL_FIELDS = ('first_name', 'last_name', 'email', 'affiliation', 'title', 'address', 'phone', 'country',
-                   'position')
-MANAGER_FIELDS = ('state', 'checked_in_dt', 'submitted_dt', 'is_paid', 'price', 'currency',
-                  'formatted_price', 'tags')
+PERSONAL_FIELDS = (
+    'first_name',
+    'last_name',
+    'email',
+    'affiliation',
+    'title',
+    'address',
+    'phone',
+    'country',
+    'position',
+)
+MANAGER_FIELDS = ('state', 'checked_in_dt', 'submitted_dt', 'is_paid', 'price', 'currency', 'formatted_price', 'tags')
 
 
 def personal_data_field(name):
@@ -47,11 +54,15 @@ def published_fields(event, regform):
     active = {field.id: field for field in regform.active_fields}
     if registration_settings.get(event, 'merge_registration_forms'):
         names = set(registration_settings.get_participant_list_columns(event))
-        ids = {field.id for field in active.values()
-               if field.personal_data_type and field.personal_data_type.name in names}
+        ids = {
+            field.id for field in active.values() if field.personal_data_type and field.personal_data_type.name in names
+        }
         return names, ids
-    ids = {field_id for field_id in registration_settings.get_participant_list_columns(event, regform)
-           if field_id in active}
+    ids = {
+        field_id
+        for field_id in registration_settings.get_participant_list_columns(event, regform)
+        if field_id in active
+    }
     names = {active[field_id].personal_data_type.name for field_id in ids if active[field_id].personal_data_type}
     return names, ids
 
@@ -95,9 +106,22 @@ class RegistrationFieldSchema(DescribedFieldsMixin, mm.SQLAlchemyAutoSchema):
 
     class Meta:
         model = RegistrationFormField
-        fields = ('id', 'section_id', 'position', 'title', 'description', 'input_type', 'is_required',
-                  'personal_data_type', 'price', 'choices', 'default_value', 'show_if_field_id', 'show_if_values',
-                  'is_purged')
+        fields = (
+            'id',
+            'section_id',
+            'position',
+            'title',
+            'description',
+            'input_type',
+            'is_required',
+            'personal_data_type',
+            'price',
+            'choices',
+            'default_value',
+            'show_if_field_id',
+            'show_if_values',
+            'is_purged',
+        )
         descriptions = {
             'id': 'Numeric identifier of the field, unique across the whole instance.',
             'section_id': 'Identifier of the section holding the field.',
@@ -105,14 +129,14 @@ class RegistrationFieldSchema(DescribedFieldsMixin, mm.SQLAlchemyAutoSchema):
             'title': 'Label of the field.',
             'description': 'Help text shown under the field, as Markdown.',
             'input_type': 'Kind of field, such as `text`, `single_choice`, `checkbox`, `date`, `file` or '
-                          '`accommodation`.',
+            '`accommodation`.',
             'is_required': 'Whether the field has to be filled in to register.',
             'personal_data_type': 'Which personal data the field collects, such as `email` or `affiliation`, or '
-                                  '`null` for a field the organisers added.',
+            '`null` for a field the organisers added.',
             'price': 'Price of the field, in the currency of the form, or `null` when the field cannot be charged '
-                     'for. A choice field is charged per choice instead.',
+            'for. A choice field is charged per choice instead.',
             'choices': 'Options of a single choice, multiple choice or accommodation field, each with its own '
-                       'price, or `null` for any other kind.',
+            'price, or `null` for any other kind.',
             'default_value': 'Value the form starts with. Its shape depends on `input_type`.',
             'show_if_field_id': 'Identifier of the field this one depends on, or `null` when it is always shown.',
             'show_if_values': 'Values of that field for which this one is shown.',
@@ -142,8 +166,16 @@ class ActiveFields(fields.List):
 class RegistrationSectionSchema(DescribedFieldsMixin, mm.SQLAlchemyAutoSchema):
     class Meta:
         model = RegistrationFormSection
-        fields = ('id', 'registration_form_id', 'position', 'title', 'description', 'is_manager_only',
-                  'is_personal_data', 'fields')
+        fields = (
+            'id',
+            'registration_form_id',
+            'position',
+            'title',
+            'description',
+            'is_manager_only',
+            'is_personal_data',
+            'fields',
+        )
         descriptions = {
             'id': 'Numeric identifier of the section, unique across the whole instance.',
             'registration_form_id': 'Identifier of the form the section belongs to.',
@@ -153,7 +185,7 @@ class RegistrationSectionSchema(DescribedFieldsMixin, mm.SQLAlchemyAutoSchema):
             'is_manager_only': 'Whether only the managers see and fill in the section.',
             'is_personal_data': 'Whether this is the section every form starts with, asking who the registrant is.',
             'fields': 'Fields of the section, in the order the form shows them. Disabled fields and text blocks '
-                      'are left out.',
+            'are left out.',
         }
 
     is_personal_data = fields.Boolean(attribute='own_data.is_personal_data')
@@ -167,9 +199,9 @@ class RegistrationAnswerSchema(DescribedFieldsMixin, mm.Schema):
             'title': 'Label of the field.',
             'input_type': 'Kind of field, which says what shape `data` and `value` take.',
             'data': 'The answer as stored: the identifier of a choice, an ISO date, a boolean, a number, an object '
-                    'for an affiliation or accommodation. A file is represented by its name. `null` once purged.',
+            'for an affiliation or accommodation. A file is represented by its name. `null` once purged.',
             'value': 'The answer as the registration summary shows it: the caption of a choice, a formatted date, '
-                     '`Yes` or `No`, a list of captions for a multiple choice. `null` once purged.',
+            '`Yes` or `No`, a list of captions for a multiple choice. `null` once purged.',
             'price': 'What the answer added to the fee, as a decimal string in the currency of the form.',
         }
 
@@ -201,8 +233,14 @@ def _answer(data):
     else:
         stored = data.filename if field.field_impl.is_file_field else data.data
         shown = data.friendly_data
-    return {'id': field.id, 'title': field.title, 'input_type': field.input_type, 'data': stored, 'value': shown,
-            'price': data.price}
+    return {
+        'id': field.id,
+        'title': field.title,
+        'input_type': field.input_type,
+        'data': stored,
+        'value': shown,
+        'price': data.price,
+    }
 
 
 def registration_answers(registration, can_manage, is_own, published_ids):
@@ -219,15 +257,26 @@ def registration_answers(registration, can_manage, is_own, published_ids):
         if can_manage or is_own:
             if not section.is_visible_in_summary(can_manage):
                 continue
-            answered = [field for field in section.children
-                        if field.is_field and field.id in data_by_field and registration.is_field_shown(field)
-                        and (can_manage or not field.is_deleted)]
+            answered = [
+                field
+                for field in section.children
+                if field.is_field
+                and field.id in data_by_field
+                and registration.is_field_shown(field)
+                and (can_manage or not field.is_deleted)
+            ]
         else:
-            answered = [field for field in section.children
-                        if field.is_field and field.id in data_by_field and field.id in published_ids]
+            answered = [
+                field
+                for field in section.children
+                if field.is_field and field.id in data_by_field and field.id in published_ids
+            ]
         if answered:
-            sections.append({'id': section.id, 'title': section.title,
-                             'fields': [_answer(data_by_field[field.id]) for field in answered]})
+            sections.append({
+                'id': section.id,
+                'title': section.title,
+                'fields': [_answer(data_by_field[field.id]) for field in answered],
+            })
     return sections
 
 
@@ -242,8 +291,7 @@ class AnsweredSections(fields.List):
 class RegistrationFormSchema(DescribedFieldsMixin, mm.SQLAlchemyAutoSchema):
     class Meta:
         model = RegistrationForm
-        fields = ('id', 'event_id', 'title', 'introduction', 'start_dt', 'end_dt', 'is_open',
-                  'registration_count')
+        fields = ('id', 'event_id', 'title', 'introduction', 'start_dt', 'end_dt', 'is_open', 'registration_count')
         descriptions = {
             'id': 'Numeric identifier of the registration form, unique across the whole instance.',
             'event_id': 'Identifier of the event the form belongs to.',
@@ -253,7 +301,7 @@ class RegistrationFormSchema(DescribedFieldsMixin, mm.SQLAlchemyAutoSchema):
             'end_dt': 'Moment registrations close, in UTC, or `null` when they never do.',
             'is_open': 'Whether registrations are being accepted right now.',
             'registration_count': 'Number of places taken. Only present for managers and for forms publishing '
-                                  'their registration count.',
+            'their registration count.',
         }
 
     is_open = fields.Boolean()
@@ -269,8 +317,15 @@ class RegistrationFormSchema(DescribedFieldsMixin, mm.SQLAlchemyAutoSchema):
 class RegistrationSchema(DescribedFieldsMixin, mm.SQLAlchemyAutoSchema):
     class Meta:
         model = Registration
-        fields = ('id', 'event_id', 'registration_form_id', 'full_name', *PERSONAL_FIELDS,
-                  'checked_in', *MANAGER_FIELDS)
+        fields = (
+            'id',
+            'event_id',
+            'registration_form_id',
+            'full_name',
+            *PERSONAL_FIELDS,
+            'checked_in',
+            *MANAGER_FIELDS,
+        )
         descriptions = {
             'id': 'Numeric identifier of the registration, unique across the whole instance.',
             'event_id': 'Identifier of the event the person registered for.',
@@ -280,14 +335,14 @@ class RegistrationSchema(DescribedFieldsMixin, mm.SQLAlchemyAutoSchema):
             'last_name': 'Last name of the registrant.',
             'email': 'Email address of the registrant.',
             'affiliation': 'Organisation the registrant belongs to, or an empty string when the form '
-                           'does not ask for it.',
+            'does not ask for it.',
             'title': 'Personal title, such as `Dr` or `Prof`.',
             'address': 'Postal address of the registrant.',
             'phone': 'Phone number of the registrant.',
             'country': 'Country of the registrant.',
             'position': 'Position the registrant holds in their organisation.',
             'checked_in': 'Whether the registrant has checked in. Only present for managers and for events '
-                          'publishing the check-in status.',
+            'publishing the check-in status.',
             'state': 'Where the registration stands: `complete`, `pending`, `rejected`, `withdrawn` or `unpaid`.',
             'checked_in_dt': 'Moment the registrant checked in, in UTC, or `null` if they have not.',
             'submitted_dt': 'Moment the registration was submitted, in UTC.',
@@ -335,7 +390,7 @@ class RegistrationDetailsSchema(RegistrationSchema):
         descriptions = {
             **RegistrationSchema.Meta.descriptions,
             'sections': 'The answers given, grouped by section of the form. Only the fields the caller may see '
-                        'are listed, so a section nobody answered or the caller may not read is left out.',
+            'are listed, so a section nobody answered or the caller may not read is left out.',
         }
 
     sections = AnsweredSections(fields.Nested(RegistrationAnswerSectionSchema))
@@ -364,16 +419,25 @@ class RegistrationMixin:
         return self._published_fields[regform.id]
 
     def _regform_query(self):
-        return (RegistrationForm.query.with_parent(self.event)
-                .filter(~RegistrationForm.is_deleted)
-                .order_by(db.func.lower(RegistrationForm.title), RegistrationForm.id))
+        return (
+            RegistrationForm.query
+            .with_parent(self.event)
+            .filter(~RegistrationForm.is_deleted)
+            .order_by(db.func.lower(RegistrationForm.title), RegistrationForm.id)
+        )
 
     def _registration_query(self):
-        return (Registration.query.with_parent(self.event)
-                .filter(~Registration.is_deleted,
-                        RegistrationForm.query.filter(RegistrationForm.id == Registration.registration_form_id,
-                                                      ~RegistrationForm.is_deleted).exists())
-                .order_by(Registration.friendly_id))
+        return (
+            Registration.query
+            .with_parent(self.event)
+            .filter(
+                ~Registration.is_deleted,
+                RegistrationForm.query.filter(
+                    RegistrationForm.id == Registration.registration_form_id, ~RegistrationForm.is_deleted
+                ).exists(),
+            )
+            .order_by(Registration.friendly_id)
+        )
 
     def _can_see_regform(self, regform):
         if self.can_manage:
@@ -394,17 +458,23 @@ class RegistrationMixin:
         return RegistrationFormSchema(context={'can_manage': self.can_manage}, **kwargs)
 
     def _registration_schema(self, schema=RegistrationSchema, **kwargs):
-        return schema(context={'can_manage': self.can_manage, 'user': session.user,
-                               'published_fields': self._published_fields_of},
-                      **kwargs)
+        return schema(
+            context={
+                'can_manage': self.can_manage,
+                'user': session.user,
+                'published_fields': self._published_fields_of,
+            },
+            **kwargs,
+        )
 
 
 @json_errors
 class RHRegistrationForm(RegistrationMixin, RHProtectedEventBase):
     def _process_args(self):
         RegistrationMixin._process_args(self)
-        self.regform = (self._regform_query()
-                        .filter(RegistrationForm.id == request.view_args['regform_id']).first_or_404())
+        self.regform = (
+            self._regform_query().filter(RegistrationForm.id == request.view_args['regform_id']).first_or_404()
+        )
 
     def _check_access(self):
         RHProtectedEventBase._check_access(self)
@@ -432,8 +502,9 @@ class RHRegistrationFormList(RegistrationMixin, RHListBase, RHProtectedEventBase
 class RegistrationFormSectionMixin(RegistrationMixin):
     def _process_args(self):
         RegistrationMixin._process_args(self)
-        self.regform = (self._regform_query()
-                        .filter(RegistrationForm.id == request.view_args['regform_id']).first_or_404())
+        self.regform = (
+            self._regform_query().filter(RegistrationForm.id == request.view_args['regform_id']).first_or_404()
+        )
 
     def _check_access(self):
         RHProtectedEventBase._check_access(self)
@@ -441,18 +512,20 @@ class RegistrationFormSectionMixin(RegistrationMixin):
             raise Forbidden
 
     def _section_query(self):
-        return (RegistrationFormSection.query
-                .filter(RegistrationFormSection.registration_form_id == self.regform.id,
-                        RegistrationFormSection.is_enabled, ~RegistrationFormSection.is_deleted)
-                .order_by(RegistrationFormSection.position))
+        return RegistrationFormSection.query.filter(
+            RegistrationFormSection.registration_form_id == self.regform.id,
+            RegistrationFormSection.is_enabled,
+            ~RegistrationFormSection.is_deleted,
+        ).order_by(RegistrationFormSection.position)
 
 
 @json_errors
 class RHRegistrationFormSection(RegistrationFormSectionMixin, RHProtectedEventBase):
     def _process_args(self):
         RegistrationFormSectionMixin._process_args(self)
-        self.section = (self._section_query()
-                        .filter(RegistrationFormSection.id == request.view_args['section_id']).first_or_404())
+        self.section = (
+            self._section_query().filter(RegistrationFormSection.id == request.view_args['section_id']).first_or_404()
+        )
 
     def _check_access(self):
         RegistrationFormSectionMixin._check_access(self)
@@ -478,8 +551,9 @@ class RHRegistrationFormSectionList(RegistrationFormSectionMixin, RHListBase, RH
 class RHRegistration(RegistrationMixin, RHProtectedEventBase):
     def _process_args(self):
         RegistrationMixin._process_args(self)
-        self.registration = (self._registration_query()
-                             .filter(Registration.id == request.view_args['registration_id']).first_or_404())
+        self.registration = (
+            self._registration_query().filter(Registration.id == request.view_args['registration_id']).first_or_404()
+        )
 
     def _check_access(self):
         RHProtectedEventBase._check_access(self)
@@ -517,8 +591,9 @@ class RegistrationTagMixin(RegistrationMixin):
             raise Forbidden
 
     def _tag_query(self):
-        return (RegistrationTag.query.with_parent(self.event)
-                .order_by(db.func.lower(RegistrationTag.title), RegistrationTag.id))
+        return RegistrationTag.query.with_parent(self.event).order_by(
+            db.func.lower(RegistrationTag.title), RegistrationTag.id
+        )
 
 
 @json_errors
@@ -543,27 +618,72 @@ class RHRegistrationTagList(RegistrationTagMixin, RHListBase, RHProtectedEventBa
 
 
 ENDPOINTS = [
-    Endpoint(rule='/events/<int:event_id>/registration-forms', name='regforms', rh=RHRegistrationFormList,
-             schema=RegistrationFormSchema, many=True, summary='List the registration forms of an event',
-             tag='Registrations'),
-    Endpoint(rule='/events/<int:event_id>/registration-forms/<int:regform_id>', name='regform', rh=RHRegistrationForm,
-             schema=RegistrationFormSchema,
-             summary='Details of one registration form of an event', tag='Registrations'),
-    Endpoint(rule='/events/<int:event_id>/registration-forms/<int:regform_id>/sections', name='regform_sections',
-             rh=RHRegistrationFormSectionList, schema=RegistrationSectionSchema, many=True,
-             summary='List the sections of a registration form, with their fields', tag='Registrations'),
-    Endpoint(rule='/events/<int:event_id>/registration-forms/<int:regform_id>/sections/<int:section_id>',
-             name='regform_section', rh=RHRegistrationFormSection, schema=RegistrationSectionSchema,
-             summary='Details of one section of a registration form', tag='Registrations'),
-    Endpoint(rule='/events/<int:event_id>/registrations', name='registrations', rh=RHRegistrationList,
-             schema=RegistrationSchema, many=True, summary='List the registrations of an event', tag='Registrations'),
-    Endpoint(rule='/events/<int:event_id>/registrations/<int:registration_id>', name='registration', rh=RHRegistration,
-             schema=RegistrationDetailsSchema, summary='Details of one registration, with the answers given',
-             tag='Registrations'),
-    Endpoint(rule='/events/<int:event_id>/registration-tags', name='registration_tags', rh=RHRegistrationTagList,
-             schema=RegistrationTagSchema, many=True, summary='List the tags an event marks its registrations with',
-             tag='Registrations'),
-    Endpoint(rule='/events/<int:event_id>/registration-tags/<int:tag_id>', name='registration_tag',
-             rh=RHRegistrationTag, schema=RegistrationTagSchema,
-             summary='Details of one tag registrations are marked with', tag='Registrations'),
+    Endpoint(
+        rule='/events/<int:event_id>/registration-forms',
+        name='regforms',
+        rh=RHRegistrationFormList,
+        schema=RegistrationFormSchema,
+        many=True,
+        summary='List the registration forms of an event',
+        tag='Registrations',
+    ),
+    Endpoint(
+        rule='/events/<int:event_id>/registration-forms/<int:regform_id>',
+        name='regform',
+        rh=RHRegistrationForm,
+        schema=RegistrationFormSchema,
+        summary='Details of one registration form of an event',
+        tag='Registrations',
+    ),
+    Endpoint(
+        rule='/events/<int:event_id>/registration-forms/<int:regform_id>/sections',
+        name='regform_sections',
+        rh=RHRegistrationFormSectionList,
+        schema=RegistrationSectionSchema,
+        many=True,
+        summary='List the sections of a registration form, with their fields',
+        tag='Registrations',
+    ),
+    Endpoint(
+        rule='/events/<int:event_id>/registration-forms/<int:regform_id>/sections/<int:section_id>',
+        name='regform_section',
+        rh=RHRegistrationFormSection,
+        schema=RegistrationSectionSchema,
+        summary='Details of one section of a registration form',
+        tag='Registrations',
+    ),
+    Endpoint(
+        rule='/events/<int:event_id>/registrations',
+        name='registrations',
+        rh=RHRegistrationList,
+        schema=RegistrationSchema,
+        many=True,
+        summary='List the registrations of an event',
+        tag='Registrations',
+    ),
+    Endpoint(
+        rule='/events/<int:event_id>/registrations/<int:registration_id>',
+        name='registration',
+        rh=RHRegistration,
+        schema=RegistrationDetailsSchema,
+        summary='Details of one registration, with the answers given',
+        tag='Registrations',
+    ),
+    Endpoint(
+        rule='/events/<int:event_id>/registration-tags',
+        name='registration_tags',
+        rh=RHRegistrationTagList,
+        schema=RegistrationTagSchema,
+        many=True,
+        summary='List the tags an event marks its registrations with',
+        tag='Registrations',
+    ),
+    Endpoint(
+        rule='/events/<int:event_id>/registration-tags/<int:tag_id>',
+        name='registration_tag',
+        rh=RHRegistrationTag,
+        schema=RegistrationTagSchema,
+        summary='Details of one tag registrations are marked with',
+        tag='Registrations',
+    ),
 ]

@@ -5,7 +5,6 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-
 from flask import request, session
 from marshmallow import fields
 from werkzeug.exceptions import Forbidden, NotFound
@@ -48,8 +47,19 @@ def _entry_title(entry):
 class TimetableEntrySchema(DescribedFieldsMixin, mm.SQLAlchemyAutoSchema):
     class Meta:
         model = TimetableEntry
-        fields = ('id', 'type', 'event_id', 'parent_id', 'title', 'start_dt', 'end_dt', 'duration',
-                  'session_block_id', 'contribution_id', 'break_')
+        fields = (
+            'id',
+            'type',
+            'event_id',
+            'parent_id',
+            'title',
+            'start_dt',
+            'end_dt',
+            'duration',
+            'session_block_id',
+            'contribution_id',
+            'break_',
+        )
         descriptions = {
             'id': 'Numeric identifier of the timetable entry, unique across the whole instance.',
             'type': 'What the entry holds: `session_block`, `contribution` or `break`.',
@@ -60,11 +70,11 @@ class TimetableEntrySchema(DescribedFieldsMixin, mm.SQLAlchemyAutoSchema):
             'end_dt': 'End of the entry, in UTC.',
             'duration': 'Length of the entry, in seconds.',
             'session_block_id': 'Identifier of the session block scheduled by the entry, or `null` for another '
-                                'type. The block is listed under `/events/{event_id}/sessions`.',
+            'type. The block is listed under `/events/{event_id}/sessions`.',
             'contribution_id': 'Identifier of the contribution scheduled by the entry, or `null` for another type. '
-                               'Its details are available under `/events/{event_id}/contributions/{id}`.',
+            'Its details are available under `/events/{event_id}/contributions/{id}`.',
             'break_': 'Break scheduled by the entry, or `null` for another type. Breaks exist only in the '
-                      'timetable, so they have no endpoint of their own.',
+            'timetable, so they have no endpoint of their own.',
         }
 
     type = fields.Function(lambda entry: entry.type.name.lower())
@@ -84,13 +94,14 @@ class TimetableMixin:
     """
 
     def _contributions_published(self):
-        return (contribution_settings.get(self.event, 'published') or
-                self.event.can_manage(session.user, permission='contributions') or
-                has_contributions_with_user_as_submitter(self.event, session.user))
+        return (
+            contribution_settings.get(self.event, 'published')
+            or self.event.can_manage(session.user, permission='contributions')
+            or has_contributions_with_user_as_submitter(self.event, session.user)
+        )
 
     def _entry_query(self):
-        return (TimetableEntry.query.with_parent(self.event)
-                .order_by(TimetableEntry.start_dt, TimetableEntry.id))
+        return TimetableEntry.query.with_parent(self.event).order_by(TimetableEntry.start_dt, TimetableEntry.id)
 
     def _is_visible(self, entry):
         if entry.type == TimetableEntryType.CONTRIBUTION and not self._contributions_published():
@@ -127,8 +138,21 @@ class RHTimetable(TimetableMixin, RHListBase, RHProtectedEventBase):
 
 
 ENDPOINTS = [
-    Endpoint(rule='/events/<int:event_id>/timetable', name='timetable', rh=RHTimetable, schema=TimetableEntrySchema,
-             many=True, summary='List the timetable entries of an event', tag='Timetable'),
-    Endpoint(rule='/events/<int:event_id>/timetable/<int:entry_id>', name='timetable_entry', rh=RHTimetableEntry,
-             schema=TimetableEntrySchema, summary='Details of one timetable entry of an event', tag='Timetable'),
+    Endpoint(
+        rule='/events/<int:event_id>/timetable',
+        name='timetable',
+        rh=RHTimetable,
+        schema=TimetableEntrySchema,
+        many=True,
+        summary='List the timetable entries of an event',
+        tag='Timetable',
+    ),
+    Endpoint(
+        rule='/events/<int:event_id>/timetable/<int:entry_id>',
+        name='timetable_entry',
+        rh=RHTimetableEntry,
+        schema=TimetableEntrySchema,
+        summary='Details of one timetable entry of an event',
+        tag='Timetable',
+    ),
 ]

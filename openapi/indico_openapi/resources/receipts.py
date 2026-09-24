@@ -5,7 +5,6 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-
 from flask import request, session
 from marshmallow import fields, post_dump
 from werkzeug.exceptions import Forbidden, NotFound
@@ -42,19 +41,19 @@ class DocumentTemplateSchema(DescribedFieldsMixin, ReceiptTemplateDBSchema):
             'id': 'Numeric identifier of the template, unique across the whole instance.',
             'title': 'Title of the template.',
             'custom_fields': 'Values the template asks for before it can be rendered, in the order it declares '
-                             'them. Each one carries a `name`, a `type` of `input`, `textarea`, `checkbox`, '
-                             '`dropdown` or `image`, the `attributes` that type takes, and the `validations` it '
-                             'applies. The defaults the event set are already applied.',
+            'them. Each one carries a `name`, a `type` of `input`, `textarea`, `checkbox`, '
+            '`dropdown` or `image`, the `attributes` that type takes, and the `validations` it '
+            'applies. The defaults the event set are already applied.',
             'default_filename': 'Name the generated file gets, without extension, or an empty string when the '
-                                'template sets none. The override the event set is already applied.',
+            'template sets none. The override the event set is already applied.',
         }
 
     @post_dump
     def _apply_event_defaults(self, data, **kwargs):
         event = self.context['event']
-        if defaults := receipt_defaults.get(event, f"custom_fields:{data['id']}"):
+        if defaults := receipt_defaults.get(event, f'custom_fields:{data["id"]}'):
             RHAllEventTemplates._apply_event_defaults(self, data, defaults)
-        if filename := receipt_defaults.get(event, f"filename:{data['id']}"):
+        if filename := receipt_defaults.get(event, f'filename:{data["id"]}'):
             data['default_filename'] = filename
         return data
 
@@ -71,8 +70,17 @@ class DocumentSchema(DescribedFieldsMixin, mm.SQLAlchemyAutoSchema):
 
     class Meta:
         model = ReceiptFile
-        fields = ('id', 'registration_id', 'template_id', 'filename', 'content_type', 'size', 'created_dt',
-                  'is_published', 'download_url')
+        fields = (
+            'id',
+            'registration_id',
+            'template_id',
+            'filename',
+            'content_type',
+            'size',
+            'created_dt',
+            'is_published',
+            'download_url',
+        )
         descriptions = {
             'id': 'Numeric identifier of the document, unique across the whole instance.',
             'registration_id': 'Identifier of the registration the document was generated for.',
@@ -82,9 +90,9 @@ class DocumentSchema(DescribedFieldsMixin, mm.SQLAlchemyAutoSchema):
             'size': 'Size of the document in bytes.',
             'created_dt': 'Moment the document was generated, in UTC.',
             'is_published': 'Whether the registrant can see the document. An unpublished one is only listed '
-                            'for managers.',
+            'for managers.',
             'download_url': 'Absolute URL the document is downloaded from. A manager gets the management URL, '
-                            'a registrant the one their own registration page uses.',
+            'a registrant the one their own registration page uses.',
         }
 
     id = fields.Integer(attribute='file_id')
@@ -153,13 +161,18 @@ class DocumentMixin:
     def _process_args(self):
         RHProtectedEventBase._process_args(self)
         self.can_manage = self.event.can_manage(session.user, permission='registration')
-        self.registration = (Registration.query.with_parent(self.event)
-                             .filter(Registration.id == request.view_args['registration_id'],
-                                     ~Registration.is_deleted,
-                                     RegistrationForm.query
-                                     .filter(RegistrationForm.id == Registration.registration_form_id,
-                                             ~RegistrationForm.is_deleted).exists())
-                             .first_or_404())
+        self.registration = (
+            Registration.query
+            .with_parent(self.event)
+            .filter(
+                Registration.id == request.view_args['registration_id'],
+                ~Registration.is_deleted,
+                RegistrationForm.query.filter(
+                    RegistrationForm.id == Registration.registration_form_id, ~RegistrationForm.is_deleted
+                ).exists(),
+            )
+            .first_or_404()
+        )
 
     def _check_access(self):
         RHProtectedEventBase._check_access(self)
@@ -167,10 +180,12 @@ class DocumentMixin:
             raise Forbidden
 
     def _document_query(self):
-        query = (ReceiptFile.query
-                 .filter(ReceiptFile.registration == self.registration, ~ReceiptFile.is_deleted)
-                 .join(ReceiptFile.file)
-                 .order_by(File.filename, ReceiptFile.file_id))
+        query = (
+            ReceiptFile.query
+            .filter(ReceiptFile.registration == self.registration, ~ReceiptFile.is_deleted)
+            .join(ReceiptFile.file)
+            .order_by(File.filename, ReceiptFile.file_id)
+        )
         if not self.can_manage:
             query = query.filter(ReceiptFile.is_published)
         return query
@@ -183,8 +198,9 @@ class DocumentMixin:
 class RHDocument(DocumentMixin, RHProtectedEventBase):
     def _process_args(self):
         DocumentMixin._process_args(self)
-        self.document = (self._document_query()
-                         .filter(ReceiptFile.file_id == request.view_args['file_id']).first_or_404())
+        self.document = (
+            self._document_query().filter(ReceiptFile.file_id == request.view_args['file_id']).first_or_404()
+        )
 
     def _process_GET(self):
         return self._document_schema().jsonify(self.document)
@@ -205,16 +221,38 @@ class RHDocumentList(DocumentMixin, RHListBase, RHProtectedEventBase):
 
 
 ENDPOINTS = [
-    Endpoint(rule='/events/<int:event_id>/document-templates', name='document_templates', rh=RHDocumentTemplateList,
-             schema=DocumentTemplateSchema, many=True,
-             summary='List the document templates available to an event', tag='Documents'),
-    Endpoint(rule='/events/<int:event_id>/document-templates/<int:template_id>', name='document_template',
-             rh=RHDocumentTemplate, schema=DocumentTemplateSchema,
-             summary='Details of one document template of an event', tag='Documents'),
-    Endpoint(rule='/events/<int:event_id>/registrations/<int:registration_id>/documents', name='documents',
-             rh=RHDocumentList, schema=DocumentSchema, many=True,
-             summary='List the documents generated for a registration', tag='Documents'),
-    Endpoint(rule='/events/<int:event_id>/registrations/<int:registration_id>/documents/<int:file_id>',
-             name='document', rh=RHDocument, schema=DocumentSchema,
-             summary='Details of one document generated for a registration', tag='Documents'),
+    Endpoint(
+        rule='/events/<int:event_id>/document-templates',
+        name='document_templates',
+        rh=RHDocumentTemplateList,
+        schema=DocumentTemplateSchema,
+        many=True,
+        summary='List the document templates available to an event',
+        tag='Documents',
+    ),
+    Endpoint(
+        rule='/events/<int:event_id>/document-templates/<int:template_id>',
+        name='document_template',
+        rh=RHDocumentTemplate,
+        schema=DocumentTemplateSchema,
+        summary='Details of one document template of an event',
+        tag='Documents',
+    ),
+    Endpoint(
+        rule='/events/<int:event_id>/registrations/<int:registration_id>/documents',
+        name='documents',
+        rh=RHDocumentList,
+        schema=DocumentSchema,
+        many=True,
+        summary='List the documents generated for a registration',
+        tag='Documents',
+    ),
+    Endpoint(
+        rule='/events/<int:event_id>/registrations/<int:registration_id>/documents/<int:file_id>',
+        name='document',
+        rh=RHDocument,
+        schema=DocumentSchema,
+        summary='Details of one document generated for a registration',
+        tag='Documents',
+    ),
 ]

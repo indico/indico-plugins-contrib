@@ -90,8 +90,13 @@ TARGETS = (
     ('categories.categories', 'id IN :categories'),
     # a break hangs off its timetable entry and nothing else, so it only becomes
     # reachable once the entry is gone
-    ('events.breaks', ('id IN (SELECT b.id FROM events.breaks b WHERE NOT EXISTS '
-                       '(SELECT 1 FROM events.timetable_entries t WHERE t.break_id = b.id))')),
+    (
+        'events.breaks',
+        (
+            'id IN (SELECT b.id FROM events.breaks b WHERE NOT EXISTS '
+            '(SELECT 1 FROM events.timetable_entries t WHERE t.break_id = b.id))'
+        ),
+    ),
     ('events.series', 'id IN :series'),
     ('events.vc_rooms', 'id IN :vc_rooms'),
     ('indico.files', 'id IN :files'),
@@ -156,8 +161,9 @@ def purge(keys, table, where, params, stack=()):
 
 def main():
     categories = db.session.execute(text(CATEGORY_TREE), {'title': CATEGORY_TITLE}).scalars().all()
-    users = db.session.execute(text(DEMO_USERS),
-                               {'emails': EMAIL_PATTERN, 'identities': IDENTITY_PATTERN}).scalars().all()
+    users = (
+        db.session.execute(text(DEMO_USERS), {'emails': EMAIL_PATTERN, 'identities': IDENTITY_PATTERN}).scalars().all()
+    )
     params = {'categories': categories, 'locations': list(LOCATION_NAMES), 'users': users, 'groups': GROUP_PATTERN}
     for name, statement in (('series', SERIES), ('vc_rooms', VC_ROOMS), ('files', FILES), ('photos', PHOTOS)):
         params[name] = run(statement, params).scalars().all()

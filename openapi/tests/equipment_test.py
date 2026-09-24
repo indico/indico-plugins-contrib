@@ -38,13 +38,15 @@ def dummy_equipment_type(db, create_equipment_type, dummy_room_feature):
 def test_equipment_type_details(dummy_equipment_type, dummy_room_feature, token_headers, test_client):
     resp = test_client.get(f'/api/v1/equipment-types/{dummy_equipment_type.id}', headers=token_headers)
     assert resp.status_code == 200
-    assert resp.json == {'id': dummy_equipment_type.id, 'name': 'Webcam', 'used': False,
-                         'features': [{'id': dummy_room_feature.id, 'name': 'vc', 'title': 'Videoconference',
-                                       'icon': 'videocam'}]}
+    assert resp.json == {
+        'id': dummy_equipment_type.id,
+        'name': 'Webcam',
+        'used': False,
+        'features': [{'id': dummy_room_feature.id, 'name': 'vc', 'title': 'Videoconference', 'icon': 'videocam'}],
+    }
 
 
-def test_equipment_type_list_is_sorted_by_name(dummy_equipment_type, create_equipment_type, token_headers,
-                                               test_client):
+def test_equipment_type_list_is_sorted_by_name(dummy_equipment_type, create_equipment_type, token_headers, test_client):
     other = create_equipment_type('Blackboard')
     resp = test_client.get('/api/v1/equipment-types', headers=token_headers)
     assert resp.status_code == 200
@@ -73,24 +75,27 @@ def test_room_feature_list_is_sorted_by_title(dummy_room_feature, create_room_fe
     assert [feature['id'] for feature in resp.json['results']] == [other.id, dummy_room_feature.id]
 
 
-def test_equipment_requires_booking_access(dummy_equipment_type, dummy_room_feature, dummy_user, outsider_headers,
-                                           test_client):
+def test_equipment_requires_booking_access(
+    dummy_equipment_type, dummy_room_feature, dummy_user, outsider_headers, test_client
+):
     rb_settings.acls.add_principal('authorized_principals', dummy_user)
     assert test_client.get('/api/v1/equipment-types', headers=outsider_headers).status_code == 403
     assert test_client.get('/api/v1/room-features', headers=outsider_headers).status_code == 403
     resp = test_client.get(f'/api/v1/equipment-types/{dummy_equipment_type.id}', headers=outsider_headers)
     assert resp.status_code == 403
     assert 'error' in resp.json
-    assert test_client.get(f'/api/v1/room-features/{dummy_room_feature.id}',
-                           headers=outsider_headers).status_code == 403
+    assert (
+        test_client.get(f'/api/v1/room-features/{dummy_room_feature.id}', headers=outsider_headers).status_code == 403
+    )
 
 
 EQUIPMENT_TYPE_FIELDS = ('id', 'name', 'used', 'features')
 ROOM_FEATURE_FIELDS = ('id', 'name', 'title', 'icon')
 
 
-def test_equipment_type_list_matches_current_api(db, dummy_equipment_type, create_equipment_type, dummy_room,
-                                                 token_headers, test_client, indico_api, same_json_list):
+def test_equipment_type_list_matches_current_api(
+    db, dummy_equipment_type, create_equipment_type, dummy_room, token_headers, test_client, indico_api, same_json_list
+):
     create_equipment_type('Blackboard')
     dummy_room.available_equipment.append(dummy_equipment_type)
     db.session.flush()
@@ -99,8 +104,9 @@ def test_equipment_type_list_matches_current_api(db, dummy_equipment_type, creat
     same_json_list(new['results'], current, same=EQUIPMENT_TYPE_FIELDS)
 
 
-def test_room_feature_list_matches_current_api(dummy_room_feature, create_room_feature, admin_headers, test_client,
-                                               indico_api, same_json_list):
+def test_room_feature_list_matches_current_api(
+    dummy_room_feature, create_room_feature, admin_headers, test_client, indico_api, same_json_list
+):
     create_room_feature('blackboard', 'Blackboard')
     # the interface only lists the features in the administration area, while every user of the room booking
     # system already gets them next to the equipment they belong to

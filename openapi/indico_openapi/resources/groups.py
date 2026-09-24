@@ -5,7 +5,6 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-
 from operator import itemgetter
 
 from flask import request
@@ -66,9 +65,7 @@ class GroupMixin:
             raise Forbidden('Local groups are disabled.')
 
     def _group_query(self):
-        return (LocalGroup.query
-                .options(joinedload(LocalGroup.members))
-                .order_by(db.func.lower(LocalGroup.name)))
+        return LocalGroup.query.options(joinedload(LocalGroup.members)).order_by(db.func.lower(LocalGroup.name))
 
 
 @json_errors
@@ -92,8 +89,21 @@ class RHLocalGroupList(GroupMixin, RHListBase, RHAdminBase):
 
 
 ENDPOINTS = [
-    Endpoint(rule='/groups', name='groups', rh=RHLocalGroupList, schema=LocalGroupSchema, many=True,
-             summary='List the groups defined in Indico itself', tag='Groups'),
-    Endpoint(rule='/groups/<int:group_id>', name='group', rh=RHLocalGroup, schema=LocalGroupSchema,
-             summary='Details of one group defined in Indico itself', tag='Groups'),
+    Endpoint(
+        rule='/groups',
+        name='groups',
+        rh=RHLocalGroupList,
+        schema=LocalGroupSchema,
+        many=True,
+        summary='List the groups defined in Indico itself',
+        tag='Groups',
+    ),
+    Endpoint(
+        rule='/groups/<int:group_id>',
+        name='group',
+        rh=RHLocalGroup,
+        schema=LocalGroupSchema,
+        summary='Details of one group defined in Indico itself',
+        tag='Groups',
+    ),
 ]

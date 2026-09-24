@@ -29,8 +29,12 @@ def dummy_event_label(create_event_label):
 def test_event_label_details(dummy_event_label, token_headers, test_client):
     resp = test_client.get(f'/api/v1/event-labels/{dummy_event_label.id}', headers=token_headers)
     assert resp.status_code == 200
-    assert resp.json == {'id': dummy_event_label.id, 'title': 'Cancelled', 'color': 'red',
-                         'is_event_not_happening': True}
+    assert resp.json == {
+        'id': dummy_event_label.id,
+        'title': 'Cancelled',
+        'color': 'red',
+        'is_event_not_happening': True,
+    }
 
 
 def test_event_label_list_is_sorted_by_title(dummy_event_label, create_event_label, token_headers, test_client):
@@ -43,12 +47,12 @@ def test_event_label_list_is_sorted_by_title(dummy_event_label, create_event_lab
 def test_event_labels_are_served_to_any_caller(dummy_event_label, outsider_headers, test_client):
     # a label is published on the page of every event carrying it
     assert test_client.get('/api/v1/event-labels', headers=outsider_headers).json['count'] == 1
-    assert test_client.get(f'/api/v1/event-labels/{dummy_event_label.id}',
-                           headers=outsider_headers).status_code == 200
+    assert test_client.get(f'/api/v1/event-labels/{dummy_event_label.id}', headers=outsider_headers).status_code == 200
 
 
-def test_event_label_matches_the_one_carried_by_an_event(db, dummy_event, dummy_event_label, token_headers,
-                                                         test_client):
+def test_event_label_matches_the_one_carried_by_an_event(
+    db, dummy_event, dummy_event_label, token_headers, test_client
+):
     dummy_event.label = dummy_event_label
     dummy_event.label_message = 'The event was called off'
     db.session.flush()

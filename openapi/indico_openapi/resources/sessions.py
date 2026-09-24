@@ -5,7 +5,6 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-
 from flask import request, session
 from marshmallow import fields
 from werkzeug.exceptions import Forbidden
@@ -33,8 +32,21 @@ class BlockSchema(DescribedFieldsMixin, SessionBlockSchema):
 
 class SessionSchema(DescribedFieldsMixin, BasicSessionSchema):
     class Meta(BasicSessionSchema.Meta):
-        fields = ('id', 'title', 'friendly_id', 'code', 'description', 'type', 'is_poster', 'text_color',
-                  'background_color', 'venue_name', 'room_name', 'address', 'blocks')
+        fields = (
+            'id',
+            'title',
+            'friendly_id',
+            'code',
+            'description',
+            'type',
+            'is_poster',
+            'text_color',
+            'background_color',
+            'venue_name',
+            'room_name',
+            'address',
+            'blocks',
+        )
         descriptions = {
             'id': 'Numeric identifier of the session, unique across the whole instance.',
             'title': 'Title of the session.',
@@ -62,9 +74,12 @@ class SessionSchema(DescribedFieldsMixin, BasicSessionSchema):
 class RHSession(RHProtectedEventBase):
     def _process_args(self):
         RHProtectedEventBase._process_args(self)
-        self.sess = (Session.query.with_parent(self.event)
-                     .filter_by(id=request.view_args['session_id'], is_deleted=False)
-                     .first_or_404())
+        self.sess = (
+            Session.query
+            .with_parent(self.event)
+            .filter_by(id=request.view_args['session_id'], is_deleted=False)
+            .first_or_404()
+        )
 
     def _check_access(self):
         RHProtectedEventBase._check_access(self)
@@ -80,14 +95,25 @@ class RHSessionList(RHListBase, RHProtectedEventBase):
     schema = SessionSchema
 
     def _query(self):
-        return (Session.query.with_parent(self.event)
-                .filter(~Session.is_deleted)
-                .order_by(Session.friendly_id))
+        return Session.query.with_parent(self.event).filter(~Session.is_deleted).order_by(Session.friendly_id)
 
 
 ENDPOINTS = [
-    Endpoint(rule='/events/<int:event_id>/sessions', name='sessions', rh=RHSessionList, schema=SessionSchema,
-             many=True, summary='List the sessions of an event', tag='Sessions'),
-    Endpoint(rule='/events/<int:event_id>/sessions/<int:session_id>', name='session', rh=RHSession,
-             schema=SessionSchema, summary='Details of one session of an event', tag='Sessions'),
+    Endpoint(
+        rule='/events/<int:event_id>/sessions',
+        name='sessions',
+        rh=RHSessionList,
+        schema=SessionSchema,
+        many=True,
+        summary='List the sessions of an event',
+        tag='Sessions',
+    ),
+    Endpoint(
+        rule='/events/<int:event_id>/sessions/<int:session_id>',
+        name='session',
+        rh=RHSession,
+        schema=SessionSchema,
+        summary='Details of one session of an event',
+        tag='Sessions',
+    ),
 ]

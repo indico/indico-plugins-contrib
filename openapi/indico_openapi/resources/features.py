@@ -5,7 +5,6 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-
 from marshmallow import fields
 
 from indico.core.marshmallow import mm
@@ -40,8 +39,12 @@ class EventFeatureSchema(DescribedFieldsMixin, mm.Schema):
 
 
 def _feature_data(feature, enabled):
-    return {'name': feature.name, 'title': feature.friendly_name, 'description': feature.description,
-            'enabled': feature.name in enabled}
+    return {
+        'name': feature.name,
+        'title': feature.friendly_name,
+        'description': feature.description,
+        'enabled': feature.name in enabled,
+    }
 
 
 @json_errors
@@ -49,13 +52,22 @@ class RHEventFeatures(RHManageEventBase):
     def _process_GET(self):
         disallowed = get_disallowed_features(self.event)
         enabled = get_enabled_features(self.event)
-        features = [_feature_data(feature, enabled)
-                    for feature in sorted(get_feature_definitions().values(), key=lambda f: str(f.friendly_name))
-                    if feature.name not in disallowed]
+        features = [
+            _feature_data(feature, enabled)
+            for feature in sorted(get_feature_definitions().values(), key=lambda f: str(f.friendly_name))
+            if feature.name not in disallowed
+        ]
         return jsonify_results(EventFeatureSchema(many=True), features)
 
 
 ENDPOINTS = [
-    Endpoint(rule='/events/<int:event_id>/features', name='features', rh=RHEventFeatures, schema=EventFeatureSchema,
-             many=True, summary='List the features available to an event', tag='Features'),
+    Endpoint(
+        rule='/events/<int:event_id>/features',
+        name='features',
+        rh=RHEventFeatures,
+        schema=EventFeatureSchema,
+        many=True,
+        summary='List the features available to an event',
+        tag='Features',
+    ),
 ]

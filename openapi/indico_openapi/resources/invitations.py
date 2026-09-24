@@ -27,13 +27,24 @@ class RegistrationInvitationSchema(DescribedFieldsMixin, mm.SQLAlchemyAutoSchema
 
     class Meta:
         model = RegistrationInvitation
-        fields = ('id', 'registration_form_id', 'registration_id', 'state', 'first_name', 'last_name', 'email',
-                  'affiliation', 'skip_moderation', 'skip_access_check', 'lock_email')
+        fields = (
+            'id',
+            'registration_form_id',
+            'registration_id',
+            'state',
+            'first_name',
+            'last_name',
+            'email',
+            'affiliation',
+            'skip_moderation',
+            'skip_access_check',
+            'lock_email',
+        )
         descriptions = {
             'id': 'Numeric identifier of the invitation, unique across the whole instance.',
             'registration_form_id': 'Identifier of the form the invitee was asked to fill in.',
             'registration_id': 'Identifier of the registration made through the invitation, or `null` until the '
-                               'invitee accepts.',
+            'invitee accepts.',
             'state': 'Whether the invitee has answered: `pending`, `accepted` or `declined`.',
             'first_name': 'First name of the invitee.',
             'last_name': 'Last name of the invitee.',
@@ -48,8 +59,9 @@ class RegistrationInvitationSchema(DescribedFieldsMixin, mm.SQLAlchemyAutoSchema
 
 
 class InvitationListArgs(ListArgs):
-    state = fields.Enum(InvitationState, load_default=None,
-                        metadata={'description': 'Only list the invitations in this state.'})
+    state = fields.Enum(
+        InvitationState, load_default=None, metadata={'description': 'Only list the invitations in this state.'}
+    )
 
 
 class InvitationMixin:
@@ -66,23 +78,31 @@ class InvitationMixin:
 
     def _process_args(self):
         RHManageEventBase._process_args(self)
-        self.regform = (RegistrationForm.query.with_parent(self.event)
-                        .filter(RegistrationForm.id == request.view_args['regform_id'], ~RegistrationForm.is_deleted)
-                        .first_or_404())
+        self.regform = (
+            RegistrationForm.query
+            .with_parent(self.event)
+            .filter(RegistrationForm.id == request.view_args['regform_id'], ~RegistrationForm.is_deleted)
+            .first_or_404()
+        )
 
     def _invitation_query(self):
-        return (RegistrationInvitation.query.with_parent(self.regform)
-                .order_by(db.func.lower(RegistrationInvitation.first_name),
-                          db.func.lower(RegistrationInvitation.last_name),
-                          RegistrationInvitation.id))
+        return RegistrationInvitation.query.with_parent(self.regform).order_by(
+            db.func.lower(RegistrationInvitation.first_name),
+            db.func.lower(RegistrationInvitation.last_name),
+            RegistrationInvitation.id,
+        )
 
 
 @json_errors
 class RHRegistrationInvitation(InvitationMixin, RHManageEventBase):
     def _process_args(self):
         InvitationMixin._process_args(self)
-        self.invitation = (self._invitation_query()
-                           .filter(RegistrationInvitation.id == request.view_args['invitation_id']).first_or_404())
+        self.invitation = (
+            self
+            ._invitation_query()
+            .filter(RegistrationInvitation.id == request.view_args['invitation_id'])
+            .first_or_404()
+        )
 
     def _process_GET(self):
         return RegistrationInvitationSchema().jsonify(self.invitation)
@@ -104,10 +124,21 @@ class RHRegistrationInvitationList(InvitationMixin, RHListBase, RHManageEventBas
 
 
 ENDPOINTS = [
-    Endpoint(rule='/events/<int:event_id>/registration-forms/<int:regform_id>/invitations', name='invitations',
-             rh=RHRegistrationInvitationList, schema=RegistrationInvitationSchema, many=True,
-             summary='List the invitations to register through a form', tag='Registrations'),
-    Endpoint(rule='/events/<int:event_id>/registration-forms/<int:regform_id>/invitations/<int:invitation_id>',
-             name='invitation', rh=RHRegistrationInvitation, schema=RegistrationInvitationSchema,
-             summary='Details of one invitation to register through a form', tag='Registrations'),
+    Endpoint(
+        rule='/events/<int:event_id>/registration-forms/<int:regform_id>/invitations',
+        name='invitations',
+        rh=RHRegistrationInvitationList,
+        schema=RegistrationInvitationSchema,
+        many=True,
+        summary='List the invitations to register through a form',
+        tag='Registrations',
+    ),
+    Endpoint(
+        rule='/events/<int:event_id>/registration-forms/<int:regform_id>/invitations/<int:invitation_id>',
+        name='invitation',
+        rh=RHRegistrationInvitation,
+        schema=RegistrationInvitationSchema,
+        summary='Details of one invitation to register through a form',
+        tag='Registrations',
+    ),
 ]

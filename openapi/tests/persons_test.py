@@ -5,7 +5,6 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-
 import pytest
 
 from indico.core.db.sqlalchemy.protection import ProtectionMode
@@ -51,18 +50,20 @@ def test_person_details(dummy_event, dummy_event_person, event_chair, token_head
 
 
 @pytest.mark.usefixtures('event_chair')
-def test_person_list(dummy_event, dummy_event_person, contribution_author, block_convener, token_headers,
-                     test_client):
+def test_person_list(dummy_event, dummy_event_person, contribution_author, block_convener, token_headers, test_client):
     resp = test_client.get(f'/api/v1/events/{dummy_event.id}/persons', headers=token_headers)
     assert resp.status_code == 200
     roles = {p['id']: p['roles'] for p in resp.json['results']}
-    assert roles == {dummy_event_person.id: ['chairperson'],
-                     contribution_author.id: ['author'],
-                     block_convener.id: ['convener']}
+    assert roles == {
+        dummy_event_person.id: ['chairperson'],
+        contribution_author.id: ['author'],
+        block_convener.id: ['convener'],
+    }
 
 
-def test_person_roles_add_up(db, dummy_event, dummy_event_person, event_chair, dummy_contribution, token_headers,
-                             test_client):
+def test_person_roles_add_up(
+    db, dummy_event, dummy_event_person, event_chair, dummy_contribution, token_headers, test_client
+):
     dummy_contribution.person_links.append(ContributionPersonLink(person=dummy_event_person, is_speaker=True))
     db.session.flush()
     resp = test_client.get(f'/api/v1/events/{dummy_event.id}/persons/{dummy_event_person.id}', headers=token_headers)
@@ -93,8 +94,9 @@ def test_person_without_visible_role_is_not_listed(dummy_event, dummy_event_pers
     assert resp.status_code == 403
 
 
-def test_person_of_protected_session_is_hidden(db, dummy_event, dummy_session, dummy_session_block, block_convener,
-                                               outsider_headers, test_client):
+def test_person_of_protected_session_is_hidden(
+    db, dummy_event, dummy_session, dummy_session_block, block_convener, outsider_headers, test_client
+):
     dummy_session.protection_mode = ProtectionMode.protected
     db.session.flush()
     resp = test_client.get(f'/api/v1/events/{dummy_event.id}/persons', headers=outsider_headers)
@@ -140,17 +142,28 @@ def current_people(dummy_event, indico_api):
 
 
 @pytest.mark.usefixtures('event_chair', 'event_manager')
-def test_person_matches_current_api(dummy_event, dummy_event_person, current_people, token_headers, test_client,
-                                    same_json):
-    new = test_client.get(f'/api/v1/events/{dummy_event.id}/persons/{dummy_event_person.id}',
-                          headers=token_headers).json
-    same_json(new, current_people[dummy_event_person.id], same=(*PERSON_FIELDS, 'roles'),
-              renamed={'id': ('person_id', None), 'email_hash': ('emailHash', None)})
+def test_person_matches_current_api(
+    dummy_event, dummy_event_person, current_people, token_headers, test_client, same_json
+):
+    new = test_client.get(
+        f'/api/v1/events/{dummy_event.id}/persons/{dummy_event_person.id}', headers=token_headers
+    ).json
+    same_json(
+        new,
+        current_people[dummy_event_person.id],
+        same=(*PERSON_FIELDS, 'roles'),
+        renamed={'id': ('person_id', None), 'email_hash': ('emailHash', None)},
+    )
 
 
 @pytest.mark.usefixtures('event_chair', 'event_manager')
-def test_person_list_matches_current_api(dummy_event, contribution_author, block_convener, current_people,
-                                         token_headers, test_client, same_json_list):
+def test_person_list_matches_current_api(
+    dummy_event, contribution_author, block_convener, current_people, token_headers, test_client, same_json_list
+):
     new = test_client.get(f'/api/v1/events/{dummy_event.id}/persons', headers=token_headers).json['results']
-    same_json_list(new, list(current_people.values()), same=(*PERSON_FIELDS, 'roles'),
-                   renamed={'id': ('person_id', None), 'email_hash': ('emailHash', None)})
+    same_json_list(
+        new,
+        list(current_people.values()),
+        same=(*PERSON_FIELDS, 'roles'),
+        renamed={'id': ('person_id', None), 'email_hash': ('emailHash', None)},
+    )

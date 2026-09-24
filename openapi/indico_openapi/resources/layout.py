@@ -5,7 +5,6 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-
 from flask import request, session
 from marshmallow import fields
 from werkzeug.exceptions import Forbidden
@@ -24,9 +23,20 @@ from indico.web.rh import json_errors
 from indico_openapi.resources.base import DescribedFieldsMixin, Endpoint, RHListBase, jsonify_results
 
 
-SETTING_FIELDS = ('is_searchable', 'show_nav_bar', 'show_social_badges', 'show_banner', 'header_logo_as_banner',
-                  'header_text_color', 'header_background_color', 'name_format', 'timetable_theme_settings',
-                  'timetable_by_room', 'timetable_detailed', 'show_vc_rooms')
+SETTING_FIELDS = (
+    'is_searchable',
+    'show_nav_bar',
+    'show_social_badges',
+    'show_banner',
+    'header_logo_as_banner',
+    'header_text_color',
+    'header_background_color',
+    'name_format',
+    'timetable_theme_settings',
+    'timetable_by_room',
+    'timetable_detailed',
+    'show_vc_rooms',
+)
 
 
 def _layout_data(event):
@@ -68,13 +78,13 @@ class EventLayoutSchema(DescribedFieldsMixin, mm.Schema):
         descriptions = {
             'event_id': 'Identifier of the event the settings belong to.',
             'theme': 'Identifier of the conference theme the event uses, or `null` when it uses the default look. '
-                     'A theme coming from a plugin is prefixed with the plugin name, such as `mytheme:dark`.',
+            'A theme coming from a plugin is prefixed with the plugin name, such as `mytheme:dark`.',
             'css_url': 'URL of the stylesheet the event page loads, relative to the Indico instance, or `null` '
-                       'when the event adds no stylesheet of its own.',
+            'when the event adds no stylesheet of its own.',
             'js_url': 'URL of the script the conference theme loads, relative to the Indico instance, or `null` '
-                      'when the theme has none.',
+            'when the theme has none.',
             'logo_url': 'URL of the logo of the event, relative to the Indico instance, or `null` when the event '
-                        'has no logo.',
+            'has no logo.',
             'announcement': 'Text shown at the top of the event page, or `null` when the event announces nothing.',
             'is_searchable': 'Whether search engines are allowed to index the event.',
             'show_nav_bar': 'Whether the page shows the navigation bar.',
@@ -82,15 +92,15 @@ class EventLayoutSchema(DescribedFieldsMixin, mm.Schema):
             'show_banner': 'Whether the header of the page shows the banner of the event.',
             'header_logo_as_banner': 'Whether the banner is the logo of the event rather than a separate image.',
             'header_text_color': 'Colour of the text in the header, as a hex triplet such as `#ffffff`, or an '
-                                 'empty string when the theme decides.',
+            'empty string when the theme decides.',
             'header_background_color': 'Colour of the background of the header, as a hex triplet such as '
-                                       '`#000000`, or an empty string when the theme decides.',
+            '`#000000`, or an empty string when the theme decides.',
             'name_format': 'How the names of people are rendered: `first_last`, `last_first`, `last_f`, `f_last` '
-                           'or any of those with `_upper` appended, or `null` to follow the instance default.',
+            'or any of those with `_upper` appended, or `null` to follow the instance default.',
             'timetable_theme': 'Identifier of the theme the timetable is rendered with, falling back to the '
-                               'default of this event type.',
+            'default of this event type.',
             'timetable_theme_settings': 'Options of the timetable theme the event overrides, as a mapping of '
-                                        'option name to value.',
+            'option name to value.',
             'timetable_by_room': 'Whether the timetable opens grouped by room instead of by day.',
             'timetable_detailed': 'Whether the timetable opens in its detailed view.',
             'show_vc_rooms': 'Whether the timetable shows the videoconference rooms of the event.',
@@ -130,17 +140,17 @@ class MenuEntrySchema(DescribedFieldsMixin, mm.Schema):
     class Meta:
         descriptions = {
             'id': 'Numeric identifier of the entry, or `null` for an entry Indico builds in memory rather '
-                  'than storing. Only a stored entry can restrict who reads it.',
+            'than storing. Only a stored entry can restrict who reads it.',
             'name': 'Identifier of the entry within the event for the entries Indico defines, such as '
-                    '`timetable`, or `null` for an entry added by the organisers.',
+            '`timetable`, or `null` for an entry added by the organisers.',
             'title': 'Title of the entry, in the language of the caller, or an empty string for a separator.',
             'type': 'What the entry is: `internal_link` for a page of the event, `plugin_link` for a page a '
-                    'plugin adds, `user_link` for a link the organisers typed, `page` for a page they wrote, '
-                    '`separator` for a heading grouping the entries below it.',
+            'plugin adds, `user_link` for a link the organisers typed, `page` for a page they wrote, '
+            '`separator` for a heading grouping the entries below it.',
             'position': 'Position of the entry among its siblings, starting at zero.',
             'new_tab': 'Whether the link is meant to open in a new tab.',
             'url': 'URL the entry points to, relative to the Indico instance, as typed by the organisers for a '
-                   '`user_link`, or `null` for a separator.',
+            '`user_link`, or `null` for a separator.',
             'page_id': 'Identifier of the page the entry shows, or `null` unless the entry is a `page`.',
             'children': 'Entries nested under this one, as a separator and its items.',
         }
@@ -222,10 +232,12 @@ class CustomPageMixin:
     """
 
     def _page_query(self):
-        return (EventPage.query
-                .join(MenuEntry, MenuEntry.page_id == EventPage.id)
-                .filter(EventPage.event_id == self.event.id)
-                .order_by(MenuEntry.position, EventPage.id))
+        return (
+            EventPage.query
+            .join(MenuEntry, MenuEntry.page_id == EventPage.id)
+            .filter(EventPage.event_id == self.event.id)
+            .order_by(MenuEntry.position, EventPage.id)
+        )
 
     def _can_see_page(self, page):
         return page.menu_entry.can_access(session.user)
@@ -293,16 +305,55 @@ class RHImageList(ImageMixin, RHListBase, RHManageEventBase):
 
 
 ENDPOINTS = [
-    Endpoint(rule='/events/<int:event_id>/layout', name='layout', rh=RHEventLayout, schema=EventLayoutSchema,
-             summary='Layout settings of an event', tag='Layout'),
-    Endpoint(rule='/events/<int:event_id>/menu', name='menu', rh=RHEventMenu, schema=MenuEntrySchema, many=True,
-             summary='List the menu entries of an event', tag='Layout'),
-    Endpoint(rule='/events/<int:event_id>/pages', name='pages', rh=RHCustomPageList, schema=CustomPageSchema,
-             many=True, summary='List the custom pages of an event', tag='Layout'),
-    Endpoint(rule='/events/<int:event_id>/pages/<int:page_id>', name='page', rh=RHCustomPage,
-             schema=CustomPageSchema, summary='Details of one custom page of an event', tag='Layout'),
-    Endpoint(rule='/events/<int:event_id>/images', name='images', rh=RHImageList, schema=ImageSchema, many=True,
-             summary='List the images of an event', tag='Layout'),
-    Endpoint(rule='/events/<int:event_id>/images/<int:image_id>', name='image', rh=RHImage, schema=ImageSchema,
-             summary='Details of one image of an event', tag='Layout'),
+    Endpoint(
+        rule='/events/<int:event_id>/layout',
+        name='layout',
+        rh=RHEventLayout,
+        schema=EventLayoutSchema,
+        summary='Layout settings of an event',
+        tag='Layout',
+    ),
+    Endpoint(
+        rule='/events/<int:event_id>/menu',
+        name='menu',
+        rh=RHEventMenu,
+        schema=MenuEntrySchema,
+        many=True,
+        summary='List the menu entries of an event',
+        tag='Layout',
+    ),
+    Endpoint(
+        rule='/events/<int:event_id>/pages',
+        name='pages',
+        rh=RHCustomPageList,
+        schema=CustomPageSchema,
+        many=True,
+        summary='List the custom pages of an event',
+        tag='Layout',
+    ),
+    Endpoint(
+        rule='/events/<int:event_id>/pages/<int:page_id>',
+        name='page',
+        rh=RHCustomPage,
+        schema=CustomPageSchema,
+        summary='Details of one custom page of an event',
+        tag='Layout',
+    ),
+    Endpoint(
+        rule='/events/<int:event_id>/images',
+        name='images',
+        rh=RHImageList,
+        schema=ImageSchema,
+        many=True,
+        summary='List the images of an event',
+        tag='Layout',
+    ),
+    Endpoint(
+        rule='/events/<int:event_id>/images/<int:image_id>',
+        name='image',
+        rh=RHImage,
+        schema=ImageSchema,
+        summary='Details of one image of an event',
+        tag='Layout',
+    ),
 ]

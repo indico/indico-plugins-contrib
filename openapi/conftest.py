@@ -17,14 +17,20 @@ from indico.modules.events.models.references import ReferenceType
 from indico.modules.users.models.affiliations import Affiliation
 
 
-pytest_plugins = ['indico.testing.fixtures.oauth', 'indico.testing.fixtures.contribution',
-                  'indico.testing.fixtures.person', 'indico.testing.fixtures.session',
-                  'indico.testing.fixtures.timetable', 'indico.testing.fixtures.storage',
-                  'indico.testing.fixtures.rb', 'indico.testing.fixtures.abstract',
-                  'indico.testing.fixtures.paper',
-                  'indico.modules.designer.testing.fixtures',
-                  'indico.modules.events.payment.testing.fixtures',
-                  'indico.modules.events.registration.testing.fixtures']
+pytest_plugins = [
+    'indico.testing.fixtures.oauth',
+    'indico.testing.fixtures.contribution',
+    'indico.testing.fixtures.person',
+    'indico.testing.fixtures.session',
+    'indico.testing.fixtures.timetable',
+    'indico.testing.fixtures.storage',
+    'indico.testing.fixtures.rb',
+    'indico.testing.fixtures.abstract',
+    'indico.testing.fixtures.paper',
+    'indico.modules.designer.testing.fixtures',
+    'indico.modules.events.payment.testing.fixtures',
+    'indico.modules.events.registration.testing.fixtures',
+]
 
 SCOPES = ['read:everything', 'read:legacy_api', 'registrants']
 
@@ -37,8 +43,16 @@ def token_headers(dummy_personal_token):
 
 @pytest.fixture
 def dummy_affiliation(db, dummy_user):
-    affiliation = Affiliation(name='ACME', code='ACM', alt_names=['Acme Inc'], street='1 Main street',
-                              postcode='1211', city='Geneva', country_code='CH', meta={'source': 'test'})
+    affiliation = Affiliation(
+        name='ACME',
+        code='ACM',
+        alt_names=['Acme Inc'],
+        street='1 Main street',
+        postcode='1211',
+        city='Geneva',
+        country_code='CH',
+        meta={'source': 'test'},
+    )
     db.session.add(affiliation)
     dummy_user.affiliation_link = affiliation
     dummy_user.affiliation = affiliation.name

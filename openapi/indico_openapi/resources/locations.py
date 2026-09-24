@@ -5,7 +5,6 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-
 from flask import request
 from marshmallow import fields, post_dump
 
@@ -51,17 +50,15 @@ class LocationMixin:
     """
 
     def _location_query(self):
-        return (Location.query
-                .filter(~Location.is_deleted,
-                        Room.query.filter(Room.location_id == Location.id, ~Room.is_deleted).exists())
-                .order_by(Location.name, Location.id))
+        return Location.query.filter(
+            ~Location.is_deleted, Room.query.filter(Room.location_id == Location.id, ~Room.is_deleted).exists()
+        ).order_by(Location.name, Location.id)
 
 
 @json_errors
 class RHLocation(LocationMixin, RHRoomBookingBase):
     def _process_args(self):
-        self.location = (self._location_query()
-                         .filter(Location.id == request.view_args['location_id']).first_or_404())
+        self.location = self._location_query().filter(Location.id == request.view_args['location_id']).first_or_404()
 
     def _process_GET(self):
         return LocationDetailsSchema().jsonify(self.location)
@@ -79,8 +76,21 @@ class RHLocationList(LocationMixin, RHListBase, RHRoomBookingBase):
 
 
 ENDPOINTS = [
-    Endpoint(rule='/locations', name='locations', rh=RHLocationList, schema=LocationSchema, many=True,
-             summary='List the locations rooms belong to', tag='Locations'),
-    Endpoint(rule='/locations/<int:location_id>', name='location', rh=RHLocation, schema=LocationDetailsSchema,
-             summary='Details of one location rooms belong to', tag='Locations'),
+    Endpoint(
+        rule='/locations',
+        name='locations',
+        rh=RHLocationList,
+        schema=LocationSchema,
+        many=True,
+        summary='List the locations rooms belong to',
+        tag='Locations',
+    ),
+    Endpoint(
+        rule='/locations/<int:location_id>',
+        name='location',
+        rh=RHLocation,
+        schema=LocationDetailsSchema,
+        summary='Details of one location rooms belong to',
+        tag='Locations',
+    ),
 ]

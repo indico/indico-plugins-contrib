@@ -24,8 +24,21 @@ class AbstractEmailTemplateSchema(DescribedFieldsMixin, mm.SQLAlchemyAutoSchema)
 
     class Meta:
         model = AbstractEmailTemplate
-        fields = ('id', 'event_id', 'position', 'title', 'subject', 'body', 'reply_to_address', 'extra_cc_emails',
-                  'include_submitter', 'include_authors', 'include_coauthors', 'stop_on_match', 'rules')
+        fields = (
+            'id',
+            'event_id',
+            'position',
+            'title',
+            'subject',
+            'body',
+            'reply_to_address',
+            'extra_cc_emails',
+            'include_submitter',
+            'include_authors',
+            'include_coauthors',
+            'stop_on_match',
+            'rules',
+        )
         descriptions = {
             'id': 'Numeric identifier of the template, unique across the whole instance.',
             'event_id': 'Identifier of the event the template belongs to.',
@@ -40,8 +53,8 @@ class AbstractEmailTemplateSchema(DescribedFieldsMixin, mm.SQLAlchemyAutoSchema)
             'include_coauthors': 'Whether the co-authors are put in copy.',
             'stop_on_match': 'Whether a match stops the templates after this one from being checked.',
             'rules': 'Conditions an abstract has to meet for the email to be sent, as stored: each rule is an '
-                     'object keyed by condition (`state`, `track`, `contribution_type`) whose values are the '
-                     'identifiers that match, and any rule matching is enough.',
+            'object keyed by condition (`state`, `track`, `contribution_type`) whose values are the '
+            'identifiers that match, and any rule matching is enough.',
         }
 
 
@@ -50,16 +63,18 @@ class AbstractEmailTemplateMixin:
     PERMISSION = 'abstracts'
 
     def _template_query(self):
-        return (AbstractEmailTemplate.query.with_parent(self.event)
-                .order_by(AbstractEmailTemplate.position, AbstractEmailTemplate.id))
+        return AbstractEmailTemplate.query.with_parent(self.event).order_by(
+            AbstractEmailTemplate.position, AbstractEmailTemplate.id
+        )
 
 
 @json_errors
 class RHAbstractEmailTemplate(AbstractEmailTemplateMixin, RHManageEventBase):
     def _process_args(self):
         RHManageEventBase._process_args(self)
-        self.template = (self._template_query()
-                         .filter(AbstractEmailTemplate.id == request.view_args['template_id']).first_or_404())
+        self.template = (
+            self._template_query().filter(AbstractEmailTemplate.id == request.view_args['template_id']).first_or_404()
+        )
 
     def _process_GET(self):
         return AbstractEmailTemplateSchema().jsonify(self.template)
@@ -77,10 +92,21 @@ class RHAbstractEmailTemplateList(AbstractEmailTemplateMixin, RHListBase, RHMana
 
 
 ENDPOINTS = [
-    Endpoint(rule='/events/<int:event_id>/abstract-email-templates', name='abstract_email_templates',
-             rh=RHAbstractEmailTemplateList, schema=AbstractEmailTemplateSchema, many=True,
-             summary='List the notification templates of a call for abstracts', tag='Abstracts'),
-    Endpoint(rule='/events/<int:event_id>/abstract-email-templates/<int:template_id>', name='abstract_email_template',
-             rh=RHAbstractEmailTemplate, schema=AbstractEmailTemplateSchema,
-             summary='Details of one notification template of a call for abstracts', tag='Abstracts'),
+    Endpoint(
+        rule='/events/<int:event_id>/abstract-email-templates',
+        name='abstract_email_templates',
+        rh=RHAbstractEmailTemplateList,
+        schema=AbstractEmailTemplateSchema,
+        many=True,
+        summary='List the notification templates of a call for abstracts',
+        tag='Abstracts',
+    ),
+    Endpoint(
+        rule='/events/<int:event_id>/abstract-email-templates/<int:template_id>',
+        name='abstract_email_template',
+        rh=RHAbstractEmailTemplate,
+        schema=AbstractEmailTemplateSchema,
+        summary='Details of one notification template of a call for abstracts',
+        tag='Abstracts',
+    ),
 ]

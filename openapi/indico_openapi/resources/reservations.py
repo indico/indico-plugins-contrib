@@ -5,7 +5,6 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-
 from operator import itemgetter
 
 from flask import request, session
@@ -35,10 +34,28 @@ class ReservationOccurrenceSchema(DescribedFieldsMixin, CoreReservationOccurrenc
 
 class ReservationSchema(DescribedFieldsMixin, CoreReservationSchema):
     class Meta(CoreReservationSchema.Meta):
-        fields = ('id', 'room_id', 'location_name', 'start_dt', 'end_dt', 'created_dt', 'booking_reason',
-                  'booked_for_name', 'contact_email', 'state', 'is_accepted', 'is_pending', 'is_cancelled',
-                  'is_rejected', 'rejection_reason', 'is_repeating', 'repeat_frequency', 'repeat_interval',
-                  'recurrence_weekdays', 'external_details_url')
+        fields = (
+            'id',
+            'room_id',
+            'location_name',
+            'start_dt',
+            'end_dt',
+            'created_dt',
+            'booking_reason',
+            'booked_for_name',
+            'contact_email',
+            'state',
+            'is_accepted',
+            'is_pending',
+            'is_cancelled',
+            'is_rejected',
+            'rejection_reason',
+            'is_repeating',
+            'repeat_frequency',
+            'repeat_interval',
+            'recurrence_weekdays',
+            'external_details_url',
+        )
         descriptions = {
             'id': 'Numeric identifier of the booking, unique across the whole instance.',
             'room_id': 'Identifier of the booked room.',
@@ -48,9 +65,9 @@ class ReservationSchema(DescribedFieldsMixin, CoreReservationSchema):
             'created_dt': 'Moment the booking was made, in the timezone of the Indico instance.',
             'booking_reason': 'Why the room was booked, as entered by the person who booked it.',
             'booked_for_name': 'Full name of the person the room was booked for. `null` when the instance hides '
-                               'booking details from users who are not involved in the booking.',
+            'booking details from users who are not involved in the booking.',
             'contact_email': 'Email address of the person the room was booked for. Hidden under the same rule as '
-                             '`booked_for_name`.',
+            '`booked_for_name`.',
             'state': 'Where the booking stands: `pending`, `accepted`, `cancelled` or `rejected`.',
             'is_accepted': 'Whether the booking has been accepted.',
             'is_pending': 'Whether the booking is still waiting for a manager to accept it.',
@@ -93,14 +110,21 @@ class ReservationDetailsSchema(ReservationSchema):
 
 
 class ReservationListArgs(ListArgs):
-    room_id = fields.Integer(load_default=None,
-                             metadata={'description': 'Only list the bookings of this room.'})
-    start_after = NaiveDateTime(load_default=None,
-                                metadata={'description': 'Only list bookings starting at or after this moment, in '
-                                                         'the timezone of the Indico instance.'})
-    start_before = NaiveDateTime(load_default=None,
-                                 metadata={'description': 'Only list bookings starting at or before this moment, in '
-                                                          'the timezone of the Indico instance.'})
+    room_id = fields.Integer(load_default=None, metadata={'description': 'Only list the bookings of this room.'})
+    start_after = NaiveDateTime(
+        load_default=None,
+        metadata={
+            'description': 'Only list bookings starting at or after this moment, in '
+            'the timezone of the Indico instance.'
+        },
+    )
+    start_before = NaiveDateTime(
+        load_default=None,
+        metadata={
+            'description': 'Only list bookings starting at or before this moment, in '
+            'the timezone of the Indico instance.'
+        },
+    )
 
 
 class ReservationMixin:
@@ -119,8 +143,9 @@ class ReservationMixin:
 @json_errors
 class RHReservation(ReservationMixin, RHRoomBookingBase):
     def _process_args(self):
-        self.reservation = (self._reservation_query()
-                            .filter(Reservation.id == request.view_args['reservation_id']).first_or_404())
+        self.reservation = (
+            self._reservation_query().filter(Reservation.id == request.view_args['reservation_id']).first_or_404()
+        )
 
     def _process_GET(self):
         return ReservationDetailsSchema().jsonify(self.reservation)
@@ -146,8 +171,21 @@ class RHReservationList(ReservationMixin, RHListBase, RHRoomBookingBase):
 
 
 ENDPOINTS = [
-    Endpoint(rule='/reservations', name='reservations', rh=RHReservationList, schema=ReservationSchema, many=True,
-             summary='List the bookings made for rooms', tag='Reservations'),
-    Endpoint(rule='/reservations/<int:reservation_id>', name='reservation', rh=RHReservation,
-             schema=ReservationDetailsSchema, summary='Details of one booking made for a room', tag='Reservations'),
+    Endpoint(
+        rule='/reservations',
+        name='reservations',
+        rh=RHReservationList,
+        schema=ReservationSchema,
+        many=True,
+        summary='List the bookings made for rooms',
+        tag='Reservations',
+    ),
+    Endpoint(
+        rule='/reservations/<int:reservation_id>',
+        name='reservation',
+        rh=RHReservation,
+        schema=ReservationDetailsSchema,
+        summary='Details of one booking made for a room',
+        tag='Reservations',
+    ),
 ]

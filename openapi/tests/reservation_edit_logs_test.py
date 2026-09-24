@@ -28,9 +28,15 @@ def test_edit_log_list(dummy_reservation, create_edit_log, token_headers, test_c
     entry = create_edit_log(['Booking created'])
     resp = test_client.get(f'/api/v1/reservations/{dummy_reservation.id}/edit-logs', headers=token_headers)
     assert resp.status_code == 200
-    assert resp.json['results'] == [{'id': entry.id, 'reservation_id': dummy_reservation.id,
-                                     'timestamp': '2026-09-01T08:00:00+00:00', 'user_name': 'Guinea Pig',
-                                     'info': ['Booking created']}]
+    assert resp.json['results'] == [
+        {
+            'id': entry.id,
+            'reservation_id': dummy_reservation.id,
+            'timestamp': '2026-09-01T08:00:00+00:00',
+            'user_name': 'Guinea Pig',
+            'info': ['Booking created'],
+        }
+    ]
 
 
 def test_edit_logs_are_sorted_oldest_first(dummy_reservation, create_edit_log, token_headers, test_client):
@@ -55,11 +61,16 @@ def test_edit_logs_of_an_unknown_booking_are_not_found(token_headers, test_clien
 EDIT_LOG_FIELDS = ('id', 'timestamp', 'user_name', 'info')
 
 
-def test_edit_log_list_matches_current_api(dummy_reservation, create_edit_log, token_headers, test_client, indico_api,
-                                           same_json_list):
+def test_edit_log_list_matches_current_api(
+    dummy_reservation, create_edit_log, token_headers, test_client, indico_api, same_json_list
+):
     create_edit_log(['Booking created'])
     create_edit_log(['Booking accepted'], timestamp=datetime(2026, 9, 2, 8, 0, tzinfo=UTC))
     current = indico_api(f'/rooms/api/bookings/{dummy_reservation.id}')
     new = test_client.get(f'/api/v1/reservations/{dummy_reservation.id}/edit-logs', headers=token_headers).json
-    same_json_list(new['results'], current['edit_logs'], same=EDIT_LOG_FIELDS,
-                   derived={'reservation_id': lambda _: dummy_reservation.id})
+    same_json_list(
+        new['results'],
+        current['edit_logs'],
+        same=EDIT_LOG_FIELDS,
+        derived={'reservation_id': lambda _: dummy_reservation.id},
+    )

@@ -5,7 +5,6 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-
 from datetime import datetime, timedelta
 
 import pytest
@@ -50,8 +49,9 @@ def test_timetable_entry_details(dummy_event, dummy_contribution, create_timetab
     assert resp.json['title'] == dummy_contribution.title
 
 
-def test_timetable_lists_nested_entries(dummy_event, dummy_session_block, dummy_contribution,
-                                        create_timetable_entry, token_headers, test_client):
+def test_timetable_lists_nested_entries(
+    dummy_event, dummy_session_block, dummy_contribution, create_timetable_entry, token_headers, test_client
+):
     block_entry = dummy_session_block.timetable_entry
     child = create_timetable_entry(dummy_event, dummy_contribution, now_utc(), parent=block_entry)
     dummy_contribution.session = dummy_session_block.session
@@ -65,8 +65,9 @@ def test_timetable_lists_nested_entries(dummy_event, dummy_session_block, dummy_
     assert entries[child.id]['parent_id'] == block_entry.id
 
 
-def test_timetable_hides_protected_entries(db, dummy_event, dummy_session, dummy_session_block, dummy_break,
-                                           outsider_headers, test_client):
+def test_timetable_hides_protected_entries(
+    db, dummy_event, dummy_session, dummy_session_block, dummy_break, outsider_headers, test_client
+):
     dummy_session.protection_mode = ProtectionMode.protected
     db.session.flush()
     resp = test_client.get(f'/api/v1/events/{dummy_event.id}/timetable', headers=outsider_headers)
@@ -74,8 +75,9 @@ def test_timetable_hides_protected_entries(db, dummy_event, dummy_session, dummy
     assert [e['id'] for e in resp.json['results']] == [dummy_break.timetable_entry.id]
 
 
-def test_timetable_entry_denied_without_access(db, dummy_event, dummy_session, dummy_session_block,
-                                               outsider_headers, test_client):
+def test_timetable_entry_denied_without_access(
+    db, dummy_event, dummy_session, dummy_session_block, outsider_headers, test_client
+):
     dummy_session.protection_mode = ProtectionMode.protected
     db.session.flush()
     entry = dummy_session_block.timetable_entry
@@ -84,8 +86,9 @@ def test_timetable_entry_denied_without_access(db, dummy_event, dummy_session, d
     assert 'error' in resp.json
 
 
-def test_timetable_hides_unpublished_contributions(db, dummy_event, dummy_contribution, dummy_break,
-                                                   create_timetable_entry, outsider_headers, test_client):
+def test_timetable_hides_unpublished_contributions(
+    db, dummy_event, dummy_contribution, dummy_break, create_timetable_entry, outsider_headers, test_client
+):
     contrib_entry = create_timetable_entry(dummy_event, dummy_contribution, now_utc())
     contribution_settings.set(dummy_event, 'published', False)
     db.session.flush()
@@ -105,8 +108,13 @@ def test_timetable_entry_of_another_event_is_not_found(dummy_break, create_event
 
 ENTRY_TYPES = {'Session': 'session_block', 'Contribution': 'contribution', 'Break': 'break'}
 
-BREAK_KEYS = {'venue_name': 'location', 'room_name': 'room', 'inherit_location': 'inheritLoc',
-              'text_color': 'textColor', 'background_color': 'color'}
+BREAK_KEYS = {
+    'venue_name': 'location',
+    'room_name': 'room',
+    'inherit_location': 'inheritLoc',
+    'text_color': 'textColor',
+    'background_color': 'color',
+}
 
 
 def flatten(days):
@@ -142,14 +150,23 @@ def as_minutes(seconds):
     return seconds / 60
 
 
-DERIVED = {'type': as_type, 'parent_id': as_parent_id, 'session_block_id': as_session_block_id,
-           'contribution_id': as_contribution_id}
+DERIVED = {
+    'type': as_type,
+    'parent_id': as_parent_id,
+    'session_block_id': as_session_block_id,
+    'contribution_id': as_contribution_id,
+}
 
 
 def entry_keys(as_timetable_date):
-    return {'event_id': ('conferenceId', None), 'duration': ('duration', as_minutes),
-            'start_dt': ('startDate', as_timetable_date), 'end_dt': ('endDate', as_timetable_date),
-            'break': ('break', as_break), 'id': ('entry_id', None)}
+    return {
+        'event_id': ('conferenceId', None),
+        'duration': ('duration', as_minutes),
+        'start_dt': ('startDate', as_timetable_date),
+        'end_dt': ('endDate', as_timetable_date),
+        'break': ('break', as_break),
+        'id': ('entry_id', None),
+    }
 
 
 @pytest.fixture
@@ -164,12 +181,12 @@ def as_timetable_date(dummy_event):
 
 
 def as_current(entry):
-    return {**entry, 'entry_id': int(entry['id'][1:]),
-            'break': entry if entry['entryType'] == 'Break' else None}
+    return {**entry, 'entry_id': int(entry['id'][1:]), 'break': entry if entry['entryType'] == 'Break' else None}
 
 
-def test_timetable_entry_matches_current_api(dummy_event, dummy_break, token_headers, test_client, indico_api,
-                                             as_timetable_date, same_json):
+def test_timetable_entry_matches_current_api(
+    dummy_event, dummy_break, token_headers, test_client, indico_api, as_timetable_date, same_json
+):
     days = indico_api(f'/export/timetable/{dummy_event.id}.json')['results'][str(dummy_event.id)]
     entry = dummy_break.timetable_entry
     current = as_current(flatten(days)[f'b{entry.id}'])
@@ -177,9 +194,18 @@ def test_timetable_entry_matches_current_api(dummy_event, dummy_break, token_hea
     same_json(new, current, same=('title',), renamed=entry_keys(as_timetable_date), derived=DERIVED)
 
 
-def test_timetable_matches_current_api(dummy_event, dummy_break, dummy_session_block, dummy_contribution,
-                                       create_timetable_entry, token_headers, test_client, indico_api,
-                                       as_timetable_date, same_json_list):
+def test_timetable_matches_current_api(
+    dummy_event,
+    dummy_break,
+    dummy_session_block,
+    dummy_contribution,
+    create_timetable_entry,
+    token_headers,
+    test_client,
+    indico_api,
+    as_timetable_date,
+    same_json_list,
+):
     create_timetable_entry(dummy_event, dummy_contribution, now_utc(), parent=dummy_session_block.timetable_entry)
     days = indico_api(f'/export/timetable/{dummy_event.id}.json')['results'][str(dummy_event.id)]
     current = [as_current(entry) for entry in flatten(days).values()]
@@ -187,13 +213,22 @@ def test_timetable_matches_current_api(dummy_event, dummy_break, dummy_session_b
     same_json_list(new, current, same=('title',), renamed=entry_keys(as_timetable_date), derived=DERIVED)
 
 
-def test_timetable_serves_the_stored_schedule_of_a_poster(db, dummy_event, dummy_session, dummy_session_block,
-                                                          dummy_contribution, create_timetable_entry, token_headers,
-                                                          test_client, indico_api):
+def test_timetable_serves_the_stored_schedule_of_a_poster(
+    db,
+    dummy_event,
+    dummy_session,
+    dummy_session_block,
+    dummy_contribution,
+    create_timetable_entry,
+    token_headers,
+    test_client,
+    indico_api,
+):
     # a poster is shown for as long as the session it is presented in, and that displayed span is what
     # the legacy export answers with, while the schedule as stored is what is served here
-    entry = create_timetable_entry(dummy_event, dummy_contribution, now_utc(),
-                                   parent=dummy_session_block.timetable_entry)
+    entry = create_timetable_entry(
+        dummy_event, dummy_contribution, now_utc(), parent=dummy_session_block.timetable_entry
+    )
     dummy_session.type = SessionType(event=dummy_event, name='Poster session', is_poster=True)
     dummy_session_block.duration = timedelta(hours=3)
     dummy_contribution.session = dummy_session

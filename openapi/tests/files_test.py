@@ -5,7 +5,6 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-
 from uuid import uuid4
 
 import pytest
@@ -58,8 +57,7 @@ def test_file_matches_current_api(dummy_file, token_headers, test_client, indico
     same_json(new, current, same=FILE_FIELDS)
 
 
-def test_file_list_matches_current_api(dummy_file, other_file, admin_headers, test_client, indico_api,
-                                       same_json_list):
+def test_file_list_matches_current_api(dummy_file, other_file, admin_headers, test_client, indico_api, same_json_list):
     current = [indico_api(f'/files/{file.uuid}') for file in (dummy_file, other_file)]
     new = test_client.get('/api/v1/files', headers=admin_headers).json['results']
     same_json_list(new, current, same=FILE_FIELDS, key='uuid')

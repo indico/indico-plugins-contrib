@@ -5,7 +5,6 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-
 import pathlib
 import re
 
@@ -22,6 +21,7 @@ def test_spec_requires_login(test_client):
 
 def test_spec_lists_every_endpoint(dummy_user, test_client):
     from indico_openapi.resources import ENDPOINTS
+
     with test_client.session_transaction() as sess:
         sess.set_session_user(dummy_user)
     resp = test_client.get('/api/v1/openapi.json')
@@ -42,10 +42,12 @@ def test_spec_documents_every_field(dummy_user, test_client):
     with test_client.session_transaction() as sess:
         sess.set_session_user(dummy_user)
     resp = test_client.get('/api/v1/openapi.json')
-    undocumented = [f'{name}.{field}'
-                    for name, schema in resp.json['components']['schemas'].items()
-                    for field, prop in schema.get('properties', {}).items()
-                    if not prop.get('description')]
+    undocumented = [
+        f'{name}.{field}'
+        for name, schema in resp.json['components']['schemas'].items()
+        for field, prop in schema.get('properties', {}).items()
+        if not prop.get('description')
+    ]
     assert not undocumented
 
 
@@ -78,9 +80,11 @@ def test_spec_wraps_list_results(dummy_user, test_client):
 
 
 def test_plugin_schemas_do_not_shadow_the_ones_indico_nests_by_name(test_client):
-    nested_by_name = {name
-                      for path in pathlib.Path(indico.__file__).parent.rglob('schemas.py')
-                      for name in re.findall(r"""Nested\(\s*['"]([A-Za-z_]\w*)['"]""", path.read_text())}
+    nested_by_name = {
+        name
+        for path in pathlib.Path(indico.__file__).parent.rglob('schemas.py')
+        for name in re.findall(r"""Nested\(\s*['"]([A-Za-z_]\w*)['"]""", path.read_text())
+    }
     assert nested_by_name
     ambiguous = []
     for name in sorted(nested_by_name):

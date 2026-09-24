@@ -5,7 +5,6 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-
 from flask import request, session
 from marshmallow import fields
 
@@ -29,7 +28,7 @@ class SubContributionSchema(DescribedFieldsMixin, mm.SQLAlchemyAutoSchema):
             'code': 'Programme code assigned to the subcontribution.',
             'duration': 'Length of the subcontribution, in seconds.',
             'persons': 'Speakers of the subcontribution. Email is only present for users who can '
-                       'manage the contribution.',
+            'manage the contribution.',
             'references': 'Identifiers of the subcontribution in other systems, such as a DOI.',
         }
 
@@ -49,9 +48,12 @@ class SubContributionMixin:
 class RHSubContribution(SubContributionMixin, RHContribution):
     def _process_args(self):
         RHContribution._process_args(self)
-        self.subcontrib = (SubContribution.query.with_parent(self.contrib)
-                           .filter_by(id=request.view_args['subcontrib_id'], is_deleted=False)
-                           .first_or_404())
+        self.subcontrib = (
+            SubContribution.query
+            .with_parent(self.contrib)
+            .filter_by(id=request.view_args['subcontrib_id'], is_deleted=False)
+            .first_or_404()
+        )
 
     def _process_GET(self):
         return self._subcontribution_schema().jsonify(self.subcontrib)
@@ -62,19 +64,33 @@ class RHSubContributionList(SubContributionMixin, RHListBase, RHContribution):
     schema = SubContributionSchema
 
     def _query(self):
-        return (SubContribution.query.with_parent(self.contrib)
-                .filter(~SubContribution.is_deleted)
-                .order_by(SubContribution.position))
+        return (
+            SubContribution.query
+            .with_parent(self.contrib)
+            .filter(~SubContribution.is_deleted)
+            .order_by(SubContribution.position)
+        )
 
     def _dump_schema(self):
         return self._subcontribution_schema(many=True)
 
 
 ENDPOINTS = [
-    Endpoint(rule='/events/<int:event_id>/contributions/<int:contrib_id>/subcontributions',
-             name='subcontributions', rh=RHSubContributionList, schema=SubContributionSchema, many=True,
-             summary='List the subcontributions of a contribution', tag='Contributions'),
-    Endpoint(rule='/events/<int:event_id>/contributions/<int:contrib_id>/subcontributions/<int:subcontrib_id>',
-             name='subcontribution', rh=RHSubContribution, schema=SubContributionSchema,
-             summary='Details of one subcontribution of a contribution', tag='Contributions'),
+    Endpoint(
+        rule='/events/<int:event_id>/contributions/<int:contrib_id>/subcontributions',
+        name='subcontributions',
+        rh=RHSubContributionList,
+        schema=SubContributionSchema,
+        many=True,
+        summary='List the subcontributions of a contribution',
+        tag='Contributions',
+    ),
+    Endpoint(
+        rule='/events/<int:event_id>/contributions/<int:contrib_id>/subcontributions/<int:subcontrib_id>',
+        name='subcontribution',
+        rh=RHSubContribution,
+        schema=SubContributionSchema,
+        summary='Details of one subcontribution of a contribution',
+        tag='Contributions',
+    ),
 ]

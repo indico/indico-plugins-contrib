@@ -31,7 +31,8 @@ def test_favorite_categories_match_the_current_api(favorites, dummy_category, in
     assert resp.status_code == 200
     assert [category['id'] for category in resp.json['results']] == [dummy_category.id]
     assert {str(category['id']) for category in resp.json['results']} == set(
-        indico_api('/user/api/favorites/categories'))
+        indico_api('/user/api/favorites/categories')
+    )
 
 
 def test_favorite_events_match_the_current_api(favorites, dummy_event, indico_api, token_headers, test_client):
@@ -55,8 +56,9 @@ def test_favorite_events_leave_out_deleted_ones(favorites, db, dummy_event, toke
     assert resp.json['results'] == []
 
 
-def test_favorite_categories_leave_out_what_the_caller_cannot_read(favorites, db, dummy_category, create_user,
-                                                                  token_headers, test_client):
+def test_favorite_categories_leave_out_what_the_caller_cannot_read(
+    favorites, db, dummy_category, create_user, token_headers, test_client
+):
     dummy_category.protection_mode = ProtectionMode.protected
     dummy_category.update_principal(create_user(123), read_access=True)
     db.session.flush()

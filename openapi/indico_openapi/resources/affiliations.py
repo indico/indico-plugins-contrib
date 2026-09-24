@@ -5,7 +5,6 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-
 from flask import request
 
 from indico.core.db import db
@@ -26,16 +25,17 @@ class AffiliationMixin:
     """
 
     def _affiliation_query(self):
-        return (Affiliation.query
-                .filter(~Affiliation.is_deleted)
-                .order_by(db.func.indico.indico_unaccent(db.func.lower(Affiliation.name)), Affiliation.id))
+        return Affiliation.query.filter(~Affiliation.is_deleted).order_by(
+            db.func.indico.indico_unaccent(db.func.lower(Affiliation.name)), Affiliation.id
+        )
 
 
 @json_errors
 class RHAffiliation(AffiliationMixin, RHProtected):
     def _process_args(self):
-        self.affiliation = (self._affiliation_query()
-                            .filter(Affiliation.id == request.view_args['affiliation_id']).first_or_404())
+        self.affiliation = (
+            self._affiliation_query().filter(Affiliation.id == request.view_args['affiliation_id']).first_or_404()
+        )
 
     def _process_GET(self):
         return AffiliationSchema().jsonify(self.affiliation)
@@ -53,9 +53,21 @@ class RHAffiliationList(AffiliationMixin, RHListBase, RHProtected):
 
 
 ENDPOINTS = [
-    Endpoint(rule='/affiliations', name='affiliations', rh=RHAffiliationList, schema=AffiliationSchema, many=True,
-             summary='List the organisations people can be affiliated with', tag='Users'),
-    Endpoint(rule='/affiliations/<int:affiliation_id>', name='affiliation', rh=RHAffiliation,
-             schema=AffiliationSchema,
-             summary='Details of one organisation people can be affiliated with', tag='Users'),
+    Endpoint(
+        rule='/affiliations',
+        name='affiliations',
+        rh=RHAffiliationList,
+        schema=AffiliationSchema,
+        many=True,
+        summary='List the organisations people can be affiliated with',
+        tag='Users',
+    ),
+    Endpoint(
+        rule='/affiliations/<int:affiliation_id>',
+        name='affiliation',
+        rh=RHAffiliation,
+        schema=AffiliationSchema,
+        summary='Details of one organisation people can be affiliated with',
+        tag='Users',
+    ),
 ]

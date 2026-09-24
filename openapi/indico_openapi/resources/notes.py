@@ -5,7 +5,6 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-
 from flask import request, session
 from marshmallow import fields
 from werkzeug.exceptions import Forbidden
@@ -59,11 +58,9 @@ class NoteMixin:
     """Lookup shared by the endpoints of a single note."""
 
     def _find_note(self):
-        return (EventNote.query
-                .filter(EventNote.id == request.view_args['note_id'],
-                        EventNote.event_id == self.event.id,
-                        ~EventNote.is_deleted)
-                .first_or_404())
+        return EventNote.query.filter(
+            EventNote.id == request.view_args['note_id'], EventNote.event_id == self.event.id, ~EventNote.is_deleted
+        ).first_or_404()
 
 
 class NoteRevisionMixin(NoteMixin):
@@ -84,9 +81,9 @@ class NoteRevisionMixin(NoteMixin):
             raise Forbidden
 
     def _revision_query(self):
-        return (EventNoteRevision.query
-                .filter(EventNoteRevision.note_id == self.note.id)
-                .order_by(EventNoteRevision.created_dt.desc(), EventNoteRevision.id.desc()))
+        return EventNoteRevision.query.filter(EventNoteRevision.note_id == self.note.id).order_by(
+            EventNoteRevision.created_dt.desc(), EventNoteRevision.id.desc()
+        )
 
 
 @json_errors
@@ -109,9 +106,7 @@ class RHNoteList(RHListBase, RHProtectedEventBase):
     schema = NoteSchema
 
     def _query(self):
-        return (EventNote.query
-                .filter(EventNote.event_id == self.event.id, ~EventNote.is_deleted)
-                .order_by(EventNote.id))
+        return EventNote.query.filter(EventNote.event_id == self.event.id, ~EventNote.is_deleted).order_by(EventNote.id)
 
     def _can_access(self, obj):
         return obj.object.can_access(session.user)
@@ -121,8 +116,9 @@ class RHNoteList(RHListBase, RHProtectedEventBase):
 class RHNoteRevision(NoteRevisionMixin, RHProtectedEventBase):
     def _process_args(self):
         NoteRevisionMixin._process_args(self)
-        self.revision = (self._revision_query()
-                         .filter(EventNoteRevision.id == request.view_args['revision_id']).first_or_404())
+        self.revision = (
+            self._revision_query().filter(EventNoteRevision.id == request.view_args['revision_id']).first_or_404()
+        )
 
     def _process_GET(self):
         return NoteRevisionSchema().jsonify(self.revision)
@@ -140,13 +136,38 @@ class RHNoteRevisionList(NoteRevisionMixin, RHListBase, RHProtectedEventBase):
 
 
 ENDPOINTS = [
-    Endpoint(rule='/events/<int:event_id>/notes', name='notes', rh=RHNoteList, schema=NoteSchema, many=True,
-             summary='List the notes of an event and of everything inside it', tag='Notes'),
-    Endpoint(rule='/events/<int:event_id>/notes/<int:note_id>', name='note', rh=RHNote, schema=NoteSchema,
-             summary='Details of one note of an event', tag='Notes'),
-    Endpoint(rule='/events/<int:event_id>/notes/<int:note_id>/revisions', name='note_revisions',
-             rh=RHNoteRevisionList, schema=NoteRevisionSchema, many=True,
-             summary='List the successive versions of a note', tag='Notes'),
-    Endpoint(rule='/events/<int:event_id>/notes/<int:note_id>/revisions/<int:revision_id>', name='note_revision',
-             rh=RHNoteRevision, schema=NoteRevisionSchema, summary='Details of one version of a note', tag='Notes'),
+    Endpoint(
+        rule='/events/<int:event_id>/notes',
+        name='notes',
+        rh=RHNoteList,
+        schema=NoteSchema,
+        many=True,
+        summary='List the notes of an event and of everything inside it',
+        tag='Notes',
+    ),
+    Endpoint(
+        rule='/events/<int:event_id>/notes/<int:note_id>',
+        name='note',
+        rh=RHNote,
+        schema=NoteSchema,
+        summary='Details of one note of an event',
+        tag='Notes',
+    ),
+    Endpoint(
+        rule='/events/<int:event_id>/notes/<int:note_id>/revisions',
+        name='note_revisions',
+        rh=RHNoteRevisionList,
+        schema=NoteRevisionSchema,
+        many=True,
+        summary='List the successive versions of a note',
+        tag='Notes',
+    ),
+    Endpoint(
+        rule='/events/<int:event_id>/notes/<int:note_id>/revisions/<int:revision_id>',
+        name='note_revision',
+        rh=RHNoteRevision,
+        schema=NoteRevisionSchema,
+        summary='Details of one version of a note',
+        tag='Notes',
+    ),
 ]
