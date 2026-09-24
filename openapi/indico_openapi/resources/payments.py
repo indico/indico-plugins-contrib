@@ -5,7 +5,6 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-
 from flask import request
 from marshmallow import fields
 
@@ -38,7 +37,7 @@ class PaymentSchema(DescribedFieldsMixin, mm.SQLAlchemyAutoSchema):
             'amount': 'Amount the registrant was charged, as a decimal string.',
             'currency': 'ISO 4217 code of the currency the amount is expressed in, such as `EUR`.',
             'provider': 'Name of the payment plugin that handled the payment, or `_manual` when a manager '
-                        'recorded it by hand.',
+            'recorded it by hand.',
             'timestamp': 'Moment the payment was recorded, in UTC.',
         }
 
@@ -47,10 +46,12 @@ class PaymentSchema(DescribedFieldsMixin, mm.SQLAlchemyAutoSchema):
 
 
 class PaymentListArgs(ListArgs):
-    registration_id = fields.Integer(load_default=None,
-                                     metadata={'description': 'Only list the payments of this registration.'})
-    status = fields.Enum(TransactionStatus, load_default=None,
-                         metadata={'description': 'Only list the payments in this state.'})
+    registration_id = fields.Integer(
+        load_default=None, metadata={'description': 'Only list the payments of this registration.'}
+    )
+    status = fields.Enum(
+        TransactionStatus, load_default=None, metadata={'description': 'Only list the payments in this state.'}
+    )
 
 
 class PaymentMixin:
@@ -67,21 +68,22 @@ class PaymentMixin:
     PERMISSION = 'registration'
 
     def _payment_query(self):
-        return (PaymentTransaction.query
-                .join(PaymentTransaction.registration)
-                .join(Registration.registration_form)
-                .filter(Registration.event_id == self.event.id,
-                        ~Registration.is_deleted,
-                        ~RegistrationForm.is_deleted)
-                .order_by(PaymentTransaction.timestamp.desc(), PaymentTransaction.id.desc()))
+        return (
+            PaymentTransaction.query
+            .join(PaymentTransaction.registration)
+            .join(Registration.registration_form)
+            .filter(Registration.event_id == self.event.id, ~Registration.is_deleted, ~RegistrationForm.is_deleted)
+            .order_by(PaymentTransaction.timestamp.desc(), PaymentTransaction.id.desc())
+        )
 
 
 @json_errors
 class RHPayment(PaymentMixin, RHManageEventBase):
     def _process_args(self):
         RHManageEventBase._process_args(self)
-        self.payment = (self._payment_query()
-                        .filter(PaymentTransaction.id == request.view_args['payment_id']).first_or_404())
+        self.payment = (
+            self._payment_query().filter(PaymentTransaction.id == request.view_args['payment_id']).first_or_404()
+        )
 
     def _process_GET(self):
         return PaymentSchema().jsonify(self.payment)
@@ -105,8 +107,21 @@ class RHPaymentList(PaymentMixin, RHListBase, RHManageEventBase):
 
 
 ENDPOINTS = [
-    Endpoint(rule='/events/<int:event_id>/payments', name='payments', rh=RHPaymentList, schema=PaymentSchema,
-             many=True, summary='List the payments of an event', tag='Payments'),
-    Endpoint(rule='/events/<int:event_id>/payments/<int:payment_id>', name='payment', rh=RHPayment,
-             schema=PaymentSchema, summary='Details of one payment of an event', tag='Payments'),
+    Endpoint(
+        rule='/events/<int:event_id>/payments',
+        name='payments',
+        rh=RHPaymentList,
+        schema=PaymentSchema,
+        many=True,
+        summary='List the payments of an event',
+        tag='Payments',
+    ),
+    Endpoint(
+        rule='/events/<int:event_id>/payments/<int:payment_id>',
+        name='payment',
+        rh=RHPayment,
+        schema=PaymentSchema,
+        summary='Details of one payment of an event',
+        tag='Payments',
+    ),
 ]

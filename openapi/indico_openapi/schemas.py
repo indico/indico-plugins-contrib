@@ -5,7 +5,6 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-
 from marshmallow import fields, post_dump
 
 from indico.core.marshmallow import mm

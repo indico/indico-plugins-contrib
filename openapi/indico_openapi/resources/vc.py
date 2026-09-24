@@ -5,7 +5,6 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-
 from flask import request, session
 from marshmallow import fields
 
@@ -30,22 +29,32 @@ class VCRoomSchema(DescribedFieldsMixin, mm.SQLAlchemyAutoSchema):
 
     class Meta:
         model = VCRoomEventAssociation
-        fields = ('id', 'event_id', 'videoconference_room_id', 'type', 'name', 'status', 'link_type',
-                  'contribution_id', 'session_block_id', 'show')
+        fields = (
+            'id',
+            'event_id',
+            'videoconference_room_id',
+            'type',
+            'name',
+            'status',
+            'link_type',
+            'contribution_id',
+            'session_block_id',
+            'show',
+        )
         descriptions = {
             'id': 'Numeric identifier of the link between the event and the videoconference, unique across the '
-                  'whole instance. The same videoconference linked twice gives two of these.',
+            'whole instance. The same videoconference linked twice gives two of these.',
             'event_id': 'Identifier of the event the videoconference is attached to.',
             'videoconference_room_id': 'Identifier of the videoconference itself, which several events may share.',
             'type': 'Name of the videoconference plugin the room lives in, such as `zoom`.',
             'name': 'Name of the videoconference room.',
             'status': 'Whether the room still exists in the service: `created`, or `deleted` once the service '
-                      'dropped it. Only managers see a deleted one.',
+            'dropped it. Only managers see a deleted one.',
             'link_type': 'What the videoconference is attached to: `event`, `contribution` or `block`.',
             'contribution_id': 'Identifier of the contribution the videoconference is attached to, or `null` when '
-                               'it is attached to something else.',
+            'it is attached to something else.',
             'session_block_id': 'Identifier of the session block the videoconference is attached to, or `null` '
-                                'when it is attached to something else.',
+            'when it is attached to something else.',
             'show': 'Whether the videoconference is shown on the event page. Only managers see a hidden one.',
         }
 
@@ -74,11 +83,13 @@ class VCRoomMixin:
         self.can_manage = self.event.can_manage(session.user)
 
     def _vc_room_query(self):
-        query = (VCRoomEventAssociation.query
-                 .filter(VCRoomEventAssociation.event_id == self.event.id)
-                 .join(VCRoomEventAssociation.vc_room)
-                 .filter(VCRoom.type.in_(get_vc_plugins()))
-                 .order_by(db.func.lower(VCRoom.name), VCRoomEventAssociation.id))
+        query = (
+            VCRoomEventAssociation.query
+            .filter(VCRoomEventAssociation.event_id == self.event.id)
+            .join(VCRoomEventAssociation.vc_room)
+            .filter(VCRoom.type.in_(get_vc_plugins()))
+            .order_by(db.func.lower(VCRoom.name), VCRoomEventAssociation.id)
+        )
         if not self.can_manage:
             query = query.filter(VCRoomEventAssociation.show, VCRoom.status != VCRoomStatus.deleted)
         return query
@@ -88,8 +99,9 @@ class VCRoomMixin:
 class RHVCRoom(VCRoomMixin, RHProtectedEventBase):
     def _process_args(self):
         VCRoomMixin._process_args(self)
-        self.vc_room = (self._vc_room_query()
-                        .filter(VCRoomEventAssociation.id == request.view_args['vc_room_id']).first_or_404())
+        self.vc_room = (
+            self._vc_room_query().filter(VCRoomEventAssociation.id == request.view_args['vc_room_id']).first_or_404()
+        )
 
     def _process_GET(self):
         return VCRoomSchema().jsonify(self.vc_room)
@@ -107,8 +119,21 @@ class RHVCRoomList(VCRoomMixin, RHListBase, RHProtectedEventBase):
 
 
 ENDPOINTS = [
-    Endpoint(rule='/events/<int:event_id>/videoconference-rooms', name='vc_rooms', rh=RHVCRoomList,
-             schema=VCRoomSchema, many=True, summary='List the videoconferences of an event', tag='Videoconferences'),
-    Endpoint(rule='/events/<int:event_id>/videoconference-rooms/<int:vc_room_id>', name='vc_room', rh=RHVCRoom,
-             schema=VCRoomSchema, summary='Details of one videoconference of an event', tag='Videoconferences'),
+    Endpoint(
+        rule='/events/<int:event_id>/videoconference-rooms',
+        name='vc_rooms',
+        rh=RHVCRoomList,
+        schema=VCRoomSchema,
+        many=True,
+        summary='List the videoconferences of an event',
+        tag='Videoconferences',
+    ),
+    Endpoint(
+        rule='/events/<int:event_id>/videoconference-rooms/<int:vc_room_id>',
+        name='vc_room',
+        rh=RHVCRoom,
+        schema=VCRoomSchema,
+        summary='Details of one videoconference of an event',
+        tag='Videoconferences',
+    ),
 ]

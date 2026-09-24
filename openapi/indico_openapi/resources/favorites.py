@@ -5,7 +5,6 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-
 from flask import session
 from sqlalchemy.orm import undefer
 
@@ -38,9 +37,7 @@ class RHFavoriteUserList(FavoriteListBase):
 
     def _query(self):
         ids = [user.id for user in session.user.favorite_users]
-        return (User.query
-                .filter(User.id.in_(ids), ~User.is_deleted)
-                .order_by(User.last_name, User.first_name, User.id))
+        return User.query.filter(User.id.in_(ids), ~User.is_deleted).order_by(User.last_name, User.first_name, User.id)
 
     def _can_access(self, obj):
         return True
@@ -52,10 +49,12 @@ class RHFavoriteCategoryList(FavoriteListBase):
 
     def _query(self):
         ids = [category.id for category in session.user.favorite_categories]
-        return (Category.query
-                .filter(Category.id.in_(ids), ~Category.is_deleted)
-                .options(undefer('chain_titles'), undefer('deep_events_count'))
-                .order_by(Category.title, Category.id))
+        return (
+            Category.query
+            .filter(Category.id.in_(ids), ~Category.is_deleted)
+            .options(undefer('chain_titles'), undefer('deep_events_count'))
+            .order_by(Category.title, Category.id)
+        )
 
 
 @json_errors
@@ -64,9 +63,7 @@ class RHFavoriteEventList(FavoriteListBase):
 
     def _query(self):
         ids = [event.id for event in session.user.favorite_events]
-        return (Event.query
-                .filter(Event.id.in_(ids), ~Event.is_deleted)
-                .order_by(Event.start_dt.desc(), Event.id))
+        return Event.query.filter(Event.id.in_(ids), ~Event.is_deleted).order_by(Event.start_dt.desc(), Event.id)
 
 
 @json_errors
@@ -84,13 +81,40 @@ class RHFavoriteRoomList(RoomMixin, RHListBase, RHRoomBookingBase):
 
 
 ENDPOINTS = [
-    Endpoint(rule='/users/me/favorite-users', name='favorite_users', rh=RHFavoriteUserList, schema=MemberSchema,
-             many=True, summary='List the users the caller marked as favourites', tag='Personal data'),
-    Endpoint(rule='/users/me/favorite-categories', name='favorite_categories', rh=RHFavoriteCategoryList,
-             schema=CategorySchema, many=True, summary='List the categories the caller marked as favourites',
-             tag='Personal data'),
-    Endpoint(rule='/users/me/favorite-events', name='favorite_events', rh=RHFavoriteEventList, schema=EventSchema,
-             many=True, summary='List the events the caller marked as favourites', tag='Personal data'),
-    Endpoint(rule='/users/me/favorite-rooms', name='favorite_rooms', rh=RHFavoriteRoomList, schema=RoomSchema,
-             many=True, summary='List the rooms the caller marked as favourites', tag='Personal data'),
+    Endpoint(
+        rule='/users/me/favorite-users',
+        name='favorite_users',
+        rh=RHFavoriteUserList,
+        schema=MemberSchema,
+        many=True,
+        summary='List the users the caller marked as favourites',
+        tag='Personal data',
+    ),
+    Endpoint(
+        rule='/users/me/favorite-categories',
+        name='favorite_categories',
+        rh=RHFavoriteCategoryList,
+        schema=CategorySchema,
+        many=True,
+        summary='List the categories the caller marked as favourites',
+        tag='Personal data',
+    ),
+    Endpoint(
+        rule='/users/me/favorite-events',
+        name='favorite_events',
+        rh=RHFavoriteEventList,
+        schema=EventSchema,
+        many=True,
+        summary='List the events the caller marked as favourites',
+        tag='Personal data',
+    ),
+    Endpoint(
+        rule='/users/me/favorite-rooms',
+        name='favorite_rooms',
+        rh=RHFavoriteRoomList,
+        schema=RoomSchema,
+        many=True,
+        summary='List the rooms the caller marked as favourites',
+        tag='Personal data',
+    ),
 ]

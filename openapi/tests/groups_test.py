@@ -5,7 +5,6 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-
 import pytest
 
 
@@ -54,8 +53,9 @@ def test_unknown_group_is_not_found(dummy_group, admin_headers, test_client):
     assert resp.status_code == 404
 
 
-def test_groups_are_forbidden_while_local_groups_are_disabled(dummy_group, admin_headers, patch_indico_config,
-                                                              test_client):
+def test_groups_are_forbidden_while_local_groups_are_disabled(
+    dummy_group, admin_headers, patch_indico_config, test_client
+):
     patch_indico_config('LOCAL_GROUPS', False)
     resp = test_client.get(f'/api/v1/groups/{dummy_group.id}', headers=admin_headers)
     assert resp.status_code == 403

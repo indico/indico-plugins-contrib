@@ -5,7 +5,6 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-
 from datetime import date
 
 from dateutil.relativedelta import relativedelta
@@ -33,9 +32,11 @@ def test_reservation_details(dummy_reservation, dummy_room, token_headers, test_
 
 
 def test_reservation_occurrences(create_reservation, token_headers, test_client):
-    reservation = create_reservation(start_dt=date.today() + relativedelta(hour=8, minute=30),
-                                     end_dt=date.today() + relativedelta(days=2, hour=17, minute=30),
-                                     repeat_frequency=RepeatFrequency.DAY)
+    reservation = create_reservation(
+        start_dt=date.today() + relativedelta(hour=8, minute=30),
+        end_dt=date.today() + relativedelta(days=2, hour=17, minute=30),
+        repeat_frequency=RepeatFrequency.DAY,
+    )
     resp = test_client.get(f'/api/v1/reservations/{reservation.id}', headers=token_headers)
     assert resp.status_code == 200
     occurrences = resp.json['occurrences']
@@ -51,28 +52,34 @@ def test_reservation_list_has_no_occurrences(dummy_reservation, token_headers, t
 
 
 def test_reservation_list(dummy_reservation, create_reservation, create_room, token_headers, test_client):
-    later = create_reservation(room=create_room(building='9'),
-                               start_dt=date.today() + relativedelta(days=1, hour=8, minute=30),
-                               end_dt=date.today() + relativedelta(days=1, hour=17, minute=30))
+    later = create_reservation(
+        room=create_room(building='9'),
+        start_dt=date.today() + relativedelta(days=1, hour=8, minute=30),
+        end_dt=date.today() + relativedelta(days=1, hour=17, minute=30),
+    )
     resp = test_client.get('/api/v1/reservations', headers=token_headers)
     assert resp.status_code == 200
     assert [r['id'] for r in resp.json['results']] == [later.id, dummy_reservation.id]
 
 
-def test_reservation_list_filtered_by_room(dummy_reservation, create_reservation, create_room, token_headers,
-                                           test_client):
+def test_reservation_list_filtered_by_room(
+    dummy_reservation, create_reservation, create_room, token_headers, test_client
+):
     other = create_reservation(room=create_room(building='9'))
     resp = test_client.get(f'/api/v1/reservations?room_id={other.room_id}', headers=token_headers)
     assert resp.status_code == 200
     assert [r['id'] for r in resp.json['results']] == [other.id]
 
 
-def test_reservation_list_filtered_by_date(dummy_reservation, create_reservation, create_room, token_headers,
-                                           test_client):
+def test_reservation_list_filtered_by_date(
+    dummy_reservation, create_reservation, create_room, token_headers, test_client
+):
     tomorrow = date.today() + relativedelta(days=1)
-    later = create_reservation(room=create_room(building='9'),
-                               start_dt=tomorrow + relativedelta(hour=8, minute=30),
-                               end_dt=tomorrow + relativedelta(hour=17, minute=30))
+    later = create_reservation(
+        room=create_room(building='9'),
+        start_dt=tomorrow + relativedelta(hour=8, minute=30),
+        end_dt=tomorrow + relativedelta(hour=17, minute=30),
+    )
     resp = test_client.get(f'/api/v1/reservations?start_after={tomorrow.isoformat()}T00:00:00', headers=token_headers)
     assert resp.status_code == 200
     assert [r['id'] for r in resp.json['results']] == [later.id]
@@ -109,12 +116,30 @@ def test_reservation_requires_login(dummy_reservation, test_client):
     assert resp.status_code == 403
 
 
-RESERVATION_FIELDS = ('id', 'room_id', 'start_dt', 'end_dt', 'created_dt', 'booking_reason', 'state', 'is_accepted',
-                      'is_pending', 'is_cancelled', 'is_rejected', 'rejection_reason', 'repeat_frequency',
-                      'repeat_interval', 'recurrence_weekdays', 'external_details_url')
+RESERVATION_FIELDS = (
+    'id',
+    'room_id',
+    'start_dt',
+    'end_dt',
+    'created_dt',
+    'booking_reason',
+    'state',
+    'is_accepted',
+    'is_pending',
+    'is_cancelled',
+    'is_rejected',
+    'rejection_reason',
+    'repeat_frequency',
+    'repeat_interval',
+    'recurrence_weekdays',
+    'external_details_url',
+)
 
-RESERVATION_KEYS = {'location_name': 'location', 'booked_for_name': 'bookedForName',
-                    'contact_email': 'booked_for_user_email'}
+RESERVATION_KEYS = {
+    'location_name': 'location',
+    'booked_for_name': 'bookedForName',
+    'contact_email': 'booked_for_user_email',
+}
 
 OCCURRENCE_GROUPS = ('bookings', 'cancellations', 'rejections')
 
@@ -133,18 +158,37 @@ def with_details(indico_api, legacy):
     return {**legacy, **indico_api(f'/rooms/api/bookings/{legacy["id"]}')}
 
 
-def test_reservation_matches_current_api(dummy_reservation, dummy_room, token_headers, test_client, indico_api,
-                                         same_json):
+def test_reservation_matches_current_api(
+    dummy_reservation, dummy_room, token_headers, test_client, indico_api, same_json
+):
     legacy = indico_api(f'/export/reservation/{dummy_room.location_name}.json')['results'][0]
     new = test_client.get(f'/api/v1/reservations/{dummy_reservation.id}', headers=token_headers).json
-    same_json(new, with_details(indico_api, legacy), same=RESERVATION_FIELDS, renamed=RESERVATION_KEYS,
-              derived={'is_repeating': as_is_repeating, 'occurrences': as_occurrences})
+    same_json(
+        new,
+        with_details(indico_api, legacy),
+        same=RESERVATION_FIELDS,
+        renamed=RESERVATION_KEYS,
+        derived={'is_repeating': as_is_repeating, 'occurrences': as_occurrences},
+    )
 
 
-def test_reservation_list_matches_current_api(dummy_reservation, dummy_room, create_reservation, create_room,
-                                              token_headers, test_client, indico_api, same_json_list):
+def test_reservation_list_matches_current_api(
+    dummy_reservation,
+    dummy_room,
+    create_reservation,
+    create_room,
+    token_headers,
+    test_client,
+    indico_api,
+    same_json_list,
+):
     create_reservation(room=create_room(building='9'))
     legacy = indico_api(f'/export/reservation/{dummy_room.location_name}.json')['results']
     new = test_client.get('/api/v1/reservations', headers=token_headers).json['results']
-    same_json_list(new, [with_details(indico_api, booking) for booking in legacy], same=RESERVATION_FIELDS,
-                   renamed=RESERVATION_KEYS, derived={'is_repeating': as_is_repeating})
+    same_json_list(
+        new,
+        [with_details(indico_api, booking) for booking in legacy],
+        same=RESERVATION_FIELDS,
+        renamed=RESERVATION_KEYS,
+        derived={'is_repeating': as_is_repeating},
+    )

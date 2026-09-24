@@ -5,7 +5,6 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-
 from flask import session
 from marshmallow import fields
 from werkzeug.exceptions import NotFound
@@ -31,13 +30,13 @@ class UserSettingsSchema(DescribedFieldsMixin, mm.Schema):
             'show_future_events': 'Whether the category pages open with the upcoming events unfolded.',
             'show_past_events': 'Whether the category pages open with the past events unfolded.',
             'name_format': 'How names are written: `first_last`, `first_last_upper`, `last_first`, '
-                           '`last_first_upper`, `f_last`, `f_last_upper`, `last_f` or `last_f_upper`.',
+            '`last_first_upper`, `f_last`, `f_last_upper`, `last_f` or `last_f_upper`.',
             'use_previewer_pdf': 'Whether PDF files open in the Indico previewer instead of being downloaded.',
             'add_ical_alerts': 'Whether exported calendar entries carry an alarm.',
             'add_ical_alerts_mins': 'How many minutes before the event that alarm goes off.',
             'use_markdown_for_minutes': 'Whether minutes are written in Markdown instead of rich text.',
             'synced_fields': 'Profile fields the user keeps in sync with the account they log in with, '
-                             'or `null` when every field that can be synced is.',
+            'or `null` when every field that can be synced is.',
             'suggest_categories': 'Whether the dashboard suggests categories to follow.',
             'mastodon_server_url': 'Mastodon server the sharing buttons point at, or `null` when none is set.',
             'mastodon_server_name': 'Name of that server, looked up from its URL.',
@@ -109,9 +108,9 @@ class RHUserEmailList(RHListBase, RHProtected):
     schema = UserEmailSchema
 
     def _query(self):
-        return (UserEmail.query
-                .filter_by(user_id=session.user.id, is_user_deleted=False)
-                .order_by(UserEmail.is_primary.desc(), UserEmail.email))
+        return UserEmail.query.filter_by(user_id=session.user.id, is_user_deleted=False).order_by(
+            UserEmail.is_primary.desc(), UserEmail.email
+        )
 
     def _can_access(self, obj):
         return True
@@ -126,11 +125,29 @@ class RHDataExportRequest(RHProtected):
 
 
 ENDPOINTS = [
-    Endpoint(rule='/users/me/settings', name='user_settings', rh=RHUserSettings, schema=UserSettingsSchema,
-             summary='Preferences of the authenticated user', tag='Personal data'),
-    Endpoint(rule='/users/me/emails', name='user_emails', rh=RHUserEmailList, schema=UserEmailSchema, many=True,
-             summary='List the email addresses of the authenticated user', tag='Personal data'),
-    Endpoint(rule='/users/me/data-export', name='user_data_export', rh=RHDataExportRequest,
-             schema=DataExportRequestSchema, summary='Data export the authenticated user requested',
-             tag='Personal data'),
+    Endpoint(
+        rule='/users/me/settings',
+        name='user_settings',
+        rh=RHUserSettings,
+        schema=UserSettingsSchema,
+        summary='Preferences of the authenticated user',
+        tag='Personal data',
+    ),
+    Endpoint(
+        rule='/users/me/emails',
+        name='user_emails',
+        rh=RHUserEmailList,
+        schema=UserEmailSchema,
+        many=True,
+        summary='List the email addresses of the authenticated user',
+        tag='Personal data',
+    ),
+    Endpoint(
+        rule='/users/me/data-export',
+        name='user_data_export',
+        rh=RHDataExportRequest,
+        schema=DataExportRequestSchema,
+        summary='Data export the authenticated user requested',
+        tag='Personal data',
+    ),
 ]

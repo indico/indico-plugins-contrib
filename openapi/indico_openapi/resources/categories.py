@@ -5,7 +5,6 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-
 from marshmallow import fields
 from sqlalchemy.orm import undefer
 
@@ -35,8 +34,9 @@ class CategorySchema(DescribedFieldsMixin, mm.SQLAlchemyAutoSchema):
 
 
 class CategoryListArgs(ListArgs):
-    parent_id = fields.Integer(load_default=None,
-                               metadata={'description': 'Only list the categories held directly in this one.'})
+    parent_id = fields.Integer(
+        load_default=None, metadata={'description': 'Only list the categories held directly in this one.'}
+    )
 
 
 @json_errors
@@ -53,17 +53,30 @@ class RHCategoryList(RHListBase):
     schema = CategorySchema
 
     def _query(self, parent_id):
-        query = (Category.query
-                 .filter(~Category.is_deleted)
-                 .options(undefer('chain_titles'), undefer('deep_events_count')))
+        query = Category.query.filter(~Category.is_deleted).options(
+            undefer('chain_titles'), undefer('deep_events_count')
+        )
         if parent_id is not None:
             query = query.filter(Category.parent_id == parent_id)
         return query.order_by(Category.position, Category.id)
 
 
 ENDPOINTS = [
-    Endpoint(rule='/categories', name='categories', rh=RHCategoryList, schema=CategorySchema, many=True,
-             summary='List the categories events are organised in', tag='Categories'),
-    Endpoint(rule='/categories/<int:category_id>', name='category', rh=RHCategory, schema=CategorySchema,
-             summary='Details of one category events are organised in', tag='Categories'),
+    Endpoint(
+        rule='/categories',
+        name='categories',
+        rh=RHCategoryList,
+        schema=CategorySchema,
+        many=True,
+        summary='List the categories events are organised in',
+        tag='Categories',
+    ),
+    Endpoint(
+        rule='/categories/<int:category_id>',
+        name='category',
+        rh=RHCategory,
+        schema=CategorySchema,
+        summary='Details of one category events are organised in',
+        tag='Categories',
+    ),
 ]

@@ -5,7 +5,6 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-
 from flask import request, session
 from marshmallow import fields
 from werkzeug.exceptions import Forbidden
@@ -23,11 +22,11 @@ class EventSeriesSchema(DescribedFieldsMixin, CoreEventSeriesSchema):
         descriptions = {
             'id': 'Numeric identifier of the series, unique across the whole instance.',
             'event_ids': 'Identifiers of the events making up the series, in chronological order. Deleted events '
-                         'are left out.',
+            'are left out.',
             'show_sequence_in_title': 'Whether the position of an event in the series is shown in its title.',
             'show_links': 'Whether each event of the series links to the others.',
             'event_title_pattern': 'Pattern used to build the title of an event cloned from the series, with `{n}` '
-                                   'standing for its position, or an empty string when there is none.',
+            'standing for its position, or an empty string when there is none.',
         }
 
     event_ids = fields.Function(lambda series: [event.id for event in series.events])
@@ -71,8 +70,21 @@ class RHEventSeriesList(SeriesMixin, RHListBase, RHProtected):
 
 
 ENDPOINTS = [
-    Endpoint(rule='/event-series', name='event_series_list', rh=RHEventSeriesList, schema=EventSeriesSchema,
-             many=True, summary='List the event series the caller manages', tag='Event series'),
-    Endpoint(rule='/event-series/<int:series_id>', name='event_series', rh=RHEventSeries, schema=EventSeriesSchema,
-             summary='Details of one series of related events', tag='Event series'),
+    Endpoint(
+        rule='/event-series',
+        name='event_series_list',
+        rh=RHEventSeriesList,
+        schema=EventSeriesSchema,
+        many=True,
+        summary='List the event series the caller manages',
+        tag='Event series',
+    ),
+    Endpoint(
+        rule='/event-series/<int:series_id>',
+        name='event_series',
+        rh=RHEventSeries,
+        schema=EventSeriesSchema,
+        summary='Details of one series of related events',
+        tag='Event series',
+    ),
 ]

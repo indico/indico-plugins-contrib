@@ -5,7 +5,6 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-
 from datetime import UTC, datetime
 
 import pytest
@@ -31,16 +30,21 @@ def dummy_offline_copy(create_offline_copy):
 
 @pytest.mark.usefixtures('event_manager')
 def test_offline_copy_details(dummy_event, dummy_offline_copy, dummy_user, token_headers, test_client):
-    resp = test_client.get(f'/api/v1/events/{dummy_event.id}/offline-copies/{dummy_offline_copy.id}',
-                           headers=token_headers)
+    resp = test_client.get(
+        f'/api/v1/events/{dummy_event.id}/offline-copies/{dummy_offline_copy.id}', headers=token_headers
+    )
     assert resp.status_code == 200
     assert resp.json == {
         'id': dummy_offline_copy.id,
         'event_id': dummy_event.id,
         'state': 'pending',
         'requested_dt': '2026-09-01T08:00:00+00:00',
-        'creator': {'id': dummy_user.id, 'identifier': dummy_user.identifier, 'full_name': dummy_user.full_name,
-                    'email': dummy_user.email},
+        'creator': {
+            'id': dummy_user.id,
+            'identifier': dummy_user.identifier,
+            'full_name': dummy_user.full_name,
+            'email': dummy_user.email,
+        },
         'download_url': None,
     }
 
@@ -62,8 +66,9 @@ def test_a_build_that_failed_has_nothing_to_download(dummy_event, create_offline
 
 
 @pytest.mark.usefixtures('event_manager')
-def test_offline_copy_list_is_ordered_by_request_time(dummy_event, dummy_offline_copy, create_offline_copy,
-                                                      token_headers, test_client):
+def test_offline_copy_list_is_ordered_by_request_time(
+    dummy_event, dummy_offline_copy, create_offline_copy, token_headers, test_client
+):
     later = create_offline_copy(datetime(2026, 9, 2, 8, 0, tzinfo=UTC))
     resp = test_client.get(f'/api/v1/events/{dummy_event.id}/offline-copies', headers=token_headers)
     assert resp.status_code == 200
@@ -71,16 +76,18 @@ def test_offline_copy_list_is_ordered_by_request_time(dummy_event, dummy_offline
 
 
 def test_offline_copies_are_manager_only(dummy_event, dummy_offline_copy, token_headers, test_client):
-    resp = test_client.get(f'/api/v1/events/{dummy_event.id}/offline-copies/{dummy_offline_copy.id}',
-                           headers=token_headers)
+    resp = test_client.get(
+        f'/api/v1/events/{dummy_event.id}/offline-copies/{dummy_offline_copy.id}', headers=token_headers
+    )
     assert resp.status_code == 403
     assert 'error' in resp.json
     resp = test_client.get(f'/api/v1/events/{dummy_event.id}/offline-copies', headers=token_headers)
     assert resp.status_code == 403
 
 
-def test_offline_copy_of_another_event_is_not_found(db, dummy_offline_copy, create_event, dummy_user, token_headers,
-                                                    test_client):
+def test_offline_copy_of_another_event_is_not_found(
+    db, dummy_offline_copy, create_event, dummy_user, token_headers, test_client
+):
     other = create_event(1, creator_has_privileges=True)
     db.session.flush()
     resp = test_client.get(f'/api/v1/events/{other.id}/offline-copies/{dummy_offline_copy.id}', headers=token_headers)

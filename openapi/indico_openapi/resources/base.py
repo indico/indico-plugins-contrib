@@ -5,7 +5,6 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-
 from dataclasses import dataclass
 
 from flask import jsonify, request, session
@@ -47,12 +46,20 @@ class DescribedFieldsMixin:
 
 
 class ListArgs(mm.Schema):
-    limit = fields.Integer(load_default=20, validate=validate.Range(min=1, max=100),
-                           metadata={'description': 'Maximum number of results to return.'})
-    offset = fields.Integer(load_default=0, validate=validate.Range(min=0),
-                            metadata={'description': 'Cursor taken from `next_offset` of the previous page. '
-                                                     'It counts rows scanned, not results returned, because '
-                                                     'inaccessible rows are skipped without being listed.'})
+    limit = fields.Integer(
+        load_default=20,
+        validate=validate.Range(min=1, max=100),
+        metadata={'description': 'Maximum number of results to return.'},
+    )
+    offset = fields.Integer(
+        load_default=0,
+        validate=validate.Range(min=0),
+        metadata={
+            'description': 'Cursor taken from `next_offset` of the previous page. '
+            'It counts rows scanned, not results returned, because '
+            'inaccessible rows are skipped without being listed.'
+        },
+    )
 
 
 def paginate(query, predicate, limit, offset):

@@ -135,8 +135,7 @@ def timetable_date(timezone):
 
 
 def merged_registrations(api, event_id, regform_id):
-    legacy = {int(reg['registrant_id']): reg
-              for reg in api.get(f'/api/events/{event_id}/registrants')['registrants']}
+    legacy = {int(reg['registrant_id']): reg for reg in api.get(f'/api/events/{event_id}/registrants')['registrants']}
     checkin = api.get(f'/api/checkin/event/{event_id}/forms/{regform_id}/registrations/')
     return [{**legacy[reg['id']], **reg} for reg in checkin]
 
@@ -154,8 +153,12 @@ def compare_answers(ours, theirs):
         assert section['title'] == their_section['title']
         their_fields = {field['id']: field for field in their_section['fields']}
         for field in section['fields']:
-            compare(registrations_test.comparable(field), their_fields[field['id']],
-                    same=registrations_test.ANSWER_FIELDS, renamed=registrations_test.ANSWER_KEYS)
+            compare(
+                registrations_test.comparable(field),
+                their_fields[field['id']],
+                same=registrations_test.ANSWER_FIELDS,
+                renamed=registrations_test.ANSWER_KEYS,
+            )
 
 
 def event_people(api, event_id):
@@ -177,8 +180,9 @@ def legacy_reservations(api):
     names = '-'.join(location['name'] for location in api.get('/rooms/api/locations'))
     results = []
     while True:
-        page = api.get(f'/export/reservation/{names}.json'
-                       f'?limit={LEGACY_RESERVATION_PAGE}&offset={len(results)}')['results']
+        page = api.get(f'/export/reservation/{names}.json?limit={LEGACY_RESERVATION_PAGE}&offset={len(results)}')[
+            'results'
+        ]
         results += page
         if len(page) < LEGACY_RESERVATION_PAGE:
             return results
@@ -268,6 +272,7 @@ class Checker:
 
     def check_count(self, entity, path, expected):
         """Check that a list endpoint the current API has no counterpart for serves the seeded rows."""
+
         def run():
             if len(listed) != expected:
                 raise AssertionError(f'{path} served {len(listed)} rows instead of {expected}')
@@ -284,9 +289,11 @@ class Checker:
             self.compared.setdefault(entity, 0)
 
     def _event_mappings(self):
-        return {'same': events_test.EVENT_FIELDS,
-                'renamed': {**events_test.EVENT_KEYS, **events_test.date_keys(self.as_legacy_date)},
-                'derived': events_test.DERIVED}
+        return {
+            'same': events_test.EVENT_FIELDS,
+            'renamed': {**events_test.EVENT_KEYS, **events_test.date_keys(self.as_legacy_date)},
+            'derived': events_test.DERIVED,
+        }
 
     def _with_chain(self, current):
         path = self.api.cached(f'/category/{current["categoryId"]}/info')['category']['path']
@@ -307,32 +314,39 @@ class Checker:
         # without it and the contact is compared for the demo events, which all have sessions
         mappings = self._event_mappings()
         listed = [{key: value for key, value in event.items() if key != 'contact'} for event in ours]
-        without_contact = {**mappings, 'derived': {key: fn for key, fn in mappings['derived'].items()
-                                                   if key != 'contact'}}
+        without_contact = {
+            **mappings,
+            'derived': {key: fn for key, fn in mappings['derived'].items() if key != 'contact'},
+        }
         self.check('events', 'list', len(listed), lambda: compare_list(listed, theirs, **without_contact))
         for event in self.manifest['events']:
             one = self.api.ours(f'/events/{event["id"]}')
             current = self._with_extras(self.api.get(f'/export/event/{event["id"]}.json')['results'][0])
-            self.check('events', f'detail {event["id"]}', 1,
-                       lambda one=one, current=current: compare(one, current, **mappings))
+            self.check(
+                'events', f'detail {event["id"]}', 1, lambda one=one, current=current: compare(one, current, **mappings)
+            )
 
     def _category_mappings(self):
-        return {'same': categories_test.CATEGORY_FIELDS,
-                'renamed': {'deep_events_count': ('deep_event_count', None)},
-                'derived': {'chain_titles': categories_test.as_chain_titles,
-                            'parent_id': categories_test.as_parent_id}}
+        return {
+            'same': categories_test.CATEGORY_FIELDS,
+            'renamed': {'deep_events_count': ('deep_event_count', None)},
+            'derived': {'chain_titles': categories_test.as_chain_titles, 'parent_id': categories_test.as_parent_id},
+        }
 
     def check_categories(self):
         root = self.manifest['category_id']
         ours = self.api.list(f'/categories?parent_id={root}')
         theirs = self.api.cached(f'/category/{root}/info')['subcategories']
-        self.check('categories', 'list', len(ours),
-                   lambda: compare_list(ours, theirs, **self._category_mappings()))
+        self.check('categories', 'list', len(ours), lambda: compare_list(ours, theirs, **self._category_mappings()))
         for category in ours:
             one = self.api.ours(f'/categories/{category["id"]}')
             current = self.api.cached(f'/category/{category["id"]}/info')['category']
-            self.check('categories', f'detail {category["id"]}', 1,
-                       lambda one=one, current=current: compare(one, current, **self._category_mappings()))
+            self.check(
+                'categories',
+                f'detail {category["id"]}',
+                1,
+                lambda one=one, current=current: compare(one, current, **self._category_mappings()),
+            )
 
     def check_event_contents(self, event):
         event_id = event['id']
@@ -345,8 +359,9 @@ class Checker:
         self.check_attachments(event)
         self.check_logs(event_id)
         self.check_count('reminders', f'/events/{event_id}/reminders', event['reminders'])
-        self.check_count('note-revisions', f'/events/{event_id}/notes/{event["note_id"]}/revisions',
-                         event['note_revisions'])
+        self.check_count(
+            'note-revisions', f'/events/{event_id}/notes/{event["note_id"]}/revisions', event['note_revisions']
+        )
         self.check_count('videoconference-rooms', f'/events/{event_id}/videoconference-rooms', event['vc_rooms'])
         if event['type'] != 'conference':
             return
@@ -360,9 +375,11 @@ class Checker:
         self.check_contribution_setup(event)
         self.check_registrations(event_id)
         self.check_registration_tags(event)
-        self.check_count('registration-invitations',
-                         f'/events/{event_id}/registration-forms/{event["regform_id"]}/invitations',
-                         event['invitations'])
+        self.check_count(
+            'registration-invitations',
+            f'/events/{event_id}/registration-forms/{event["regform_id"]}/invitations',
+            event['invitations'],
+        )
         self.check_roles(event_id)
         self.check_layout(event)
         self.check_features(event)
@@ -378,19 +395,34 @@ class Checker:
     def check_contributions(self, event_id):
         ours = self.api.list(f'/events/{event_id}/contributions')
         add_references = contributions_test.with_references(self.api.cached, event_id)
-        theirs = [add_references(contrib)
-                  for contrib in self.api.get(f'/event/{event_id}/manage/contributions/contributions.json')]
-        self.check('contributions', f'list {event_id}', len(ours),
-                   lambda: compare_list(ours, theirs, same=contributions_test.CONTRIBUTION_FIELDS))
+        theirs = [
+            add_references(contrib)
+            for contrib in self.api.get(f'/event/{event_id}/manage/contributions/contributions.json')
+        ]
+        self.check(
+            'contributions',
+            f'list {event_id}',
+            len(ours),
+            lambda: compare_list(ours, theirs, same=contributions_test.CONTRIBUTION_FIELDS),
+        )
         first = ours[0]
         current = add_references(self.api.get(f'/event/{event_id}/contributions/{first["id"]}.json'))
-        self.check('contributions', f'detail {first["id"]}', 1,
-                   lambda: compare(first, current, same=contributions_test.CONTRIBUTION_FIELDS))
+        self.check(
+            'contributions',
+            f'detail {first["id"]}',
+            1,
+            lambda: compare(first, current, same=contributions_test.CONTRIBUTION_FIELDS),
+        )
 
     def _subcontribution_mappings(self):
-        return {'same': subcontributions_test.SUBCONTRIBUTION_FIELDS,
-                'renamed': {'id': ('db_id', None), 'duration': ('duration', subcontributions_test.as_minutes),
-                            'persons': ('speakers', rename_keys(subcontributions_test.FOSSIL_PERSON_KEYS))}}
+        return {
+            'same': subcontributions_test.SUBCONTRIBUTION_FIELDS,
+            'renamed': {
+                'id': ('db_id', None),
+                'duration': ('duration', subcontributions_test.as_minutes),
+                'persons': ('speakers', rename_keys(subcontributions_test.FOSSIL_PERSON_KEYS)),
+            },
+        }
 
     def check_subcontributions(self, event_id):
         by_contribution = subcontributions_by_contribution(self.api, event_id)
@@ -398,24 +430,34 @@ class Checker:
             if not theirs:
                 continue
             ours = self.api.list(f'/events/{event_id}/contributions/{contrib_id}/subcontributions')
-            self.check('subcontributions', f'list {contrib_id}', len(ours),
-                       lambda ours=ours, theirs=theirs: compare_list(ours, theirs,
-                                                                     **self._subcontribution_mappings()))
+            self.check(
+                'subcontributions',
+                f'list {contrib_id}',
+                len(ours),
+                lambda ours=ours, theirs=theirs: compare_list(ours, theirs, **self._subcontribution_mappings()),
+            )
 
     def _person_mappings(self):
-        return {'same': (*persons_test.PERSON_FIELDS, 'roles'),
-                'renamed': {'id': ('person_id', None), 'email_hash': ('emailHash', None)}}
+        return {
+            'same': (*persons_test.PERSON_FIELDS, 'roles'),
+            'renamed': {'id': ('person_id', None), 'email_hash': ('emailHash', None)},
+        }
 
     def check_persons(self, event_id):
         ours = self.api.list(f'/events/{event_id}/persons')
         theirs = list(event_people(self.api, event_id).values())
-        self.check('persons', f'list {event_id}', len(ours),
-                   lambda: compare_list(ours, theirs, **self._person_mappings()))
+        self.check(
+            'persons', f'list {event_id}', len(ours), lambda: compare_list(ours, theirs, **self._person_mappings())
+        )
 
     def _session_mappings(self):
-        return {'same': sessions_test.SESSION_FIELDS,
-                'renamed': {**sessions_test.SESSION_KEYS,
-                            'blocks': ('blocks', sessions_test.as_blocks(self.as_legacy_date))}}
+        return {
+            'same': sessions_test.SESSION_FIELDS,
+            'renamed': {
+                **sessions_test.SESSION_KEYS,
+                'blocks': ('blocks', sessions_test.as_blocks(self.as_legacy_date)),
+            },
+        }
 
     def check_sessions(self, event_id):
         ours = self.api.list(f'/events/{event_id}/sessions')
@@ -424,15 +466,26 @@ class Checker:
         ids = '-'.join(str(sess['id']) for sess in ours)
         slots = self.api.get(f'/export/event/{event_id}/session/{ids}.json')['results']
         theirs = sessions_test.as_sessions(slots)
-        self.check('sessions', f'list {event_id}', len(ours),
-                   lambda: compare_list(ours, list(theirs.values()), **self._session_mappings()))
+        self.check(
+            'sessions',
+            f'list {event_id}',
+            len(ours),
+            lambda: compare_list(ours, list(theirs.values()), **self._session_mappings()),
+        )
         first = ours[0]
-        self.check('sessions', f'detail {first["id"]}', 1,
-                   lambda: compare(first, theirs[first['id']], **self._session_mappings()))
+        self.check(
+            'sessions',
+            f'detail {first["id"]}',
+            1,
+            lambda: compare(first, theirs[first['id']], **self._session_mappings()),
+        )
 
     def _timetable_mappings(self):
-        return {'same': ('title',), 'renamed': timetable_test.entry_keys(self.as_timetable_date),
-                'derived': timetable_test.DERIVED}
+        return {
+            'same': ('title',),
+            'renamed': timetable_test.entry_keys(self.as_timetable_date),
+            'derived': timetable_test.DERIVED,
+        }
 
     def _as_displayed(self, event_id, entries):
         """Stretch the contributions of a poster session over their block.
@@ -443,35 +496,49 @@ class Checker:
         """
         sessions = self.api.list(f'/events/{event_id}/sessions')
         posters = {block['id'] for session in sessions if session['is_poster'] for block in session['blocks']}
-        slots = {entry['id']: entry for entry in entries
-                 if entry['type'] == 'session_block' and entry['session_block_id'] in posters}
-        return [{**entry, **{key: slots[entry['parent_id']][key] for key in ('start_dt', 'end_dt', 'duration')}}
-                if entry['type'] == 'contribution' and entry['parent_id'] in slots else entry
-                for entry in entries]
+        slots = {
+            entry['id']: entry
+            for entry in entries
+            if entry['type'] == 'session_block' and entry['session_block_id'] in posters
+        }
+        return [
+            {**entry, **{key: slots[entry['parent_id']][key] for key in ('start_dt', 'end_dt', 'duration')}}
+            if entry['type'] == 'contribution' and entry['parent_id'] in slots
+            else entry
+            for entry in entries
+        ]
 
     def check_timetable(self, event_id):
         ours = self._as_displayed(event_id, self.api.list(f'/events/{event_id}/timetable'))
         days = self.api.get(f'/export/timetable/{event_id}.json')['results'][str(event_id)]
         entries = timetable_test.flatten(days)
         theirs = [timetable_test.as_current(entry) for entry in entries.values()]
-        self.check('timetable', f'list {event_id}', len(ours),
-                   lambda: compare_list(ours, theirs, **self._timetable_mappings()))
+        self.check(
+            'timetable', f'list {event_id}', len(ours), lambda: compare_list(ours, theirs, **self._timetable_mappings())
+        )
 
     def check_notes(self, event):
         event_id = event['id']
         ours = self.api.list(f'/events/{event_id}/notes')
         theirs = [self.api.get(note_url(event_id))['results']]
-        theirs += [self.api.get(note_url(event_id, 'contribution', contrib_id))['results']
-                   for contrib_id in event['note_contributions']]
-        theirs += [self.api.get(note_url(event_id, 'session', session_id))['results']
-                   for session_id in event['note_sessions']]
-        self.check('notes', f'list {event_id}', len(ours),
-                   lambda: compare_list(ours, theirs, same=notes_test.NOTE_FIELDS,
-                                        renamed={'author_id': ('user', None)}, key='url'))
+        theirs += [
+            self.api.get(note_url(event_id, 'contribution', contrib_id))['results']
+            for contrib_id in event['note_contributions']
+        ]
+        theirs += [
+            self.api.get(note_url(event_id, 'session', session_id))['results'] for session_id in event['note_sessions']
+        ]
+        self.check(
+            'notes',
+            f'list {event_id}',
+            len(ours),
+            lambda: compare_list(
+                ours, theirs, same=notes_test.NOTE_FIELDS, renamed={'author_id': ('user', None)}, key='url'
+            ),
+        )
 
     def _attachment_mappings(self, fields):
-        return {'same': fields,
-                'renamed': {'folder': ('folder', rename_keys(attachments_test.FOLDER_KEYS))}}
+        return {'same': fields, 'renamed': {'folder': ('folder', rename_keys(attachments_test.FOLDER_KEYS))}}
 
     def _check_attachment_scope(self, ours_path, theirs_path, label):
         ours = self.api.list(ours_path)
@@ -479,32 +546,47 @@ class Checker:
         files = [att for att in ours if att['type'] == 'file']
         links = [att for att in ours if att['type'] == 'link']
         by_id = {att['id']: att for att in theirs}
-        self.check('attachments', label, len(ours), lambda: (
-            compare_list(files, [by_id[att['id']] for att in files],
-                         **self._attachment_mappings(attachments_test.FILE_FIELDS)),
-            compare_list(links, [by_id[att['id']] for att in links],
-                         **self._attachment_mappings(attachments_test.LINK_FIELDS))))
+        self.check(
+            'attachments',
+            label,
+            len(ours),
+            lambda: (
+                compare_list(
+                    files,
+                    [by_id[att['id']] for att in files],
+                    **self._attachment_mappings(attachments_test.FILE_FIELDS),
+                ),
+                compare_list(
+                    links,
+                    [by_id[att['id']] for att in links],
+                    **self._attachment_mappings(attachments_test.LINK_FIELDS),
+                ),
+            ),
+        )
 
     def check_attachments(self, event):
         event_id = event['id']
-        self._check_attachment_scope(f'/events/{event_id}/attachments',
-                                     f'/export/attachments/{event_id}.json', f'event {event_id}')
+        self._check_attachment_scope(
+            f'/events/{event_id}/attachments', f'/export/attachments/{event_id}.json', f'event {event_id}'
+        )
         for contrib_id in event['attachment_contributions']:
             self._check_attachment_scope(
                 f'/events/{event_id}/contributions/{contrib_id}/attachments',
-                f'/export/attachments/{event_id}/contribution/{contrib_id}.json', f'contribution {contrib_id}')
+                f'/export/attachments/{event_id}/contribution/{contrib_id}.json',
+                f'contribution {contrib_id}',
+            )
         for session_id in event['attachment_sessions']:
             self._check_attachment_scope(
                 f'/events/{event_id}/sessions/{session_id}/attachments',
-                f'/export/attachments/{event_id}/session/{session_id}.json', f'session {session_id}')
+                f'/export/attachments/{event_id}/session/{session_id}.json',
+                f'session {session_id}',
+            )
 
     def check_tracks(self, event_id):
         ours = self.api.list(f'/events/{event_id}/tracks')
         current = self.api.get(f'/event/{event_id}/program.json')
-        mappings = {'same': tracks_test.TRACK_FIELDS,
-                    'derived': {'track_group': tracks_test.as_track_group(current)}}
-        self.check('tracks', f'list {event_id}', len(ours),
-                   lambda: compare_list(ours, current['tracks'], **mappings))
+        mappings = {'same': tracks_test.TRACK_FIELDS, 'derived': {'track_group': tracks_test.as_track_group(current)}}
+        self.check('tracks', f'list {event_id}', len(ours), lambda: compare_list(ours, current['tracks'], **mappings))
         first = ours[0]
         theirs = next(track for track in current['tracks'] if track['id'] == first['id'])
         self.check('tracks', f'detail {first["id"]}', 1, lambda: compare(first, theirs, **mappings))
@@ -513,8 +595,7 @@ class Checker:
         ours = self.api.list(f'/events/{event_id}/abstracts')
         current = self.api.get(f'/event/{event_id}/manage/abstracts/abstracts.json')['abstracts']
         mappings = {'same': abstracts_test.ABSTRACT_FIELDS, 'derived': abstracts_test.ABSTRACT_LINKS}
-        self.check('abstracts', f'list {event_id}', len(ours),
-                   lambda: compare_list(ours, current, **mappings))
+        self.check('abstracts', f'list {event_id}', len(ours), lambda: compare_list(ours, current, **mappings))
         first = ours[0]
         theirs = next(abstract for abstract in current if abstract['id'] == first['id'])
         self.check('abstracts', f'detail {first["id"]}', 1, lambda: compare(first, theirs, **mappings))
@@ -522,17 +603,29 @@ class Checker:
     def check_papers(self, event_id):
         ours = self.api.list(f'/events/{event_id}/papers')
         current = self.api.get(f'/event/{event_id}/manage/papers/assignment-list/export-json')['papers']
-        self.check('papers', f'list {event_id}', len(ours),
-                   lambda: compare_list(ours, current, same=papers_test.PAPER_FIELDS,
-                                        derived={**papers_test.PAPER_DERIVED,
-                                                 'last_revision': papers_test.as_last_revision},
-                                        key=lambda paper: paper['contribution']['id']))
+        self.check(
+            'papers',
+            f'list {event_id}',
+            len(ours),
+            lambda: compare_list(
+                ours,
+                current,
+                same=papers_test.PAPER_FIELDS,
+                derived={**papers_test.PAPER_DERIVED, 'last_revision': papers_test.as_last_revision},
+                key=lambda paper: paper['contribution']['id'],
+            ),
+        )
         contrib_id = ours[0]['contribution']['id']
         one = self.api.ours(f'/events/{event_id}/contributions/{contrib_id}/paper')
         theirs = next(paper for paper in current if paper['contribution']['id'] == contrib_id)
-        self.check('papers', f'detail {contrib_id}', 1,
-                   lambda: compare(one, theirs, same=(*papers_test.PAPER_FIELDS, 'revisions'),
-                                   derived=papers_test.PAPER_DERIVED))
+        self.check(
+            'papers',
+            f'detail {contrib_id}',
+            1,
+            lambda: compare(
+                one, theirs, same=(*papers_test.PAPER_FIELDS, 'revisions'), derived=papers_test.PAPER_DERIVED
+            ),
+        )
 
     def check_reviewing(self, event):
         """Check the reviews and the comments against the exports the reviewing pages download."""
@@ -541,17 +634,31 @@ class Checker:
         for abstract in abstracts['abstracts']:
             if abstract['reviews']:
                 ours = self.api.list(f'/events/{event_id}/abstracts/{abstract["id"]}/reviews')
-                self.check('reviews', f'abstract {abstract["id"]}', len(ours),
-                           lambda ours=ours, theirs=abstract['reviews']:
-                           compare_list(ours, theirs, **reviews_test.ABSTRACT_REVIEW_MAPPINGS))
+                self.check(
+                    'reviews',
+                    f'abstract {abstract["id"]}',
+                    len(ours),
+                    lambda ours=ours, theirs=abstract['reviews']: compare_list(
+                        ours, theirs, **reviews_test.ABSTRACT_REVIEW_MAPPINGS
+                    ),
+                )
             if abstract['comments']:
                 ours = self.api.list(f'/events/{event_id}/abstracts/{abstract["id"]}/comments')
-                self.check('reviews', f'abstract comments {abstract["id"]}', len(ours),
-                           lambda ours=ours, theirs=abstract['comments']:
-                           compare_list(ours, theirs, same=reviews_test.COMMENT_FIELDS))
+                self.check(
+                    'reviews',
+                    f'abstract comments {abstract["id"]}',
+                    len(ours),
+                    lambda ours=ours, theirs=abstract['comments']: compare_list(
+                        ours, theirs, same=reviews_test.COMMENT_FIELDS
+                    ),
+                )
         questions = self.api.list(f'/events/{event_id}/abstract-review-questions')
-        self.check('reviews', f'abstract questions {event_id}', len(questions),
-                   lambda: _same_questions(questions, abstracts['questions']))
+        self.check(
+            'reviews',
+            f'abstract questions {event_id}',
+            len(questions),
+            lambda: _same_questions(questions, abstracts['questions']),
+        )
 
         papers = self.api.get(f'/event/{event_id}/manage/papers/assignment-list/export-json')
         for paper in papers['papers']:
@@ -560,18 +667,32 @@ class Checker:
                 base = f'/events/{event_id}/contributions/{contrib_id}/paper/revisions/{revision["id"]}'
                 if revision['reviews']:
                     ours = self.api.list(f'{base}/reviews')
-                    self.check('reviews', f'paper {contrib_id} revision {revision["id"]}', len(ours),
-                               lambda ours=ours, theirs=revision['reviews']:
-                               compare_list(ours, theirs, **reviews_test.PAPER_REVIEW_MAPPINGS))
+                    self.check(
+                        'reviews',
+                        f'paper {contrib_id} revision {revision["id"]}',
+                        len(ours),
+                        lambda ours=ours, theirs=revision['reviews']: compare_list(
+                            ours, theirs, **reviews_test.PAPER_REVIEW_MAPPINGS
+                        ),
+                    )
                 if revision['comments']:
                     ours = self.api.list(f'{base}/comments')
-                    self.check('reviews', f'paper comments {contrib_id} revision {revision["id"]}', len(ours),
-                               lambda ours=ours, theirs=revision['comments']:
-                               compare_list(ours, theirs, **reviews_test.PAPER_COMMENT_MAPPINGS))
+                    self.check(
+                        'reviews',
+                        f'paper comments {contrib_id} revision {revision["id"]}',
+                        len(ours),
+                        lambda ours=ours, theirs=revision['comments']: compare_list(
+                            ours, theirs, **reviews_test.PAPER_COMMENT_MAPPINGS
+                        ),
+                    )
         questions = self.api.list(f'/events/{event_id}/paper-review-questions')
         theirs = papers['layout_review_questions'] + papers['content_review_questions']
-        self.check('reviews', f'paper questions {event_id}', len(questions),
-                   lambda: compare_list(questions, theirs, **reviews_test.PAPER_QUESTION_MAPPINGS))
+        self.check(
+            'reviews',
+            f'paper questions {event_id}',
+            len(questions),
+            lambda: compare_list(questions, theirs, **reviews_test.PAPER_QUESTION_MAPPINGS),
+        )
 
     def check_editing(self, event):
         """Check the editables against the timeline each of them is rendered from."""
@@ -582,67 +703,111 @@ class Checker:
             ours = self.api.ours(f'/events/{event_id}/contributions/{contrib_id}/editables/{editable_type}')
             theirs = self.api.get(f'/event/{event_id}/api/contributions/{contrib_id}/editing/{editable_type}')
             revisions = ours.pop('revisions')
-            self.check('editing', f'editable {contrib_id} {editable_type}', 1,
-                       lambda ours=ours, theirs=theirs: compare(ours, theirs, **editing_test.EDITABLE_MAPPINGS))
-            self.check('editing', f'revisions {contrib_id} {editable_type}', len(revisions),
-                       lambda revisions=revisions, theirs=theirs:
-                       compare_list(revisions, theirs['revisions'], **editing_test.REVISION_MAPPINGS))
+            self.check(
+                'editing',
+                f'editable {contrib_id} {editable_type}',
+                1,
+                lambda ours=ours, theirs=theirs: compare(ours, theirs, **editing_test.EDITABLE_MAPPINGS),
+            )
+            self.check(
+                'editing',
+                f'revisions {contrib_id} {editable_type}',
+                len(revisions),
+                lambda revisions=revisions, theirs=theirs: compare_list(
+                    revisions, theirs['revisions'], **editing_test.REVISION_MAPPINGS
+                ),
+            )
             for revision in theirs['revisions']:
                 if not revision['comments']:
                     continue
-                path = (f'/events/{event_id}/contributions/{contrib_id}/editables/{editable_type}'
-                        f'/revisions/{revision["id"]}/comments')
+                path = (
+                    f'/events/{event_id}/contributions/{contrib_id}/editables/{editable_type}'
+                    f'/revisions/{revision["id"]}/comments'
+                )
                 comments = self.api.list(path)
-                self.check('editing', f'comments {contrib_id} revision {revision["id"]}', len(comments),
-                           lambda comments=comments, revision=revision:
-                           compare_list(comments, revision['comments'], **editing_test.COMMENT_MAPPINGS))
+                self.check(
+                    'editing',
+                    f'comments {contrib_id} revision {revision["id"]}',
+                    len(comments),
+                    lambda comments=comments, revision=revision: compare_list(
+                        comments, revision['comments'], **editing_test.COMMENT_MAPPINGS
+                    ),
+                )
 
         tags = self.api.list(f'/events/{event_id}/editing/tags')
-        self.check('editing', f'tags {event_id}', len(tags),
-                   lambda: compare_list(tags, self.api.get(f'/event/{event_id}/editing/api/tags'),
-                                        same=editing_test.TAG_FIELDS))
+        self.check(
+            'editing',
+            f'tags {event_id}',
+            len(tags),
+            lambda: compare_list(
+                tags, self.api.get(f'/event/{event_id}/editing/api/tags'), same=editing_test.TAG_FIELDS
+            ),
+        )
         for editable_type in ('paper', 'slides', 'poster'):
             file_types = self.api.list(f'/events/{event_id}/editing/{editable_type}/file-types')
-            self.check('editing', f'file types {event_id} {editable_type}', len(file_types),
-                       lambda file_types=file_types, editable_type=editable_type:
-                       compare_list(file_types,
-                                    self.api.get(f'/event/{event_id}/editing/api/{editable_type}/file-types'),
-                                    same=editing_test.FILE_TYPE_FIELDS))
+            self.check(
+                'editing',
+                f'file types {event_id} {editable_type}',
+                len(file_types),
+                lambda file_types=file_types, editable_type=editable_type: compare_list(
+                    file_types,
+                    self.api.get(f'/event/{event_id}/editing/api/{editable_type}/file-types'),
+                    same=editing_test.FILE_TYPE_FIELDS,
+                ),
+            )
             conditions = self.api.list(f'/events/{event_id}/editing/{editable_type}/review-conditions')
-            self.check('editing', f'review conditions {event_id} {editable_type}', len(conditions),
-                       lambda conditions=conditions, editable_type=editable_type:
-                       _same_review_conditions(
-                           conditions,
-                           self.api.get(f'/event/{event_id}/editing/api/{editable_type}/review-conditions')))
+            self.check(
+                'editing',
+                f'review conditions {event_id} {editable_type}',
+                len(conditions),
+                lambda conditions=conditions, editable_type=editable_type: _same_review_conditions(
+                    conditions, self.api.get(f'/event/{event_id}/editing/api/{editable_type}/review-conditions')
+                ),
+            )
 
     def check_registrations(self, event_id):
         ours = self.api.list(f'/events/{event_id}/registration-forms')
         theirs = self.api.get(f'/api/checkin/event/{event_id}/forms/')
-        self.check('registration-forms', f'list {event_id}', len(ours),
-                   lambda: compare_list(ours, theirs, same=registrations_test.REGFORM_FIELDS))
+        self.check(
+            'registration-forms',
+            f'list {event_id}',
+            len(ours),
+            lambda: compare_list(ours, theirs, same=registrations_test.REGFORM_FIELDS),
+        )
         regform_id = ours[0]['id']
         one = self.api.ours(f'/events/{event_id}/registration-forms/{regform_id}')
         current = next(form for form in theirs if form['id'] == regform_id)
-        self.check('registration-forms', f'detail {regform_id}', 1,
-                   lambda: compare(one, current, same=registrations_test.REGFORM_FIELDS))
+        self.check(
+            'registration-forms',
+            f'detail {regform_id}',
+            1,
+            lambda: compare(one, current, same=registrations_test.REGFORM_FIELDS),
+        )
 
-        mappings = {'same': registrations_test.REGISTRATION_FIELDS,
-                    'renamed': registrations_test.REGISTRATION_KEYS,
-                    'derived': registrations_test.PERSONAL_DATA}
+        mappings = {
+            'same': registrations_test.REGISTRATION_FIELDS,
+            'renamed': registrations_test.REGISTRATION_KEYS,
+            'derived': registrations_test.PERSONAL_DATA,
+        }
         our_regs = self.api.list(f'/events/{event_id}/registrations')
         their_regs = merged_registrations(self.api, event_id, regform_id)
-        self.check('registrations', f'list {event_id}', len(our_regs),
-                   lambda: compare_list(our_regs, their_regs, **mappings))
+        self.check(
+            'registrations', f'list {event_id}', len(our_regs), lambda: compare_list(our_regs, their_regs, **mappings)
+        )
         first = our_regs[0]
         one = self.api.ours(f'/events/{event_id}/registrations/{first["id"]}')
         current = next(reg for reg in their_regs if reg['id'] == first['id'])
         answers = one.pop('sections')
         self.check('registrations', f'detail {first["id"]}', 1, lambda: compare(one, current, **mappings))
-        their_data = self.api.get(f'/api/checkin/event/{event_id}/forms/{regform_id}/registrations/'
-                                  f'{first["id"]}')['registration_data']
-        self.check('registration-answers', f'detail {first["id"]}',
-                   sum(len(section['fields']) for section in answers),
-                   lambda: compare_answers(answers, their_data))
+        their_data = self.api.get(f'/api/checkin/event/{event_id}/forms/{regform_id}/registrations/{first["id"]}')[
+            'registration_data'
+        ]
+        self.check(
+            'registration-answers',
+            f'detail {first["id"]}',
+            sum(len(section['fields']) for section in answers),
+            lambda: compare_answers(answers, their_data),
+        )
 
     def check_logs(self, event_id):
         mappings = {'same': logs_test.LOG_FIELDS, 'renamed': logs_test.log_keys(self.tzinfo)}
@@ -670,23 +835,36 @@ class Checker:
         self.check_count('session-types', f'/events/{event_id}/session-types', event['session_types'])
         ours = self.api.list(f'/events/{event_id}/contribution-fields')
         theirs = self.api.get(f'/event/{event_id}/manage/contributions/api/fields/')
-        self.check('contribution-fields', f'list {event_id}', len(ours),
-                   lambda: compare_list(ours, theirs, same=contribution_fields_test.FIELD_FIELDS,
-                                        derived={'event_id': lambda _: event_id}))
+        self.check(
+            'contribution-fields',
+            f'list {event_id}',
+            len(ours),
+            lambda: compare_list(
+                ours, theirs, same=contribution_fields_test.FIELD_FIELDS, derived={'event_id': lambda _: event_id}
+            ),
+        )
 
     def check_paper_setup(self, event):
         event_id = event['id']
         self.check_count('paper-templates', f'/events/{event_id}/paper-templates', event['paper_templates'])
         ours = self.api.list(f'/events/{event_id}/paper-file-types')
         theirs = self.api.get(f'/event/{event_id}/papers/api/file-types/')
-        self.check('paper-file-types', f'list {event_id}', len(ours),
-                   lambda: compare_list(ours, theirs, same=paper_file_types_test.FILE_TYPE_FIELDS,
-                                        derived={'event_id': lambda _: event_id}))
+        self.check(
+            'paper-file-types',
+            f'list {event_id}',
+            len(ours),
+            lambda: compare_list(
+                ours, theirs, same=paper_file_types_test.FILE_TYPE_FIELDS, derived={'event_id': lambda _: event_id}
+            ),
+        )
 
     def check_abstract_emails(self, event):
         event_id = event['id']
-        self.check_count('abstract-email-templates', f'/events/{event_id}/abstract-email-templates',
-                         event['abstract_email_templates'])
+        self.check_count(
+            'abstract-email-templates',
+            f'/events/{event_id}/abstract-email-templates',
+            event['abstract_email_templates'],
+        )
         for abstract_id, expected in event['abstract_emails'].items():
             self.check_count('abstract-emails', f'/events/{event_id}/abstracts/{abstract_id}/emails', expected)
 
@@ -695,49 +873,76 @@ class Checker:
         ours = self.api.list(f'/categories/{category_id}/roles')
         theirs = self.api.get(f'/category/{category_id}/manage/roles/api/roles/')
         ids = {role['code']: role['id'] for role in ours}
-        self.check('category-roles', f'list {category_id}', len(ours),
-                   lambda: compare_list(ours, theirs, same=category_roles_test.CATEGORY_ROLE_FIELDS,
-                                        derived={'members': category_roles_test.by_id,
-                                                 'id': lambda current: ids[current['code']],
-                                                 'category_id': lambda _: category_id},
-                                        key='code'))
+        self.check(
+            'category-roles',
+            f'list {category_id}',
+            len(ours),
+            lambda: compare_list(
+                ours,
+                theirs,
+                same=category_roles_test.CATEGORY_ROLE_FIELDS,
+                derived={
+                    'members': category_roles_test.by_id,
+                    'id': lambda current: ids[current['code']],
+                    'category_id': lambda _: category_id,
+                },
+                key='code',
+            ),
+        )
         first = ours[0]
         one = self.api.ours(f'/categories/{category_id}/roles/{first["id"]}')
         current = next(role for role in theirs if role['code'] == first['code'])
-        self.check('category-roles', f'detail {first["id"]}', 1,
-                   lambda: compare(one, current, same=category_roles_test.CATEGORY_ROLE_FIELDS,
-                                   derived={'members': category_roles_test.by_id,
-                                            'id': lambda _: first['id'],
-                                            'category_id': lambda _: category_id}))
+        self.check(
+            'category-roles',
+            f'detail {first["id"]}',
+            1,
+            lambda: compare(
+                one,
+                current,
+                same=category_roles_test.CATEGORY_ROLE_FIELDS,
+                derived={
+                    'members': category_roles_test.by_id,
+                    'id': lambda _: first['id'],
+                    'category_id': lambda _: category_id,
+                },
+            ),
+        )
 
     def check_move_requests(self):
         category_id = self.manifest['category_id']
-        mappings = {'same': move_requests_test.MOVE_REQUEST_FIELDS,
-                    'renamed': {'requestor': ('requestor', move_requests_test.as_requestor)},
-                    'derived': {'event_id': lambda current: current['event']['id'],
-                                'category_id': lambda _: category_id,
-                                'moderator': lambda _: None, 'moderator_comment': lambda _: ''}}
+        mappings = {
+            'same': move_requests_test.MOVE_REQUEST_FIELDS,
+            'renamed': {'requestor': ('requestor', move_requests_test.as_requestor)},
+            'derived': {
+                'event_id': lambda current: current['event']['id'],
+                'category_id': lambda _: category_id,
+                'moderator': lambda _: None,
+                'moderator_comment': lambda _: '',
+            },
+        }
         ours = self.api.list(f'/categories/{category_id}/move-requests?state=pending')
         theirs = self.api.get(f'/category/{category_id}/api/event-move-requests')
-        self.check('move-requests', f'list {category_id}', len(ours),
-                   lambda: compare_list(ours, theirs, **mappings))
+        self.check('move-requests', f'list {category_id}', len(ours), lambda: compare_list(ours, theirs, **mappings))
         first = ours[0]
         one = self.api.ours(f'/categories/{category_id}/move-requests/{first["id"]}')
         current = next(request for request in theirs if request['id'] == first['id'])
         self.check('move-requests', f'detail {first["id"]}', 1, lambda: compare(one, current, **mappings))
-        self.check_count('move-requests', f'/categories/{category_id}/move-requests',
-                         self.manifest['counts']['move_requests'])
+        self.check_count(
+            'move-requests', f'/categories/{category_id}/move-requests', self.manifest['counts']['move_requests']
+        )
 
     def check_map_areas(self):
         ours = self.api.list('/map-areas')
         theirs = self.api.get('/rooms/api/map-areas')
-        self.check('map-areas', 'list', len(ours),
-                   lambda: compare_list(ours, theirs, same=map_areas_test.MAP_AREA_FIELDS))
+        self.check(
+            'map-areas', 'list', len(ours), lambda: compare_list(ours, theirs, same=map_areas_test.MAP_AREA_FIELDS)
+        )
         first = ours[0]
         one = self.api.ours(f'/map-areas/{first["id"]}')
         current = next(area for area in theirs if area['id'] == first['id'])
-        self.check('map-areas', f'detail {first["id"]}', 1,
-                   lambda: compare(one, current, same=map_areas_test.MAP_AREA_FIELDS))
+        self.check(
+            'map-areas', f'detail {first["id"]}', 1, lambda: compare(one, current, same=map_areas_test.MAP_AREA_FIELDS)
+        )
 
     def check_room_attributes(self):
         room_id = self.manifest['attributed_room_id']
@@ -746,57 +951,95 @@ class Checker:
         ids = {attribute['name']: attribute['attribute_id'] for attribute in ours}
         # the hidden attributes are served to the managers of the room, and the current API drops them for everybody
         visible = [attribute for attribute in ours if not attribute['is_hidden']]
-        self.check('room-attributes', f'list {room_id}', len(ours),
-                   lambda: compare_list(visible, theirs, same=room_attributes_test.ATTRIBUTE_FIELDS,
-                                        derived={'attribute_id': lambda current: ids[current['name']],
-                                                 'is_hidden': lambda _: False},
-                                        key='name'))
+        self.check(
+            'room-attributes',
+            f'list {room_id}',
+            len(ours),
+            lambda: compare_list(
+                visible,
+                theirs,
+                same=room_attributes_test.ATTRIBUTE_FIELDS,
+                derived={'attribute_id': lambda current: ids[current['name']], 'is_hidden': lambda _: False},
+                key='name',
+            ),
+        )
 
     def check_room_availability(self):
         room_id = self.manifest['attributed_room_id']
         current = self.api.get(f'/rooms/api/admin/rooms/{room_id}/availability')
         ours = self.api.list(f'/rooms/{room_id}/bookable-hours')
         ids = {hours['start_time']: hours['id'] for hours in ours}
-        self.check('room-availability', f'bookable hours {room_id}', len(ours),
-                   lambda: compare_list(ours, current['bookable_hours'],
-                                        same=room_availability_test.BOOKABLE_HOURS_FIELDS,
-                                        derived={'id': lambda current: ids[current['start_time']],
-                                                 'room_id': lambda _: room_id},
-                                        key='start_time'))
+        self.check(
+            'room-availability',
+            f'bookable hours {room_id}',
+            len(ours),
+            lambda: compare_list(
+                ours,
+                current['bookable_hours'],
+                same=room_availability_test.BOOKABLE_HOURS_FIELDS,
+                derived={'id': lambda current: ids[current['start_time']], 'room_id': lambda _: room_id},
+                key='start_time',
+            ),
+        )
         ours = self.api.list(f'/rooms/{room_id}/nonbookable-periods')
         # the administration interface only edits whole days, so it drops the time of both ends
-        self.check('room-availability', f'nonbookable periods {room_id}', len(ours),
-                   lambda: compare_list(ours, current['nonbookable_periods'],
-                                        renamed={'start_dt': ('start_dt', room_availability_test.as_day),
-                                                 'end_dt': ('end_dt', room_availability_test.as_day)},
-                                        derived={'room_id': lambda _: room_id}, key='start_dt'))
+        self.check(
+            'room-availability',
+            f'nonbookable periods {room_id}',
+            len(ours),
+            lambda: compare_list(
+                ours,
+                current['nonbookable_periods'],
+                renamed={
+                    'start_dt': ('start_dt', room_availability_test.as_day),
+                    'end_dt': ('end_dt', room_availability_test.as_day),
+                },
+                derived={'room_id': lambda _: room_id},
+                key='start_dt',
+            ),
+        )
 
     def check_reservation_edit_logs(self):
         reservation_id = self.manifest['reservation_id']
         ours = self.api.list(f'/reservations/{reservation_id}/edit-logs')
         theirs = self.api.cached(f'/rooms/api/bookings/{reservation_id}')['edit_logs']
-        self.check('reservation-edit-logs', f'list {reservation_id}', len(ours),
-                   lambda: compare_list(ours, theirs, same=reservation_edit_logs_test.EDIT_LOG_FIELDS,
-                                        derived={'reservation_id': lambda _: reservation_id}))
+        self.check(
+            'reservation-edit-logs',
+            f'list {reservation_id}',
+            len(ours),
+            lambda: compare_list(
+                ours,
+                theirs,
+                same=reservation_edit_logs_test.EDIT_LOG_FIELDS,
+                derived={'reservation_id': lambda _: reservation_id},
+            ),
+        )
 
     def check_reservation_links(self):
         for reservation_id in self.manifest['linked_reservation_ids']:
             ours = self.api.list(f'/reservations/{reservation_id}/links')
             theirs = self.api.get(f'/rooms/api/bookings/{reservation_id}/links')
-            self.check('reservation-links', f'list {reservation_id}', len(ours),
-                       lambda ours=ours, theirs=theirs: compare_list(
-                           ours, theirs, same=reservation_links_test.LINK_FIELDS,
-                           renamed=reservation_links_test.LINK_KEYS,
-                           derived=reservation_links_test.link_derived(ours)))
+            self.check(
+                'reservation-links',
+                f'list {reservation_id}',
+                len(ours),
+                lambda ours=ours, theirs=theirs: compare_list(
+                    ours,
+                    theirs,
+                    same=reservation_links_test.LINK_FIELDS,
+                    renamed=reservation_links_test.LINK_KEYS,
+                    derived=reservation_links_test.link_derived(ours),
+                ),
+            )
 
     def check_category_logs(self):
         category_id = self.manifest['category_id']
         mappings = {'same': logs_test.LOG_FIELDS, 'renamed': logs_test.log_keys(self.tzinfo)}
         ours = self.api.list(f'/categories/{category_id}/logs')
-        theirs = current_log_entries(self.api, f'/category/{category_id}/manage/logs/api/logs',
-                                     category_logs_test.ALL_REALMS)
-        self.check('category-logs', f'list {category_id}', len(ours),
-                   lambda: compare_list(ours, theirs, **mappings))
+        theirs = current_log_entries(
+            self.api, f'/category/{category_id}/manage/logs/api/logs', category_logs_test.ALL_REALMS
+        )
+        self.check('category-logs', f'list {category_id}', len(ours), lambda: compare_list(ours, theirs, **mappings))
         first = ours[0]
         one = self.api.ours(f'/categories/{category_id}/logs/{first["id"]}')
         current = next(entry for entry in theirs if entry['id'] == first['id'])
@@ -805,37 +1048,61 @@ class Checker:
     def check_equipment(self):
         ours = self.api.list('/equipment-types')
         theirs = self.api.get('/rooms/api/equipment')
-        self.check('equipment-types', 'list', len(ours),
-                   lambda: compare_list(ours, theirs, same=equipment_test.EQUIPMENT_TYPE_FIELDS))
+        self.check(
+            'equipment-types',
+            'list',
+            len(ours),
+            lambda: compare_list(ours, theirs, same=equipment_test.EQUIPMENT_TYPE_FIELDS),
+        )
         first = ours[0]
         one = self.api.ours(f'/equipment-types/{first["id"]}')
         current = next(equipment for equipment in theirs if equipment['id'] == first['id'])
-        self.check('equipment-types', f'detail {first["id"]}', 1,
-                   lambda: compare(one, current, same=equipment_test.EQUIPMENT_TYPE_FIELDS))
+        self.check(
+            'equipment-types',
+            f'detail {first["id"]}',
+            1,
+            lambda: compare(one, current, same=equipment_test.EQUIPMENT_TYPE_FIELDS),
+        )
 
     def check_room_features(self):
         ours = self.api.list('/room-features')
         # only the administration area lists the features on their own
         theirs = self.api.get('/rooms/api/admin/features')
-        self.check('room-features', 'list', len(ours),
-                   lambda: compare_list(ours, theirs, same=equipment_test.ROOM_FEATURE_FIELDS))
+        self.check(
+            'room-features',
+            'list',
+            len(ours),
+            lambda: compare_list(ours, theirs, same=equipment_test.ROOM_FEATURE_FIELDS),
+        )
         first = ours[0]
         one = self.api.ours(f'/room-features/{first["id"]}')
         current = next(feature for feature in theirs if feature['id'] == first['id'])
-        self.check('room-features', f'detail {first["id"]}', 1,
-                   lambda: compare(one, current, same=equipment_test.ROOM_FEATURE_FIELDS))
+        self.check(
+            'room-features',
+            f'detail {first["id"]}',
+            1,
+            lambda: compare(one, current, same=equipment_test.ROOM_FEATURE_FIELDS),
+        )
 
     def check_affiliations(self):
         ours = self.api.list('/affiliations')
         # only the administration area lists the catalogue as a whole
         theirs = self.api.get('/api/admin/affiliations')
-        self.check('affiliations', 'list', len(ours),
-                   lambda: compare_list(ours, theirs, same=affiliations_test.AFFILIATION_FIELDS))
+        self.check(
+            'affiliations',
+            'list',
+            len(ours),
+            lambda: compare_list(ours, theirs, same=affiliations_test.AFFILIATION_FIELDS),
+        )
         first = ours[0]
         one = self.api.ours(f'/affiliations/{first["id"]}')
         current = next(affiliation for affiliation in theirs if affiliation['id'] == first['id'])
-        self.check('affiliations', f'detail {first["id"]}', 1,
-                   lambda: compare(one, current, same=affiliations_test.AFFILIATION_FIELDS))
+        self.check(
+            'affiliations',
+            f'detail {first["id"]}',
+            1,
+            lambda: compare(one, current, same=affiliations_test.AFFILIATION_FIELDS),
+        )
 
     def check_catalogues(self):
         counts = self.manifest['counts']
@@ -846,8 +1113,12 @@ class Checker:
         event_id = event['id']
         ours = self.api.list(f'/events/{event_id}/registration-tags')
         theirs = self.api.cached(f'/api/checkin/event/{event_id}/')['registration_tags']
-        self.check('registration-tags', f'list {event_id}', len(ours),
-                   lambda: compare_list(ours, theirs, same=registration_tags_test.TAG_FIELDS))
+        self.check(
+            'registration-tags',
+            f'list {event_id}',
+            len(ours),
+            lambda: compare_list(ours, theirs, same=registration_tags_test.TAG_FIELDS),
+        )
 
     def check_layout(self, event):
         event_id = event['id']
@@ -879,43 +1150,57 @@ class Checker:
     def check_document_templates(self, event_id):
         ours = self.api.list(f'/events/{event_id}/document-templates')
         theirs = self.api.get(f'/event/{event_id}/manage/receipts/templates')
-        self.check('document-templates', f'list {event_id}', len(ours),
-                   lambda: compare_list(ours, theirs, same=receipts_test.TEMPLATE_FIELDS))
+        self.check(
+            'document-templates',
+            f'list {event_id}',
+            len(ours),
+            lambda: compare_list(ours, theirs, same=receipts_test.TEMPLATE_FIELDS),
+        )
         first = ours[0]
         one = self.api.ours(f'/events/{event_id}/document-templates/{first["id"]}')
         current = next(template for template in theirs if template['id'] == first['id'])
-        self.check('document-templates', f'detail {first["id"]}', 1,
-                   lambda: compare(one, current, same=receipts_test.TEMPLATE_FIELDS))
+        self.check(
+            'document-templates',
+            f'detail {first["id"]}',
+            1,
+            lambda: compare(one, current, same=receipts_test.TEMPLATE_FIELDS),
+        )
 
     def check_designer_templates(self, event_id):
-        mappings = {'same': ('title', 'data', 'background_url'),
-                    'renamed': {'id': ('backside_template_id', None), 'images': ('images', designer_test.as_image_map)}}
+        mappings = {
+            'same': ('title', 'data', 'background_url'),
+            'renamed': {'id': ('backside_template_id', None), 'images': ('images', designer_test.as_image_map)},
+        }
         ours = self.api.list(f'/events/{event_id}/designer-templates')
         theirs = [designer_template_data(self.api, event_id, template['id']) for template in ours]
-        self.check('designer-templates', f'list {event_id}', len(ours),
-                   lambda: compare_list(ours, theirs, **mappings, key='id'))
+        self.check(
+            'designer-templates',
+            f'list {event_id}',
+            len(ours),
+            lambda: compare_list(ours, theirs, **mappings, key='id'),
+        )
         first = ours[0]
         one = self.api.ours(f'/events/{event_id}/designer-templates/{first["id"]}')
         self.check('designer-templates', f'detail {first["id"]}', 1, lambda: compare(one, theirs[0], **mappings))
 
     def check_groups(self):
         ours = self.api.list('/groups')
-        theirs = [self.api.get(f'/groups/api/search?name={quote(group["name"])}&exact=true')['groups'][0]
-                  for group in ours]
+        theirs = [
+            self.api.get(f'/groups/api/search?name={quote(group["name"])}&exact=true')['groups'][0] for group in ours
+        ]
         stripped = [groups_test.without_members(group) for group in ours]
-        self.check('groups', 'list', len(ours),
-                   lambda: compare_list(stripped, theirs, same=groups_test.GROUP_FIELDS))
+        self.check('groups', 'list', len(ours), lambda: compare_list(stripped, theirs, same=groups_test.GROUP_FIELDS))
         first = ours[0]
         one = groups_test.without_members(self.api.ours(f'/groups/{first["id"]}'))
-        self.check('groups', f'detail {first["id"]}', 1,
-                   lambda: compare(one, theirs[0], same=groups_test.GROUP_FIELDS))
+        self.check('groups', f'detail {first["id"]}', 1, lambda: compare(one, theirs[0], same=groups_test.GROUP_FIELDS))
 
     def check_files(self):
         ours = self.api.list('/files')
         # the current API serves one file per call
         theirs = [self.api.get(f'/files/{file["uuid"]}') for file in ours]
-        self.check('files', 'list', len(ours),
-                   lambda: compare_list(ours, theirs, same=files_test.FILE_FIELDS, key='uuid'))
+        self.check(
+            'files', 'list', len(ours), lambda: compare_list(ours, theirs, same=files_test.FILE_FIELDS, key='uuid')
+        )
 
     def check_series(self):
         mappings = {'same': series_test.SERIES_FIELDS, 'derived': {'event_ids': series_test.as_event_ids}}
@@ -933,8 +1218,7 @@ class Checker:
         ours = self.api.list('/users')
         # the legacy export serves one user per call
         theirs = [self.api.get(f'/export/user/{user["id"]}.json')['results'][0] for user in ours]
-        self.check('users', 'list', len(ours),
-                   lambda: compare_list(ours, theirs, same=users_test.USER_FIELDS))
+        self.check('users', 'list', len(ours), lambda: compare_list(ours, theirs, same=users_test.USER_FIELDS))
 
     def check_same_ids(self, entity, label, ours, theirs):
         """Check that a personal list holds the same objects the current API answers with.
@@ -942,6 +1226,7 @@ class Checker:
         The current API answers with identifiers alone for every list of
         favourites, so that is what the comparison can go down to.
         """
+
         def run():
             if sorted(ours) != sorted(theirs):
                 raise AssertionError(f'{label} served {sorted(ours)} instead of {sorted(theirs)}')
@@ -950,17 +1235,27 @@ class Checker:
 
     def check_favorites(self):
         ours = self.api.list('/users/me/favorite-users')
-        self.check_same_ids('favorites', 'users', [user['identifier'] for user in ours],
-                            self.api.get('/user/api/favorites/users'))
+        self.check_same_ids(
+            'favorites', 'users', [user['identifier'] for user in ours], self.api.get('/user/api/favorites/users')
+        )
         ours = self.api.list('/users/me/favorite-categories')
-        self.check_same_ids('favorites', 'categories', [category['id'] for category in ours],
-                            [int(id_) for id_ in self.api.get('/user/api/favorites/categories')])
+        self.check_same_ids(
+            'favorites',
+            'categories',
+            [category['id'] for category in ours],
+            [int(id_) for id_ in self.api.get('/user/api/favorites/categories')],
+        )
         ours = self.api.list('/users/me/favorite-events')
-        self.check_same_ids('favorites', 'events', [event['id'] for event in ours],
-                            [int(id_) for id_ in self.api.get('/user/api/favorites/events')])
+        self.check_same_ids(
+            'favorites',
+            'events',
+            [event['id'] for event in ours],
+            [int(id_) for id_ in self.api.get('/user/api/favorites/events')],
+        )
         ours = self.api.list('/users/me/favorite-rooms')
-        self.check_same_ids('favorites', 'rooms', [room['id'] for room in ours],
-                            self.api.get('/rooms/api/user/favorite-rooms/'))
+        self.check_same_ids(
+            'favorites', 'rooms', [room['id'] for room in ours], self.api.get('/rooms/api/user/favorite-rooms/')
+        )
 
     def check_acl(self):
         """Check the ACLs against the seed, since Indico renders them as HTML and compares to nothing."""
@@ -968,26 +1263,27 @@ class Checker:
         for entry in self.manifest['acl']:
             ours = self.api.list(entry['path'])
             granted |= {(entry['type'], name) for row in ours for name in row.get('permissions', ())}
-            self.check('acl', entry['path'], len(ours),
-                       lambda ours=ours, entry=entry: _same_principals(ours, entry))
+            self.check('acl', entry['path'], len(ours), lambda ours=ours, entry=entry: _same_principals(ours, entry))
         catalogue = self.api.list('/permissions')
         self.check('acl', 'permissions', len(catalogue), lambda: _describes_permissions(catalogue, granted))
 
     def check_personal_data(self):
         settings = self.api.ours('/users/me/settings')
         expected = self.manifest['settings']
-        self.check('personal-data', 'settings', 1,
-                   lambda: _same_settings(settings, expected))
+        self.check('personal-data', 'settings', 1, lambda: _same_settings(settings, expected))
         self.check_count('personal-data', '/users/me/emails', self.manifest['counts']['emails'])
         export = self.api.ours('/users/me/data-export')
-        self.check('personal-data', 'data export', 1,
-                   lambda: _same_export_state(export, self.manifest['data_export_state']))
+        self.check(
+            'personal-data', 'data export', 1, lambda: _same_export_state(export, self.manifest['data_export_state'])
+        )
 
     def check_rooms(self):
         as_ids = rooms_test.as_equipment_ids(self.api.get)
-        mappings = {'same': rooms_test.ROOM_FIELDS,
-                    'renamed': {'available_equipment': ('available_equipment', as_ids)},
-                    'derived': {'photo_url': rooms_test.as_photo_url}}
+        mappings = {
+            'same': rooms_test.ROOM_FIELDS,
+            'renamed': {'available_equipment': ('available_equipment', as_ids)},
+            'derived': {'photo_url': rooms_test.as_photo_url},
+        }
         ours = self.api.list('/rooms')
         theirs = self.api.get('/rooms/api/rooms/')
         for room in theirs:
@@ -1001,41 +1297,62 @@ class Checker:
     def check_locations(self):
         ours = self.api.list('/locations')
         theirs = self.api.get('/rooms/api/locations')
-        self.check('locations', 'list', len(ours),
-                   lambda: compare_list(ours, theirs, same=locations_test.LOCATION_FIELDS))
+        self.check(
+            'locations', 'list', len(ours), lambda: compare_list(ours, theirs, same=locations_test.LOCATION_FIELDS)
+        )
         for location in ours:
             one = self.api.ours(f'/locations/{location["id"]}')
             current = next(loc for loc in theirs if loc['id'] == location['id'])
-            self.check('locations', f'detail {location["id"]}', 1,
-                       lambda one=one, current=current: compare(one, current,
-                                                                same=(*locations_test.LOCATION_FIELDS, 'rooms')))
+            self.check(
+                'locations',
+                f'detail {location["id"]}',
+                1,
+                lambda one=one, current=current: compare(one, current, same=(*locations_test.LOCATION_FIELDS, 'rooms')),
+            )
 
     def check_blockings(self):
         ours = self.api.list('/blockings')
         theirs = self.api.get('/rooms/api/blockings/')
-        self.check('blockings', 'list', len(ours),
-                   lambda: compare_list(ours, theirs, same=blockings_test.BLOCKING_FIELDS))
+        self.check(
+            'blockings', 'list', len(ours), lambda: compare_list(ours, theirs, same=blockings_test.BLOCKING_FIELDS)
+        )
         first = ours[0]
         current = self.api.get(f'/rooms/api/blockings/{first["id"]}')
-        self.check('blockings', f'detail {first["id"]}', 1,
-                   lambda: compare(first, current, same=blockings_test.BLOCKING_FIELDS))
+        self.check(
+            'blockings',
+            f'detail {first["id"]}',
+            1,
+            lambda: compare(first, current, same=blockings_test.BLOCKING_FIELDS),
+        )
 
     def check_reservations(self):
-        mappings = {'same': reservations_test.RESERVATION_FIELDS,
-                    'renamed': reservations_test.RESERVATION_KEYS}
+        mappings = {'same': reservations_test.RESERVATION_FIELDS, 'renamed': reservations_test.RESERVATION_KEYS}
         ours = self.api.list('/reservations')
         legacy = legacy_reservations(self.api)
         theirs = [reservations_test.with_details(self.api.get, booking) for booking in legacy]
-        self.check('reservations', 'list', len(ours),
-                   lambda: compare_list(ours, theirs, **mappings,
-                                        derived={'is_repeating': reservations_test.as_is_repeating}))
+        self.check(
+            'reservations',
+            'list',
+            len(ours),
+            lambda: compare_list(ours, theirs, **mappings, derived={'is_repeating': reservations_test.as_is_repeating}),
+        )
         first = ours[0]
         one = self.api.ours(f'/reservations/{first["id"]}')
         current = next(booking for booking in theirs if booking['id'] == first['id'])
-        self.check('reservations', f'detail {first["id"]}', 1,
-                   lambda: compare(one, current, **mappings,
-                                   derived={'is_repeating': reservations_test.as_is_repeating,
-                                            'occurrences': reservations_test.as_occurrences}))
+        self.check(
+            'reservations',
+            f'detail {first["id"]}',
+            1,
+            lambda: compare(
+                one,
+                current,
+                **mappings,
+                derived={
+                    'is_repeating': reservations_test.as_is_repeating,
+                    'occurrences': reservations_test.as_occurrences,
+                },
+            ),
+        )
 
 
 def _same_settings(ours, expected):

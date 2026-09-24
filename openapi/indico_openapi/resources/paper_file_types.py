@@ -24,8 +24,17 @@ class PaperFileTypeSchema(DescribedFieldsMixin, CorePaperFileTypeSchema):
     """
 
     class Meta(CorePaperFileTypeSchema.Meta):
-        fields = ('id', 'event_id', 'name', 'extensions', 'allow_multiple_files', 'required', 'publishable',
-                  'filename_template', 'is_used')
+        fields = (
+            'id',
+            'event_id',
+            'name',
+            'extensions',
+            'allow_multiple_files',
+            'required',
+            'publishable',
+            'filename_template',
+            'is_used',
+        )
         descriptions = {
             'id': 'Numeric identifier of the file type, unique across the whole instance.',
             'event_id': 'Identifier of the event defining the file type.',
@@ -43,16 +52,16 @@ class PaperFileTypeMixin:
     EVENT_FEATURE = 'papers'
 
     def _file_type_query(self):
-        return (PaperFileType.query.with_parent(self.event)
-                .order_by(db.func.lower(PaperFileType.name), PaperFileType.id))
+        return PaperFileType.query.with_parent(self.event).order_by(db.func.lower(PaperFileType.name), PaperFileType.id)
 
 
 @json_errors
 class RHPaperFileType(PaperFileTypeMixin, RHProtectedEventBase):
     def _process_args(self):
         RHProtectedEventBase._process_args(self)
-        self.file_type = (self._file_type_query()
-                          .filter(PaperFileType.id == request.view_args['file_type_id']).first_or_404())
+        self.file_type = (
+            self._file_type_query().filter(PaperFileType.id == request.view_args['file_type_id']).first_or_404()
+        )
 
     def _process_GET(self):
         return PaperFileTypeSchema().jsonify(self.file_type)
@@ -70,10 +79,21 @@ class RHPaperFileTypeList(PaperFileTypeMixin, RHListBase, RHProtectedEventBase):
 
 
 ENDPOINTS = [
-    Endpoint(rule='/events/<int:event_id>/paper-file-types', name='paper_file_types', rh=RHPaperFileTypeList,
-             schema=PaperFileTypeSchema, many=True, summary='List the file types papers are submitted as',
-             tag='Papers'),
-    Endpoint(rule='/events/<int:event_id>/paper-file-types/<int:file_type_id>', name='paper_file_type',
-             rh=RHPaperFileType, schema=PaperFileTypeSchema,
-             summary='Details of one file type papers are submitted as', tag='Papers'),
+    Endpoint(
+        rule='/events/<int:event_id>/paper-file-types',
+        name='paper_file_types',
+        rh=RHPaperFileTypeList,
+        schema=PaperFileTypeSchema,
+        many=True,
+        summary='List the file types papers are submitted as',
+        tag='Papers',
+    ),
+    Endpoint(
+        rule='/events/<int:event_id>/paper-file-types/<int:file_type_id>',
+        name='paper_file_type',
+        rh=RHPaperFileType,
+        schema=PaperFileTypeSchema,
+        summary='Details of one file type papers are submitted as',
+        tag='Papers',
+    ),
 ]

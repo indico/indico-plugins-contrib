@@ -5,7 +5,6 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-
 from flask import request, session
 from marshmallow import fields
 from werkzeug.exceptions import Forbidden, NotFound
@@ -49,10 +48,12 @@ PERMISSION_OBJECTS = {
     'location': Location,
 }
 
-PRINCIPAL_TYPES = ('`user` for a single account, `local_group` for a group of the instance, `multipass_group` for '
-                   'a group of an external provider, `email` for an address no account has claimed yet, `network` '
-                   'for a range of IP addresses, `event_role` and `category_role` for a role of the event or of '
-                   'the category holding it, `registration_form` for everybody registered through that form')
+PRINCIPAL_TYPES = (
+    '`user` for a single account, `local_group` for a group of the instance, `multipass_group` for '
+    'a group of an external provider, `email` for an address no account has claimed yet, `network` '
+    'for a range of IP addresses, `event_role` and `category_role` for a role of the event or of '
+    'the category holding it, `registration_form` for everybody registered through that form'
+)
 
 
 def granted_permissions(entry):
@@ -72,7 +73,7 @@ class ACLEntrySchema(DescribedFieldsMixin, mm.Schema):
         descriptions = {
             'type': f'Kind of principal the entry names: {PRINCIPAL_TYPES}.',
             'identifier': 'Identifier of the principal, such as `User:42`, `Group::7`, `EventRole:3` or '
-                          '`Email:someone@example.org`.',
+            '`Email:someone@example.org`.',
             'name': 'Name of the principal, as Indico shows it on the protection page.',
         }
 
@@ -89,7 +90,7 @@ class PermissionACLEntrySchema(ACLEntrySchema):
             'read_access': 'Whether the principal may read the object while it is protected.',
             'full_access': 'Whether the principal manages the object, which covers every permission below.',
             'permissions': 'Names of the permissions granted on top of reading, such as `["submit"]`. The '
-                           '`/permissions` endpoint describes what each name allows.',
+            '`/permissions` endpoint describes what each name allows.',
         }
 
     read_access = fields.Boolean()
@@ -107,7 +108,7 @@ class PermissionSchema(DescribedFieldsMixin, mm.Schema):
             'title': 'Name of the permission, as Indico shows it on the protection page.',
             'description': 'What the permission allows, or `null` when Indico documents it nowhere.',
             'user_selectable': 'Whether the protection page offers the permission, as opposed to a permission '
-                               'only another part of Indico grants.',
+            'only another part of Indico grants.',
             'default': 'Whether the permission is the one given to a principal added with no choice made.',
             'color': 'Colour Indico paints the permission with, or `null` for the default one.',
         }
@@ -148,8 +149,10 @@ class ACLMixin:
             raise Forbidden
 
     def _process_GET(self):
-        entries = sorted(self.acl_object.acl_entries,
-                         key=lambda entry: (entry.principal.principal_order, entry.principal.name.lower()))
+        entries = sorted(
+            self.acl_object.acl_entries,
+            key=lambda entry: (entry.principal.principal_order, entry.principal.name.lower()),
+        )
         return jsonify_results(self.schema(many=True), entries)
 
 
@@ -161,9 +164,7 @@ class MembershipACLMixin(ACLMixin):
 
 class AttachmentACLMixin(MembershipACLMixin, AttachmentMixin):
     def _find_acl_object(self):
-        return (self._attachment_query()
-                .filter(Attachment.id == request.view_args['attachment_id'])
-                .first_or_404())
+        return self._attachment_query().filter(Attachment.id == request.view_args['attachment_id']).first_or_404()
 
     def _can_read_acl(self):
         return can_manage_attachments(self.acl_object.folder.object, session.user)
@@ -171,9 +172,9 @@ class AttachmentACLMixin(MembershipACLMixin, AttachmentMixin):
 
 class AttachmentFolderACLMixin(MembershipACLMixin, AttachmentMixin):
     def _find_acl_object(self):
-        folder = (self.linked_object.attachment_folders
-                  .filter_by(id=request.view_args['folder_id'], is_deleted=False)
-                  .first())
+        folder = self.linked_object.attachment_folders.filter_by(
+            id=request.view_args['folder_id'], is_deleted=False
+        ).first()
         if folder is None:
             raise NotFound
         return folder
@@ -232,9 +233,7 @@ class RHLocationACL(ACLMixin, RHLocation):
 @json_errors
 class RHMenuEntryACL(MembershipACLMixin, RHProtectedEventBase):
     def _find_acl_object(self):
-        return (MenuEntry.query
-                .filter_by(event_id=self.event.id, id=request.view_args['entry_id'])
-                .first_or_404())
+        return MenuEntry.query.filter_by(event_id=self.event.id, id=request.view_args['entry_id']).first_or_404()
 
     def _can_read_acl(self):
         return self.event.can_manage(session.user)
@@ -334,52 +333,175 @@ _SUBCONTRIB = f'{_CONTRIB}/subcontributions/<int:subcontrib_id>'
 _SESSION = '/events/<int:event_id>/sessions/<int:session_id>'
 
 ENDPOINTS = [
-    Endpoint(rule='/permissions', name='permissions', rh=RHPermissionList, schema=PermissionSchema, many=True,
-             summary='List the permissions an ACL entry can grant', tag=TAG),
-    Endpoint(rule='/categories/<int:category_id>/acl', name='category_acl', rh=RHCategoryACL,
-             schema=PermissionACLEntrySchema, many=True, summary='List the ACL of a category', tag=TAG),
-    Endpoint(rule='/events/<int:event_id>/acl', name='event_acl', rh=RHEventACL, schema=PermissionACLEntrySchema,
-             many=True, summary='List the ACL of an event', tag=TAG),
-    Endpoint(rule=f'{_SESSION}/acl', name='session_acl', rh=RHSessionACL, schema=PermissionACLEntrySchema,
-             many=True, summary='List the ACL of a session', tag=TAG),
-    Endpoint(rule=f'{_CONTRIB}/acl', name='contribution_acl', rh=RHContributionACL,
-             schema=PermissionACLEntrySchema, many=True, summary='List the ACL of a contribution', tag=TAG),
-    Endpoint(rule='/events/<int:event_id>/tracks/<int:track_id>/acl', name='track_acl', rh=RHTrackACL,
-             schema=PermissionACLEntrySchema, many=True, summary='List the ACL of a track', tag=TAG),
-    Endpoint(rule='/rooms/<int:room_id>/acl', name='room_acl', rh=RHRoomACL, schema=PermissionACLEntrySchema,
-             many=True, summary='List the ACL of a room', tag=TAG),
-    Endpoint(rule='/locations/<int:location_id>/acl', name='location_acl', rh=RHLocationACL,
-             schema=PermissionACLEntrySchema, many=True, summary='List the ACL of a location', tag=TAG),
-    Endpoint(rule='/events/<int:event_id>/menu/<int:entry_id>/acl', name='menu_entry_acl', rh=RHMenuEntryACL,
-             schema=ACLEntrySchema, many=True, summary='List the ACL of a menu entry', tag=TAG),
-    Endpoint(rule='/events/<int:event_id>/attachments/<int:attachment_id>/acl', name='event_attachment_acl',
-             rh=RHEventAttachmentACL, schema=ACLEntrySchema, many=True,
-             summary='List the ACL of an attachment of an event', tag=TAG),
-    Endpoint(rule='/events/<int:event_id>/attachment-folders/<int:folder_id>/acl', name='event_folder_acl',
-             rh=RHEventAttachmentFolderACL, schema=ACLEntrySchema, many=True,
-             summary='List the ACL of an attachment folder of an event', tag=TAG),
-    Endpoint(rule=f'{_SESSION}/attachments/<int:attachment_id>/acl', name='session_attachment_acl',
-             rh=RHSessionAttachmentACL, schema=ACLEntrySchema, many=True,
-             summary='List the ACL of an attachment of a session', tag=TAG),
-    Endpoint(rule=f'{_SESSION}/attachment-folders/<int:folder_id>/acl', name='session_folder_acl',
-             rh=RHSessionAttachmentFolderACL, schema=ACLEntrySchema, many=True,
-             summary='List the ACL of an attachment folder of a session', tag=TAG),
-    Endpoint(rule=f'{_CONTRIB}/attachments/<int:attachment_id>/acl', name='contribution_attachment_acl',
-             rh=RHContributionAttachmentACL, schema=ACLEntrySchema, many=True,
-             summary='List the ACL of an attachment of a contribution', tag=TAG),
-    Endpoint(rule=f'{_CONTRIB}/attachment-folders/<int:folder_id>/acl', name='contribution_folder_acl',
-             rh=RHContributionAttachmentFolderACL, schema=ACLEntrySchema, many=True,
-             summary='List the ACL of an attachment folder of a contribution', tag=TAG),
-    Endpoint(rule=f'{_SUBCONTRIB}/attachments/<int:attachment_id>/acl', name='subcontribution_attachment_acl',
-             rh=RHSubContributionAttachmentACL, schema=ACLEntrySchema, many=True,
-             summary='List the ACL of an attachment of a subcontribution', tag=TAG),
-    Endpoint(rule=f'{_SUBCONTRIB}/attachment-folders/<int:folder_id>/acl', name='subcontribution_folder_acl',
-             rh=RHSubContributionAttachmentFolderACL, schema=ACLEntrySchema, many=True,
-             summary='List the ACL of an attachment folder of a subcontribution', tag=TAG),
-    Endpoint(rule='/categories/<int:category_id>/attachments/<int:attachment_id>/acl', name='category_attachment_acl',
-             rh=RHCategoryAttachmentACL, schema=ACLEntrySchema, many=True,
-             summary='List the ACL of an attachment of a category', tag=TAG),
-    Endpoint(rule='/categories/<int:category_id>/attachment-folders/<int:folder_id>/acl', name='category_folder_acl',
-             rh=RHCategoryAttachmentFolderACL, schema=ACLEntrySchema, many=True,
-             summary='List the ACL of an attachment folder of a category', tag=TAG),
+    Endpoint(
+        rule='/permissions',
+        name='permissions',
+        rh=RHPermissionList,
+        schema=PermissionSchema,
+        many=True,
+        summary='List the permissions an ACL entry can grant',
+        tag=TAG,
+    ),
+    Endpoint(
+        rule='/categories/<int:category_id>/acl',
+        name='category_acl',
+        rh=RHCategoryACL,
+        schema=PermissionACLEntrySchema,
+        many=True,
+        summary='List the ACL of a category',
+        tag=TAG,
+    ),
+    Endpoint(
+        rule='/events/<int:event_id>/acl',
+        name='event_acl',
+        rh=RHEventACL,
+        schema=PermissionACLEntrySchema,
+        many=True,
+        summary='List the ACL of an event',
+        tag=TAG,
+    ),
+    Endpoint(
+        rule=f'{_SESSION}/acl',
+        name='session_acl',
+        rh=RHSessionACL,
+        schema=PermissionACLEntrySchema,
+        many=True,
+        summary='List the ACL of a session',
+        tag=TAG,
+    ),
+    Endpoint(
+        rule=f'{_CONTRIB}/acl',
+        name='contribution_acl',
+        rh=RHContributionACL,
+        schema=PermissionACLEntrySchema,
+        many=True,
+        summary='List the ACL of a contribution',
+        tag=TAG,
+    ),
+    Endpoint(
+        rule='/events/<int:event_id>/tracks/<int:track_id>/acl',
+        name='track_acl',
+        rh=RHTrackACL,
+        schema=PermissionACLEntrySchema,
+        many=True,
+        summary='List the ACL of a track',
+        tag=TAG,
+    ),
+    Endpoint(
+        rule='/rooms/<int:room_id>/acl',
+        name='room_acl',
+        rh=RHRoomACL,
+        schema=PermissionACLEntrySchema,
+        many=True,
+        summary='List the ACL of a room',
+        tag=TAG,
+    ),
+    Endpoint(
+        rule='/locations/<int:location_id>/acl',
+        name='location_acl',
+        rh=RHLocationACL,
+        schema=PermissionACLEntrySchema,
+        many=True,
+        summary='List the ACL of a location',
+        tag=TAG,
+    ),
+    Endpoint(
+        rule='/events/<int:event_id>/menu/<int:entry_id>/acl',
+        name='menu_entry_acl',
+        rh=RHMenuEntryACL,
+        schema=ACLEntrySchema,
+        many=True,
+        summary='List the ACL of a menu entry',
+        tag=TAG,
+    ),
+    Endpoint(
+        rule='/events/<int:event_id>/attachments/<int:attachment_id>/acl',
+        name='event_attachment_acl',
+        rh=RHEventAttachmentACL,
+        schema=ACLEntrySchema,
+        many=True,
+        summary='List the ACL of an attachment of an event',
+        tag=TAG,
+    ),
+    Endpoint(
+        rule='/events/<int:event_id>/attachment-folders/<int:folder_id>/acl',
+        name='event_folder_acl',
+        rh=RHEventAttachmentFolderACL,
+        schema=ACLEntrySchema,
+        many=True,
+        summary='List the ACL of an attachment folder of an event',
+        tag=TAG,
+    ),
+    Endpoint(
+        rule=f'{_SESSION}/attachments/<int:attachment_id>/acl',
+        name='session_attachment_acl',
+        rh=RHSessionAttachmentACL,
+        schema=ACLEntrySchema,
+        many=True,
+        summary='List the ACL of an attachment of a session',
+        tag=TAG,
+    ),
+    Endpoint(
+        rule=f'{_SESSION}/attachment-folders/<int:folder_id>/acl',
+        name='session_folder_acl',
+        rh=RHSessionAttachmentFolderACL,
+        schema=ACLEntrySchema,
+        many=True,
+        summary='List the ACL of an attachment folder of a session',
+        tag=TAG,
+    ),
+    Endpoint(
+        rule=f'{_CONTRIB}/attachments/<int:attachment_id>/acl',
+        name='contribution_attachment_acl',
+        rh=RHContributionAttachmentACL,
+        schema=ACLEntrySchema,
+        many=True,
+        summary='List the ACL of an attachment of a contribution',
+        tag=TAG,
+    ),
+    Endpoint(
+        rule=f'{_CONTRIB}/attachment-folders/<int:folder_id>/acl',
+        name='contribution_folder_acl',
+        rh=RHContributionAttachmentFolderACL,
+        schema=ACLEntrySchema,
+        many=True,
+        summary='List the ACL of an attachment folder of a contribution',
+        tag=TAG,
+    ),
+    Endpoint(
+        rule=f'{_SUBCONTRIB}/attachments/<int:attachment_id>/acl',
+        name='subcontribution_attachment_acl',
+        rh=RHSubContributionAttachmentACL,
+        schema=ACLEntrySchema,
+        many=True,
+        summary='List the ACL of an attachment of a subcontribution',
+        tag=TAG,
+    ),
+    Endpoint(
+        rule=f'{_SUBCONTRIB}/attachment-folders/<int:folder_id>/acl',
+        name='subcontribution_folder_acl',
+        rh=RHSubContributionAttachmentFolderACL,
+        schema=ACLEntrySchema,
+        many=True,
+        summary='List the ACL of an attachment folder of a subcontribution',
+        tag=TAG,
+    ),
+    Endpoint(
+        rule='/categories/<int:category_id>/attachments/<int:attachment_id>/acl',
+        name='category_attachment_acl',
+        rh=RHCategoryAttachmentACL,
+        schema=ACLEntrySchema,
+        many=True,
+        summary='List the ACL of an attachment of a category',
+        tag=TAG,
+    ),
+    Endpoint(
+        rule='/categories/<int:category_id>/attachment-folders/<int:folder_id>/acl',
+        name='category_folder_acl',
+        rh=RHCategoryAttachmentFolderACL,
+        schema=ACLEntrySchema,
+        many=True,
+        summary='List the ACL of an attachment folder of a category',
+        tag=TAG,
+    ),
 ]

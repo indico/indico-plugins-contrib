@@ -5,15 +5,16 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-
 import pytest
 
 from indico.modules.events.features.util import set_feature_enabled
 from indico.modules.events.models.events import EventType
 
 
-IMAGES_DESCRIPTION = ('Allows event managers to attach images to the event, which can then be used from HTML code. '
-                      'Very useful for e.g. sponsor logos and conference custom pages.')
+IMAGES_DESCRIPTION = (
+    'Allows event managers to attach images to the event, which can then be used from HTML code. '
+    'Very useful for e.g. sponsor logos and conference custom pages.'
+)
 
 
 def feature_named(results, name):
@@ -26,10 +27,18 @@ def test_feature_list(dummy_event, token_headers, test_client):
     assert resp.status_code == 200
     assert resp.json['count'] == len(resp.json['results'])
     assert resp.json['next_offset'] is None
-    assert [feature['title'] for feature in resp.json['results']] == ['Image manager', 'Payment', 'Registration',
-                                                                     'Surveys']
-    assert feature_named(resp.json['results'], 'images') == {'name': 'images', 'title': 'Image manager',
-                                                            'description': IMAGES_DESCRIPTION, 'enabled': False}
+    assert [feature['title'] for feature in resp.json['results']] == [
+        'Image manager',
+        'Payment',
+        'Registration',
+        'Surveys',
+    ]
+    assert feature_named(resp.json['results'], 'images') == {
+        'name': 'images',
+        'title': 'Image manager',
+        'description': IMAGES_DESCRIPTION,
+        'enabled': False,
+    }
 
 
 @pytest.mark.usefixtures('event_manager')
@@ -38,7 +47,13 @@ def test_feature_list_skips_what_the_event_type_disallows(db, dummy_event, token
     db.session.flush()
     resp = test_client.get(f'/api/v1/events/{dummy_event.id}/features', headers=token_headers)
     assert [feature['title'] for feature in resp.json['results']] == [
-        'Call for Abstracts', 'Editing', 'Image manager', 'Paper Peer Reviewing', 'Payment', 'Registration', 'Surveys',
+        'Call for Abstracts',
+        'Editing',
+        'Image manager',
+        'Paper Peer Reviewing',
+        'Payment',
+        'Registration',
+        'Surveys',
     ]
 
 

@@ -5,7 +5,6 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-
 import pytest
 
 from indico.modules.events.features.util import set_feature_enabled
@@ -43,8 +42,15 @@ def registration_manager(db, dummy_event, dummy_user):
 @pytest.fixture
 def create_template(db):
     def _create(title, *, event=None, category=None, yaml='', default_filename='invoice'):
-        tpl = ReceiptTemplate(title=title, event=event, category=category, html='<p>Hello</p>', css='', yaml=yaml,
-                              default_filename=default_filename)
+        tpl = ReceiptTemplate(
+            title=title,
+            event=event,
+            category=category,
+            html='<p>Hello</p>',
+            css='',
+            yaml=yaml,
+            default_filename=default_filename,
+        )
         db.session.add(tpl)
         db.session.flush()
         return tpl
@@ -66,8 +72,12 @@ def category_template(dummy_category, create_template):
 def create_document(db, dummy_reg, event_template, create_file):
     def _create(filename, published=True, registration=None, template=None):
         file = create_file(filename, 'application/pdf', 'test', 'hello')
-        document = ReceiptFile(registration=registration or dummy_reg, template=template or event_template,
-                               is_published=published, file=file)
+        document = ReceiptFile(
+            registration=registration or dummy_reg,
+            template=template or event_template,
+            is_published=published,
+            file=file,
+        )
         db.session.add(document)
         db.session.flush()
         return document
@@ -77,8 +87,9 @@ def create_document(db, dummy_reg, event_template, create_file):
 
 @pytest.mark.usefixtures('registration_manager')
 def test_document_template_details(dummy_event, event_template, token_headers, test_client):
-    resp = test_client.get(f'/api/v1/events/{dummy_event.id}/document-templates/{event_template.id}',
-                           headers=token_headers)
+    resp = test_client.get(
+        f'/api/v1/events/{dummy_event.id}/document-templates/{event_template.id}', headers=token_headers
+    )
     assert resp.status_code == 200
     assert resp.json == {
         'id': event_template.id,
@@ -92,8 +103,9 @@ def test_document_template_details(dummy_event, event_template, token_headers, t
 
 
 @pytest.mark.usefixtures('registration_manager')
-def test_document_template_list_includes_inherited_templates(dummy_event, event_template, category_template,
-                                                             token_headers, test_client):
+def test_document_template_list_includes_inherited_templates(
+    dummy_event, event_template, category_template, token_headers, test_client
+):
     resp = test_client.get(f'/api/v1/events/{dummy_event.id}/document-templates', headers=token_headers)
     assert resp.status_code == 200
     assert [tpl['id'] for tpl in resp.json['results']] == [category_template.id, event_template.id]
@@ -107,8 +119,9 @@ def test_deleted_templates_are_not_served(db, dummy_event, event_template, token
     db.session.flush()
     resp = test_client.get(f'/api/v1/events/{dummy_event.id}/document-templates', headers=token_headers)
     assert resp.json['results'] == []
-    resp = test_client.get(f'/api/v1/events/{dummy_event.id}/document-templates/{event_template.id}',
-                           headers=token_headers)
+    resp = test_client.get(
+        f'/api/v1/events/{dummy_event.id}/document-templates/{event_template.id}', headers=token_headers
+    )
     assert resp.status_code == 404
 
 
@@ -116,8 +129,9 @@ def test_deleted_templates_are_not_served(db, dummy_event, event_template, token
 def test_event_defaults_are_applied(dummy_event, event_template, token_headers, test_client):
     receipt_defaults.set(dummy_event, f'custom_fields:{event_template.id}', {'reason': 'Fee', 'tier': 'silver'})
     receipt_defaults.set(dummy_event, f'filename:{event_template.id}', 'custom-invoice')
-    resp = test_client.get(f'/api/v1/events/{dummy_event.id}/document-templates/{event_template.id}',
-                           headers=token_headers)
+    resp = test_client.get(
+        f'/api/v1/events/{dummy_event.id}/document-templates/{event_template.id}', headers=token_headers
+    )
     assert resp.status_code == 200
     assert resp.json['default_filename'] == 'custom-invoice'
     reason, tier = resp.json['custom_fields']
@@ -129,14 +143,16 @@ def test_document_templates_are_manager_only(dummy_event, event_template, outsid
     resp = test_client.get(f'/api/v1/events/{dummy_event.id}/document-templates', headers=outsider_headers)
     assert resp.status_code == 403
     assert 'error' in resp.json
-    resp = test_client.get(f'/api/v1/events/{dummy_event.id}/document-templates/{event_template.id}',
-                           headers=outsider_headers)
+    resp = test_client.get(
+        f'/api/v1/events/{dummy_event.id}/document-templates/{event_template.id}', headers=outsider_headers
+    )
     assert resp.status_code == 403
 
 
 @pytest.mark.usefixtures('registration_manager')
-def test_template_of_an_unrelated_category_is_not_found(dummy_event, create_category, create_template, token_headers,
-                                                        test_client):
+def test_template_of_an_unrelated_category_is_not_found(
+    dummy_event, create_category, create_template, token_headers, test_client
+):
     other = create_template('Elsewhere', category=create_category(title='elsewhere'))
     resp = test_client.get(f'/api/v1/events/{dummy_event.id}/document-templates/{other.id}', headers=token_headers)
     assert resp.status_code == 404
@@ -147,7 +163,8 @@ def test_document_details(dummy_event, dummy_reg, event_template, create_documen
     document = create_document('invoice.pdf')
     resp = test_client.get(
         f'/api/v1/events/{dummy_event.id}/registrations/{dummy_reg.id}/documents/{document.file_id}',
-        headers=token_headers)
+        headers=token_headers,
+    )
     assert resp.status_code == 200
     assert resp.json['id'] == document.file_id
     assert resp.json['registration_id'] == dummy_reg.id
@@ -163,8 +180,9 @@ def test_document_details(dummy_event, dummy_reg, event_template, create_documen
 def test_document_list_is_ordered_by_filename(dummy_event, dummy_reg, create_document, token_headers, test_client):
     second = create_document('b.pdf')
     first = create_document('a.pdf')
-    resp = test_client.get(f'/api/v1/events/{dummy_event.id}/registrations/{dummy_reg.id}/documents',
-                           headers=token_headers)
+    resp = test_client.get(
+        f'/api/v1/events/{dummy_event.id}/registrations/{dummy_reg.id}/documents', headers=token_headers
+    )
     assert resp.status_code == 200
     assert [doc['id'] for doc in resp.json['results']] == [first.file_id, second.file_id]
 
@@ -172,27 +190,32 @@ def test_document_list_is_ordered_by_filename(dummy_event, dummy_reg, create_doc
 @pytest.mark.usefixtures('registration_manager')
 def test_managers_see_unpublished_documents(dummy_event, dummy_reg, create_document, token_headers, test_client):
     document = create_document('invoice.pdf', published=False)
-    resp = test_client.get(f'/api/v1/events/{dummy_event.id}/registrations/{dummy_reg.id}/documents',
-                           headers=token_headers)
+    resp = test_client.get(
+        f'/api/v1/events/{dummy_event.id}/registrations/{dummy_reg.id}/documents', headers=token_headers
+    )
     assert [doc['id'] for doc in resp.json['results']] == [document.file_id]
     assert not resp.json['results'][0]['is_published']
     resp = test_client.get(
         f'/api/v1/events/{dummy_event.id}/registrations/{dummy_reg.id}/documents/{document.file_id}',
-        headers=token_headers)
+        headers=token_headers,
+    )
     assert resp.status_code == 200
 
 
-def test_registrants_only_see_their_published_documents(dummy_event, dummy_reg, create_document, token_headers,
-                                                        test_client):
+def test_registrants_only_see_their_published_documents(
+    dummy_event, dummy_reg, create_document, token_headers, test_client
+):
     published = create_document('published.pdf')
     hidden = create_document('hidden.pdf', published=False)
-    resp = test_client.get(f'/api/v1/events/{dummy_event.id}/registrations/{dummy_reg.id}/documents',
-                           headers=token_headers)
+    resp = test_client.get(
+        f'/api/v1/events/{dummy_event.id}/registrations/{dummy_reg.id}/documents', headers=token_headers
+    )
     assert resp.status_code == 200
     assert [doc['id'] for doc in resp.json['results']] == [published.file_id]
     resp = test_client.get(
         f'/api/v1/events/{dummy_event.id}/registrations/{dummy_reg.id}/documents/{hidden.file_id}',
-        headers=token_headers)
+        headers=token_headers,
+    )
     assert resp.status_code == 404
 
 
@@ -201,20 +224,24 @@ def test_managers_get_the_management_download_url(dummy_event, dummy_reg, create
     document = create_document('invoice.pdf')
     resp = test_client.get(
         f'/api/v1/events/{dummy_event.id}/registrations/{dummy_reg.id}/documents/{document.file_id}',
-        headers=token_headers)
+        headers=token_headers,
+    )
     assert resp.json['download_url'].endswith(
         f'/event/{dummy_event.id}/manage/registration/{dummy_reg.registration_form_id}'
-        f'/registrations/{dummy_reg.id}/receipts/{document.file_id}/invoice.pdf')
+        f'/registrations/{dummy_reg.id}/receipts/{document.file_id}/invoice.pdf'
+    )
 
 
 def test_registrants_get_the_display_download_url(dummy_event, dummy_reg, create_document, token_headers, test_client):
     document = create_document('invoice.pdf')
     resp = test_client.get(
         f'/api/v1/events/{dummy_event.id}/registrations/{dummy_reg.id}/documents/{document.file_id}',
-        headers=token_headers)
+        headers=token_headers,
+    )
     assert resp.json['download_url'].endswith(
         f'/event/{dummy_event.id}/registrations/{dummy_reg.registration_form_id}'
-        f'/receipts/{document.file_id}/invoice.pdf')
+        f'/receipts/{document.file_id}/invoice.pdf'
+    )
     assert 'token' not in resp.json['download_url']
 
 
@@ -223,39 +250,53 @@ def test_deleted_documents_are_not_served(db, dummy_event, dummy_reg, create_doc
     document = create_document('invoice.pdf')
     document.is_deleted = True
     db.session.flush()
-    resp = test_client.get(f'/api/v1/events/{dummy_event.id}/registrations/{dummy_reg.id}/documents',
-                           headers=token_headers)
+    resp = test_client.get(
+        f'/api/v1/events/{dummy_event.id}/registrations/{dummy_reg.id}/documents', headers=token_headers
+    )
     assert resp.json['results'] == []
     resp = test_client.get(
         f'/api/v1/events/{dummy_event.id}/registrations/{dummy_reg.id}/documents/{document.file_id}',
-        headers=token_headers)
+        headers=token_headers,
+    )
     assert resp.status_code == 404
 
 
-def test_documents_of_somebody_else_are_forbidden(dummy_event, dummy_reg, create_document, outsider_headers,
-                                                  test_client):
+def test_documents_of_somebody_else_are_forbidden(
+    dummy_event, dummy_reg, create_document, outsider_headers, test_client
+):
     document = create_document('invoice.pdf')
-    resp = test_client.get(f'/api/v1/events/{dummy_event.id}/registrations/{dummy_reg.id}/documents',
-                           headers=outsider_headers)
+    resp = test_client.get(
+        f'/api/v1/events/{dummy_event.id}/registrations/{dummy_reg.id}/documents', headers=outsider_headers
+    )
     assert resp.status_code == 403
     assert 'error' in resp.json
     resp = test_client.get(
         f'/api/v1/events/{dummy_event.id}/registrations/{dummy_reg.id}/documents/{document.file_id}',
-        headers=outsider_headers)
+        headers=outsider_headers,
+    )
     assert resp.status_code == 403
 
 
 @pytest.mark.usefixtures('registration_manager')
-def test_document_of_another_registration_is_not_found(dummy_event, dummy_reg, dummy_regform, create_document,
-                                                       create_registration, db, outsider, token_headers,
-                                                       test_client):
+def test_document_of_another_registration_is_not_found(
+    dummy_event,
+    dummy_reg,
+    dummy_regform,
+    create_document,
+    create_registration,
+    db,
+    outsider,
+    token_headers,
+    test_client,
+):
     other_reg = create_registration(outsider, dummy_regform)
     dummy_event.registrations.append(other_reg)
     db.session.flush()
     document = create_document('invoice.pdf', registration=other_reg)
     resp = test_client.get(
         f'/api/v1/events/{dummy_event.id}/registrations/{dummy_reg.id}/documents/{document.file_id}',
-        headers=token_headers)
+        headers=token_headers,
+    )
     assert resp.status_code == 404
 
 
@@ -271,28 +312,32 @@ def current_templates(dummy_event, indico_api):
 
 
 @pytest.mark.usefixtures('registration_manager')
-def test_document_template_matches_current_api(dummy_event, event_template, token_headers, test_client,
-                                               current_templates, same_json):
+def test_document_template_matches_current_api(
+    dummy_event, event_template, token_headers, test_client, current_templates, same_json
+):
     current = next(tpl for tpl in current_templates() if tpl['id'] == event_template.id)
-    new = test_client.get(f'/api/v1/events/{dummy_event.id}/document-templates/{event_template.id}',
-                          headers=token_headers).json
+    new = test_client.get(
+        f'/api/v1/events/{dummy_event.id}/document-templates/{event_template.id}', headers=token_headers
+    ).json
     same_json(new, current, same=TEMPLATE_FIELDS)
 
 
 @pytest.mark.usefixtures('registration_manager')
-def test_document_template_defaults_match_current_api(dummy_event, event_template, token_headers, test_client,
-                                                      current_templates, same_json):
+def test_document_template_defaults_match_current_api(
+    dummy_event, event_template, token_headers, test_client, current_templates, same_json
+):
     receipt_defaults.set(dummy_event, f'custom_fields:{event_template.id}', {'reason': 'Fee', 'tier': 'silver'})
     receipt_defaults.set(dummy_event, f'filename:{event_template.id}', 'custom-invoice')
     current = next(tpl for tpl in current_templates() if tpl['id'] == event_template.id)
-    new = test_client.get(f'/api/v1/events/{dummy_event.id}/document-templates/{event_template.id}',
-                          headers=token_headers).json
+    new = test_client.get(
+        f'/api/v1/events/{dummy_event.id}/document-templates/{event_template.id}', headers=token_headers
+    ).json
     same_json(new, current, same=TEMPLATE_FIELDS)
 
 
 @pytest.mark.usefixtures('registration_manager')
-def test_document_template_list_matches_current_api(dummy_event, event_template, category_template, token_headers,
-                                                    test_client, current_templates, same_json_list):
-    new = test_client.get(f'/api/v1/events/{dummy_event.id}/document-templates',
-                          headers=token_headers).json['results']
+def test_document_template_list_matches_current_api(
+    dummy_event, event_template, category_template, token_headers, test_client, current_templates, same_json_list
+):
+    new = test_client.get(f'/api/v1/events/{dummy_event.id}/document-templates', headers=token_headers).json['results']
     same_json_list(new, current_templates(), same=TEMPLATE_FIELDS)

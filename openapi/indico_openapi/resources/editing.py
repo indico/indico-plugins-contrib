@@ -5,7 +5,6 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-
 from flask import request, session
 from marshmallow import fields, post_dump
 from werkzeug.exceptions import Forbidden, NotFound
@@ -85,8 +84,7 @@ class EditingFileTypeSchema(DescribedFieldsMixin, CoreEditingFileTypeSchema):
             'allow_multiple_files': 'Whether a revision may carry more than one file of this type.',
             'required': 'Whether a revision has to carry a file of this type.',
             'publishable': 'Whether a file of this type is published with the contribution once accepted.',
-            'filename_template': 'Template the files of this type are renamed after, or `null` when kept as '
-                                 'uploaded.',
+            'filename_template': 'Template the files of this type are renamed after, or `null` when kept as uploaded.',
         }
 
 
@@ -150,20 +148,29 @@ class EditingRevisionSchema(DescribedFieldsMixin, CoreEditingRevisionSchema):
     """One revision of an editable, which is a set of files plus what was done with them."""
 
     class Meta(CoreEditingRevisionSchema.Meta):
-        fields = ('id', 'created_dt', 'modified_dt', 'user', 'type', 'comment', 'is_undone', 'is_editor_revision',
-                  'tags', 'files')
+        fields = (
+            'id',
+            'created_dt',
+            'modified_dt',
+            'user',
+            'type',
+            'comment',
+            'is_undone',
+            'is_editor_revision',
+            'tags',
+            'files',
+        )
         descriptions = {
             'id': 'Numeric identifier of the revision, unique across the whole instance.',
             'created_dt': 'Moment the revision was created, in UTC.',
             'modified_dt': 'Moment the revision was last changed, in UTC, or `null` when never changed.',
             'user': 'User the revision is the action of, or `null` when Indico created it itself.',
             'type': 'What the revision does: `new`, `ready_for_review`, `needs_submitter_confirmation`, '
-                    '`changes_acceptance`, `changes_rejection`, `needs_submitter_changes`, `acceptance`, '
-                    '`rejection`, `replacement` or `reset`.',
+            '`changes_acceptance`, `changes_rejection`, `needs_submitter_changes`, `acceptance`, '
+            '`rejection`, `replacement` or `reset`.',
             'comment': 'Comment left with the revision, as Markdown.',
             'is_undone': 'Whether the revision was undone, which keeps it out of the timeline of the submitter.',
-            'is_editor_revision': 'Whether the revision is an action of the editing team rather than of the '
-                                  'submitter.',
+            'is_editor_revision': 'Whether the revision is an action of the editing team rather than of the submitter.',
             'tags': 'Tags the editing team marked the revision with.',
             'files': 'Files the revision is made of.',
         }
@@ -186,13 +193,23 @@ class EditableSchema(DescribedFieldsMixin, CoreEditableSchema):
     """The paper, slides or poster of a contribution as the editing workflow handles it."""
 
     class Meta(CoreEditableSchema.Meta):
-        fields = ('id', 'type', 'state', 'contribution', 'editor', 'revision_count', 'has_published_revision',
-                  'editing_enabled', 'review_conditions_valid', 'last_update_dt')
+        fields = (
+            'id',
+            'type',
+            'state',
+            'contribution',
+            'editor',
+            'revision_count',
+            'has_published_revision',
+            'editing_enabled',
+            'review_conditions_valid',
+            'last_update_dt',
+        )
         descriptions = {
             'id': 'Numeric identifier of the editable, unique across the whole instance.',
             'type': 'What is being edited: `paper`, `slides` or `poster`.',
             'state': 'Where the editable stands: `new`, `ready_for_review`, `needs_submitter_confirmation`, '
-                     '`needs_submitter_changes`, `accepted`, `rejected` or `accepted_submitter`.',
+            '`needs_submitter_changes`, `accepted`, `rejected` or `accepted_submitter`.',
             'contribution': 'Contribution the editable belongs to.',
             'editor': 'User assigned to edit it, or `null` when nobody is.',
             'revision_count': 'Number of revisions carrying files.',
@@ -260,9 +277,12 @@ class EditableMixin(EditableTypeMixin):
 
     def _process_args(self):
         super()._process_args()
-        contrib = (Contribution.query.with_parent(self.event)
-                   .filter(Contribution.id == request.view_args['contrib_id'], ~Contribution.is_deleted)
-                   .first_or_404())
+        contrib = (
+            Contribution.query
+            .with_parent(self.event)
+            .filter(Contribution.id == request.view_args['contrib_id'], ~Contribution.is_deleted)
+            .first_or_404()
+        )
         self.editable = next((e for e in contrib.editables if e.type == self.editable_type), None)
         if self.editable is None:
             raise NotFound
@@ -274,8 +294,12 @@ class EditableMixin(EditableTypeMixin):
 
 
 class EditableListArgs(ListArgs):
-    type = fields.Enum(EditableType, load_default=None, attribute='editable_type',
-                       metadata={'description': 'Only list the editables of this kind.'})
+    type = fields.Enum(
+        EditableType,
+        load_default=None,
+        attribute='editable_type',
+        metadata={'description': 'Only list the editables of this kind.'},
+    )
 
 
 @json_errors
@@ -284,10 +308,12 @@ class RHEditableList(EditingMixin, RHListBase, RHProtectedEventBase):
     schema = EditableSchema
 
     def _query(self, editable_type):
-        query = (Editable.query
-                 .join(Editable.contribution)
-                 .filter(Contribution.event == self.event, ~Contribution.is_deleted)
-                 .order_by(Contribution.friendly_id, Editable.type))
+        query = (
+            Editable.query
+            .join(Editable.contribution)
+            .filter(Contribution.event == self.event, ~Contribution.is_deleted)
+            .order_by(Contribution.friendly_id, Editable.type)
+        )
         return query.filter(Editable.type == editable_type) if editable_type is not None else query
 
     def _can_access(self, editable):
@@ -310,8 +336,11 @@ class RHEditableComments(EditableMixin, RHProtectedEventBase):
             raise NotFound
 
     def _process_GET(self):
-        comments = [comment for comment in self.revision.comments
-                    if not comment.internal or self.editable.can_use_internal_comments(session.user)]
+        comments = [
+            comment
+            for comment in self.revision.comments
+            if not comment.internal or self.editable.can_use_internal_comments(session.user)
+        ]
         return jsonify_results(EditingCommentSchema(many=True), comments)
 
 
@@ -336,29 +365,69 @@ class RHEditingReviewConditions(EditableTypeMixin, RHProtectedEventBase):
             raise Forbidden
 
     def _process_GET(self):
-        conditions = (EditingReviewCondition.query.with_parent(self.event)
-                      .filter_by(type=self.editable_type)
-                      .order_by(EditingReviewCondition.id)
-                      .all())
+        conditions = (
+            EditingReviewCondition.query
+            .with_parent(self.event)
+            .filter_by(type=self.editable_type)
+            .order_by(EditingReviewCondition.id)
+            .all()
+        )
         return jsonify_results(EditingReviewConditionSchema(many=True), conditions)
 
 
 ENDPOINTS = [
-    Endpoint(rule='/events/<int:event_id>/editables', name='editables', rh=RHEditableList, schema=EditableSchema,
-             many=True, summary='List the editables of an event', tag='Editing'),
-    Endpoint(rule='/events/<int:event_id>/contributions/<int:contrib_id>/editables/<editable_type>', name='editable',
-             rh=RHEditable, schema=EditableDetailsSchema,
-             summary='The editable of a contribution, with its revisions', tag='Editing'),
-    Endpoint(rule='/events/<int:event_id>/contributions/<int:contrib_id>/editables/<editable_type>'
-                  '/revisions/<int:revision_id>/comments',
-             name='editable_comments', rh=RHEditableComments, schema=EditingCommentSchema, many=True,
-             summary='List the comments left on a revision of an editable', tag='Editing'),
-    Endpoint(rule='/events/<int:event_id>/editing/tags', name='editing_tags', rh=RHEditingTags,
-             schema=EditingTagSchema, many=True, summary='List the tags of the editing workflow', tag='Editing'),
-    Endpoint(rule='/events/<int:event_id>/editing/<editable_type>/file-types', name='editing_file_types',
-             rh=RHEditingFileTypes, schema=EditingFileTypeSchema, many=True,
-             summary='List the file types a revision is made of', tag='Editing'),
-    Endpoint(rule='/events/<int:event_id>/editing/<editable_type>/review-conditions', name='editing_review_conditions',
-             rh=RHEditingReviewConditions, schema=EditingReviewConditionSchema, many=True,
-             summary='List the conditions a revision has to meet to be reviewed', tag='Editing'),
+    Endpoint(
+        rule='/events/<int:event_id>/editables',
+        name='editables',
+        rh=RHEditableList,
+        schema=EditableSchema,
+        many=True,
+        summary='List the editables of an event',
+        tag='Editing',
+    ),
+    Endpoint(
+        rule='/events/<int:event_id>/contributions/<int:contrib_id>/editables/<editable_type>',
+        name='editable',
+        rh=RHEditable,
+        schema=EditableDetailsSchema,
+        summary='The editable of a contribution, with its revisions',
+        tag='Editing',
+    ),
+    Endpoint(
+        rule='/events/<int:event_id>/contributions/<int:contrib_id>/editables/<editable_type>'
+        '/revisions/<int:revision_id>/comments',
+        name='editable_comments',
+        rh=RHEditableComments,
+        schema=EditingCommentSchema,
+        many=True,
+        summary='List the comments left on a revision of an editable',
+        tag='Editing',
+    ),
+    Endpoint(
+        rule='/events/<int:event_id>/editing/tags',
+        name='editing_tags',
+        rh=RHEditingTags,
+        schema=EditingTagSchema,
+        many=True,
+        summary='List the tags of the editing workflow',
+        tag='Editing',
+    ),
+    Endpoint(
+        rule='/events/<int:event_id>/editing/<editable_type>/file-types',
+        name='editing_file_types',
+        rh=RHEditingFileTypes,
+        schema=EditingFileTypeSchema,
+        many=True,
+        summary='List the file types a revision is made of',
+        tag='Editing',
+    ),
+    Endpoint(
+        rule='/events/<int:event_id>/editing/<editable_type>/review-conditions',
+        name='editing_review_conditions',
+        rh=RHEditingReviewConditions,
+        schema=EditingReviewConditionSchema,
+        many=True,
+        summary='List the conditions a revision has to meet to be reviewed',
+        tag='Editing',
+    ),
 ]

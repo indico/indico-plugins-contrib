@@ -5,7 +5,6 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-
 from marshmallow import fields
 
 from indico.core.db import db
@@ -66,10 +65,31 @@ class Contact(fields.Nested):
 
 class EventSchema(DescribedFieldsMixin, EventDetailsSchema):
     class Meta(EventDetailsSchema.Meta):
-        fields = ('id', 'title', 'description', 'start_dt', 'end_dt', 'timezone', 'type', 'url',
-                  'category_id', 'category_title', 'category_chain', 'location', 'room', 'room_full_name',
-                  'address', 'keywords', 'organizer', 'language', 'created_dt', 'is_protected', 'references',
-                  'label', 'contact')
+        fields = (
+            'id',
+            'title',
+            'description',
+            'start_dt',
+            'end_dt',
+            'timezone',
+            'type',
+            'url',
+            'category_id',
+            'category_title',
+            'category_chain',
+            'location',
+            'room',
+            'room_full_name',
+            'address',
+            'keywords',
+            'organizer',
+            'language',
+            'created_dt',
+            'is_protected',
+            'references',
+            'label',
+            'contact',
+        )
         descriptions = {
             'id': 'Numeric identifier of the event, unique across the whole instance.',
             'title': 'Title of the event.',
@@ -111,12 +131,15 @@ class EventSchema(DescribedFieldsMixin, EventDetailsSchema):
 
 
 class EventListArgs(ListArgs):
-    category_id = fields.Integer(load_default=None,
-                                 metadata={'description': 'Only list events visible in this category or below it.'})
-    start_after = fields.DateTime(load_default=None,
-                                  metadata={'description': 'Only list events starting at or after this moment.'})
-    start_before = fields.DateTime(load_default=None,
-                                   metadata={'description': 'Only list events starting at or before this moment.'})
+    category_id = fields.Integer(
+        load_default=None, metadata={'description': 'Only list events visible in this category or below it.'}
+    )
+    start_after = fields.DateTime(
+        load_default=None, metadata={'description': 'Only list events starting at or after this moment.'}
+    )
+    start_before = fields.DateTime(
+        load_default=None, metadata={'description': 'Only list events starting at or before this moment.'}
+    )
 
 
 @json_errors
@@ -131,8 +154,9 @@ class RHEventList(RHListBase):
     schema = EventSchema
 
     def _query(self, category_id, start_after, start_before):
-        query = (Event.query.filter(~Event.is_deleted)
-                 .options(db.joinedload('acl_entries'), db.selectinload('references'), db.selectinload('label')))
+        query = Event.query.filter(~Event.is_deleted).options(
+            db.joinedload('acl_entries'), db.selectinload('references'), db.selectinload('label')
+        )
         if category_id is not None:
             query = query.filter(Event.is_visible_in(category_id))
         if start_after is not None:
@@ -143,8 +167,21 @@ class RHEventList(RHListBase):
 
 
 ENDPOINTS = [
-    Endpoint(rule='/events', name='events', rh=RHEventList, schema=EventSchema, many=True,
-             summary='List the events the caller can see', tag='Events'),
-    Endpoint(rule='/events/<int:event_id>', name='event', rh=RHEvent, schema=EventSchema,
-             summary='Details of one event, with its dates and category', tag='Events'),
+    Endpoint(
+        rule='/events',
+        name='events',
+        rh=RHEventList,
+        schema=EventSchema,
+        many=True,
+        summary='List the events the caller can see',
+        tag='Events',
+    ),
+    Endpoint(
+        rule='/events/<int:event_id>',
+        name='event',
+        rh=RHEvent,
+        schema=EventSchema,
+        summary='Details of one event, with its dates and category',
+        tag='Events',
+    ),
 ]

@@ -5,7 +5,6 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-
 from io import BytesIO
 
 import pytest
@@ -86,21 +85,24 @@ def test_layout_defaults(dummy_event, token_headers, test_client):
 
 
 def test_layout_reflects_the_settings(dummy_event, token_headers, test_client):
-    layout_settings.set_multi(dummy_event, {
-        'is_searchable': False,
-        'show_nav_bar': False,
-        'show_social_badges': False,
-        'show_banner': True,
-        'header_logo_as_banner': False,
-        'header_text_color': '#ffffff',
-        'header_background_color': '#000000',
-        'name_format': NameFormat.first_last,
-        'timetable_theme': 'indico_weeks_view',
-        'timetable_theme_settings': {'inline_minutes': True},
-        'timetable_by_room': True,
-        'timetable_detailed': True,
-        'show_vc_rooms': True,
-    })
+    layout_settings.set_multi(
+        dummy_event,
+        {
+            'is_searchable': False,
+            'show_nav_bar': False,
+            'show_social_badges': False,
+            'show_banner': True,
+            'header_logo_as_banner': False,
+            'header_text_color': '#ffffff',
+            'header_background_color': '#000000',
+            'name_format': NameFormat.first_last,
+            'timetable_theme': 'indico_weeks_view',
+            'timetable_theme_settings': {'inline_minutes': True},
+            'timetable_by_room': True,
+            'timetable_detailed': True,
+            'show_vc_rooms': True,
+        },
+    )
     resp = test_client.get(f'/api/v1/events/{dummy_event.id}/layout', headers=token_headers)
     assert resp.status_code == 200
     assert resp.json == {
@@ -127,8 +129,7 @@ def test_layout_reflects_the_settings(dummy_event, token_headers, test_client):
 
 
 def test_layout_serves_a_shown_announcement(dummy_event, token_headers, test_client):
-    layout_settings.set_multi(dummy_event, {'announcement': 'Registration closes on Friday',
-                                            'show_announcement': True})
+    layout_settings.set_multi(dummy_event, {'announcement': 'Registration closes on Friday', 'show_announcement': True})
     resp = test_client.get(f'/api/v1/events/{dummy_event.id}/layout', headers=token_headers)
     assert resp.json['announcement'] == 'Registration closes on Friday'
 
@@ -175,9 +176,17 @@ def test_menu_lists_the_default_entries(dummy_event, token_headers, test_client)
     assert resp.json['count'] == len(resp.json['results'])
     assert resp.json['next_offset'] is None
     timetable = next(entry for entry in resp.json['results'] if entry['name'] == 'timetable')
-    assert timetable == {'id': None, 'name': 'timetable', 'title': 'Timetable', 'type': 'internal_link',
-                         'position': timetable['position'], 'new_tab': False, 'page_id': None,
-                         'url': f'/event/{dummy_event.id}/timetable/', 'children': []}
+    assert timetable == {
+        'id': None,
+        'name': 'timetable',
+        'title': 'Timetable',
+        'type': 'internal_link',
+        'position': timetable['position'],
+        'new_tab': False,
+        'page_id': None,
+        'url': f'/event/{dummy_event.id}/timetable/',
+        'children': [],
+    }
 
 
 def test_menu_serves_a_custom_page_entry(dummy_event, dummy_page, token_headers, test_client):
@@ -191,8 +200,7 @@ def test_menu_serves_a_custom_page_entry(dummy_event, dummy_page, token_headers,
 
 
 def test_menu_serves_a_user_link(dummy_event, custom_menu, token_headers, test_client):
-    custom_menu(type=MenuEntryType.user_link, title='Our sponsor', link_url='https://example.com/sponsor',
-                new_tab=True)
+    custom_menu(type=MenuEntryType.user_link, title='Our sponsor', link_url='https://example.com/sponsor', new_tab=True)
     resp = test_client.get(f'/api/v1/events/{dummy_event.id}/menu', headers=token_headers)
     entry = entry_named(resp.json['results'], 'Our sponsor')
     assert entry['type'] == 'user_link'
@@ -216,8 +224,9 @@ def test_menu_serves_a_separator(dummy_event, custom_menu, token_headers, test_c
 
 def test_menu_nests_the_children(db, dummy_event, custom_menu, token_headers, test_client):
     parent = custom_menu(type=MenuEntryType.user_link, title='Links', link_url='https://example.com')
-    custom_menu(type=MenuEntryType.user_link, title='Sponsor', link_url='https://example.com/sponsor',
-                parent_id=parent.id)
+    custom_menu(
+        type=MenuEntryType.user_link, title='Sponsor', link_url='https://example.com/sponsor', parent_id=parent.id
+    )
     db.session.expire(parent)
     resp = test_client.get(f'/api/v1/events/{dummy_event.id}/menu', headers=token_headers)
     entry = entry_named(resp.json['results'], 'Links')
@@ -231,8 +240,12 @@ def test_menu_hides_disabled_entries(dummy_event, custom_menu, token_headers, te
 
 
 def test_menu_honours_the_entry_acl(db, dummy_event, dummy_user, custom_menu, token_headers, test_client):
-    entry = custom_menu(type=MenuEntryType.user_link, title='Restricted', link_url='https://example.com',
-                        protection_mode=ProtectionMode.protected)
+    entry = custom_menu(
+        type=MenuEntryType.user_link,
+        title='Restricted',
+        link_url='https://example.com',
+        protection_mode=ProtectionMode.protected,
+    )
     resp = test_client.get(f'/api/v1/events/{dummy_event.id}/menu', headers=token_headers)
     assert not [listed for listed in resp.json['results'] if listed['title'] == 'Restricted']
     entry.acl.add(dummy_user)
@@ -251,9 +264,14 @@ def test_menu_needs_event_access(db, dummy_event, outsider_headers, test_client)
 def test_page_details(dummy_event, dummy_page, token_headers, test_client):
     resp = test_client.get(f'/api/v1/events/{dummy_event.id}/pages/{dummy_page.id}', headers=token_headers)
     assert resp.status_code == 200
-    assert resp.json == {'id': dummy_page.id, 'event_id': dummy_event.id, 'title': 'Venue info',
-                         'html': '<p>Where to find us</p>', 'is_default': False,
-                         'url': f'http://localhost/event/{dummy_event.id}/page/{dummy_page.id}-venue-info'}
+    assert resp.json == {
+        'id': dummy_page.id,
+        'event_id': dummy_event.id,
+        'title': 'Venue info',
+        'html': '<p>Where to find us</p>',
+        'is_default': False,
+        'url': f'http://localhost/event/{dummy_event.id}/page/{dummy_page.id}-venue-info',
+    }
 
 
 def test_page_list(dummy_event, dummy_page, custom_menu, token_headers, test_client):
@@ -291,11 +309,15 @@ def test_page_of_another_event_is_not_found(dummy_page, create_event, token_head
 def test_image_details(dummy_event, dummy_image, token_headers, test_client):
     resp = test_client.get(f'/api/v1/events/{dummy_event.id}/images/{dummy_image.id}', headers=token_headers)
     assert resp.status_code == 200
-    assert resp.json == {'id': dummy_image.id, 'event_id': dummy_event.id, 'filename': 'sponsor.bmp',
-                         'content_type': 'image/bmp', 'size': len(DUMMY_BMP_IMAGE),
-                         'created_dt': dummy_image.created_dt.isoformat(),
-                         'download_url': f'http://localhost/event/{dummy_event.id}/images/'
-                                         f'{dummy_image.id}-sponsor.bmp'}
+    assert resp.json == {
+        'id': dummy_image.id,
+        'event_id': dummy_event.id,
+        'filename': 'sponsor.bmp',
+        'content_type': 'image/bmp',
+        'size': len(DUMMY_BMP_IMAGE),
+        'created_dt': dummy_image.created_dt.isoformat(),
+        'download_url': f'http://localhost/event/{dummy_event.id}/images/{dummy_image.id}-sponsor.bmp',
+    }
 
 
 @pytest.mark.usefixtures('event_manager')

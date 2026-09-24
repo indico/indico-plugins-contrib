@@ -5,7 +5,6 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-
 import pytest
 
 from indico.core.db.sqlalchemy.protection import ProtectionMode
@@ -23,8 +22,9 @@ def contribution_speaker(db, dummy_contribution, dummy_event_person):
 
 
 def test_contribution_details(dummy_event, dummy_contribution, token_headers, test_client):
-    resp = test_client.get(f'/api/v1/events/{dummy_event.id}/contributions/{dummy_contribution.id}',
-                           headers=token_headers)
+    resp = test_client.get(
+        f'/api/v1/events/{dummy_event.id}/contributions/{dummy_contribution.id}', headers=token_headers
+    )
     assert resp.status_code == 200
     assert resp.json['id'] == dummy_contribution.id
     assert resp.json['title'] == dummy_contribution.title
@@ -34,10 +34,12 @@ def test_contribution_details(dummy_event, dummy_contribution, token_headers, te
 def test_contribution_details_carry_references(db, dummy_event, dummy_contribution, doi, token_headers, test_client):
     dummy_contribution.references.append(ContributionReference(reference_type=doi, value='10.1000/xyz'))
     db.session.flush()
-    resp = test_client.get(f'/api/v1/events/{dummy_event.id}/contributions/{dummy_contribution.id}',
-                           headers=token_headers)
-    assert resp.json['references'] == [{'type': 'DOI', 'value': '10.1000/xyz', 'url': 'https://doi.org/10.1000/xyz',
-                                        'urn': 'doi:10.1000/xyz'}]
+    resp = test_client.get(
+        f'/api/v1/events/{dummy_event.id}/contributions/{dummy_contribution.id}', headers=token_headers
+    )
+    assert resp.json['references'] == [
+        {'type': 'DOI', 'value': '10.1000/xyz', 'url': 'https://doi.org/10.1000/xyz', 'urn': 'doi:10.1000/xyz'}
+    ]
 
 
 def test_contribution_list(dummy_event, dummy_contribution, token_headers, test_client):
@@ -46,8 +48,9 @@ def test_contribution_list(dummy_event, dummy_contribution, token_headers, test_
     assert [c['id'] for c in resp.json['results']] == [dummy_contribution.id]
 
 
-def test_contribution_denied_without_access(dummy_event, dummy_contribution, dummy_personal_token, create_user, db,
-                                            test_client):
+def test_contribution_denied_without_access(
+    dummy_event, dummy_contribution, dummy_personal_token, create_user, db, test_client
+):
     outsider = create_user(42)
     dummy_personal_token.user = outsider
     dummy_personal_token.scopes = ['read:everything']
@@ -59,8 +62,9 @@ def test_contribution_denied_without_access(dummy_event, dummy_contribution, dum
     assert 'error' in resp.json
 
 
-def test_contribution_list_denied_while_unpublished(dummy_event, dummy_contribution, dummy_personal_token,
-                                                    create_user, db, test_client):
+def test_contribution_list_denied_while_unpublished(
+    dummy_event, dummy_contribution, dummy_personal_token, create_user, db, test_client
+):
     outsider = create_user(42)
     dummy_personal_token.user = outsider
     dummy_personal_token.scopes = ['read:everything']
@@ -73,16 +77,16 @@ def test_contribution_list_denied_while_unpublished(dummy_event, dummy_contribut
 
 @pytest.mark.usefixtures('contribution_speaker')
 def test_contribution_hides_person_contact_details(dummy_event, dummy_contribution, outsider_headers, test_client):
-    resp = test_client.get(f'/api/v1/events/{dummy_event.id}/contributions/{dummy_contribution.id}',
-                           headers=outsider_headers)
+    resp = test_client.get(
+        f'/api/v1/events/{dummy_event.id}/contributions/{dummy_contribution.id}', headers=outsider_headers
+    )
     assert resp.status_code == 200
     assert resp.json['persons']
     assert all('email' not in person for person in resp.json['persons'])
 
 
 @pytest.mark.usefixtures('contribution_speaker')
-def test_contribution_list_hides_person_contact_details(dummy_event, dummy_contribution, outsider_headers,
-                                                        test_client):
+def test_contribution_list_hides_person_contact_details(dummy_event, dummy_contribution, outsider_headers, test_client):
     resp = test_client.get(f'/api/v1/events/{dummy_event.id}/contributions', headers=outsider_headers)
     assert resp.status_code == 200
     persons = resp.json['results'][0]['persons']
@@ -90,9 +94,30 @@ def test_contribution_list_hides_person_contact_details(dummy_event, dummy_contr
     assert all('email' not in person for person in persons)
 
 
-CONTRIBUTION_FIELDS = ('id', 'friendly_id', 'title', 'description', 'code', 'board_number', 'keywords', 'duration',
-                       'start_dt', 'end_dt', 'inherit_location', 'venue_name', 'room_name', 'address', 'abstract_id',
-                       'track', 'session', 'session_block', 'type', 'persons', 'custom_fields', 'references')
+CONTRIBUTION_FIELDS = (
+    'id',
+    'friendly_id',
+    'title',
+    'description',
+    'code',
+    'board_number',
+    'keywords',
+    'duration',
+    'start_dt',
+    'end_dt',
+    'inherit_location',
+    'venue_name',
+    'room_name',
+    'address',
+    'abstract_id',
+    'track',
+    'session',
+    'session_block',
+    'type',
+    'persons',
+    'custom_fields',
+    'references',
+)
 
 
 @pytest.fixture
@@ -113,20 +138,38 @@ def with_references(indico_api, event_id):
     return add
 
 
-def test_contribution_matches_current_api(dummy_event, referenced_contribution, contribution_speaker, event_manager,
-                                          token_headers, test_client, indico_api, same_json):
+def test_contribution_matches_current_api(
+    dummy_event,
+    referenced_contribution,
+    contribution_speaker,
+    event_manager,
+    token_headers,
+    test_client,
+    indico_api,
+    same_json,
+):
     current = indico_api(f'/event/{dummy_event.id}/contributions/{referenced_contribution.id}.json')
-    new = test_client.get(f'/api/v1/events/{dummy_event.id}/contributions/{referenced_contribution.id}',
-                          headers=token_headers).json
+    new = test_client.get(
+        f'/api/v1/events/{dummy_event.id}/contributions/{referenced_contribution.id}', headers=token_headers
+    ).json
     same_json(new, with_references(indico_api, dummy_event.id)(current), same=CONTRIBUTION_FIELDS)
 
 
-def test_contribution_list_matches_current_api(dummy_event, referenced_contribution, create_contribution,
-                                               event_manager, token_headers, test_client, indico_api,
-                                               same_json_list):
+def test_contribution_list_matches_current_api(
+    dummy_event,
+    referenced_contribution,
+    create_contribution,
+    event_manager,
+    token_headers,
+    test_client,
+    indico_api,
+    same_json_list,
+):
     create_contribution(dummy_event, 'Another contribution')
     add_references = with_references(indico_api, dummy_event.id)
-    current = [add_references(contrib)
-               for contrib in indico_api(f'/event/{dummy_event.id}/manage/contributions/contributions.json')]
+    current = [
+        add_references(contrib)
+        for contrib in indico_api(f'/event/{dummy_event.id}/manage/contributions/contributions.json')
+    ]
     new = test_client.get(f'/api/v1/events/{dummy_event.id}/contributions', headers=token_headers).json['results']
     same_json_list(new, current, same=CONTRIBUTION_FIELDS)

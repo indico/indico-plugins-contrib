@@ -36,8 +36,9 @@ def dummy_category_role(create_category_role, dummy_user):
 
 @pytest.mark.usefixtures('category_manager')
 def test_category_role_details(dummy_category, dummy_category_role, dummy_user, token_headers, test_client):
-    resp = test_client.get(f'/api/v1/categories/{dummy_category.id}/roles/{dummy_category_role.id}',
-                           headers=token_headers)
+    resp = test_client.get(
+        f'/api/v1/categories/{dummy_category.id}/roles/{dummy_category_role.id}', headers=token_headers
+    )
     assert resp.status_code == 200
     assert resp.json['id'] == dummy_category_role.id
     assert resp.json['category_id'] == dummy_category.id
@@ -48,8 +49,9 @@ def test_category_role_details(dummy_category, dummy_category_role, dummy_user, 
 
 
 @pytest.mark.usefixtures('category_manager')
-def test_category_role_members_are_sorted(dummy_category, create_category_role, dummy_user, outsider, token_headers,
-                                          test_client):
+def test_category_role_members_are_sorted(
+    dummy_category, create_category_role, dummy_user, outsider, token_headers, test_client
+):
     role = create_category_role('Crowded role', 'CRW', members=[outsider, dummy_user])
     resp = test_client.get(f'/api/v1/categories/{dummy_category.id}/roles/{role.id}', headers=token_headers)
     assert [m['id'] for m in resp.json['members']] == sorted([dummy_user.id, outsider.id])
@@ -72,8 +74,9 @@ def test_category_roles_are_manager_only(dummy_category, dummy_category_role, ou
 
 
 @pytest.mark.usefixtures('category_manager')
-def test_category_role_of_another_category_is_not_found(dummy_category_role, create_category, dummy_user, db,
-                                                        token_headers, test_client):
+def test_category_role_of_another_category_is_not_found(
+    dummy_category_role, create_category, dummy_user, db, token_headers, test_client
+):
     other = create_category(1)
     other.update_principal(dummy_user, full_access=True)
     db.session.flush()
@@ -89,14 +92,22 @@ def by_id(role):
 
 
 @pytest.mark.usefixtures('category_manager')
-def test_category_role_list_matches_current_api(dummy_category, dummy_category_role, create_category_role,
-                                                token_headers, test_client, indico_api, same_json_list):
+def test_category_role_list_matches_current_api(
+    dummy_category, dummy_category_role, create_category_role, token_headers, test_client, indico_api, same_json_list
+):
     other = create_category_role('Another role', 'ANO')
     ids = {role.code: role.id for role in (dummy_category_role, other)}
     current = indico_api(f'/category/{dummy_category.id}/manage/roles/api/roles/')
     new = test_client.get(f'/api/v1/categories/{dummy_category.id}/roles', headers=token_headers).json
     # the management API serves the roles of one category, so neither the role id nor the category is in the payload
-    same_json_list(new['results'], current, same=CATEGORY_ROLE_FIELDS,
-                   derived={'members': by_id, 'id': lambda current: ids[current['code']],
-                            'category_id': lambda _: dummy_category.id},
-                   key='code')
+    same_json_list(
+        new['results'],
+        current,
+        same=CATEGORY_ROLE_FIELDS,
+        derived={
+            'members': by_id,
+            'id': lambda current: ids[current['code']],
+            'category_id': lambda _: dummy_category.id,
+        },
+        key='code',
+    )

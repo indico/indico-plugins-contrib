@@ -5,7 +5,6 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-
 from indico.modules.rb import rb_settings
 from indico.modules.rb.models.blocked_rooms import BlockedRoom, BlockedRoomState
 
@@ -58,8 +57,9 @@ def test_blocking_list(dummy_blocking, create_blocking, token_headers, test_clie
     assert [b['id'] for b in resp.json['results']] == [dummy_blocking.id, other.id]
 
 
-def test_blocking_list_filtered_by_room(dummy_blocking, dummy_room, create_blocking, create_room, token_headers,
-                                        test_client):
+def test_blocking_list_filtered_by_room(
+    dummy_blocking, dummy_room, create_blocking, create_room, token_headers, test_client
+):
     create_blocking(room=create_room(building='9'))
     resp = test_client.get(f'/api/v1/blockings?room_id={dummy_room.id}', headers=token_headers)
     assert [b['id'] for b in resp.json['results']] == [dummy_blocking.id]
@@ -87,8 +87,9 @@ def test_blocking_matches_current_api(dummy_blocking, token_headers, test_client
     same_json(new, current, same=BLOCKING_FIELDS)
 
 
-def test_blocking_list_matches_current_api(dummy_blocking, create_blocking, token_headers, test_client, indico_api,
-                                           same_json_list):
+def test_blocking_list_matches_current_api(
+    dummy_blocking, create_blocking, token_headers, test_client, indico_api, same_json_list
+):
     create_blocking(reason='Maintenance')
     current = indico_api('/rooms/api/blockings/?timeframe=recent')
     new = test_client.get('/api/v1/blockings', headers=token_headers).json['results']

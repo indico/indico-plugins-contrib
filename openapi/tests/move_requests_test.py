@@ -38,24 +38,41 @@ def dummy_move_request(dummy_event, create_move_request):
 
 
 @pytest.mark.usefixtures('category_manager')
-def test_move_request_details(dummy_category, dummy_event, dummy_move_request, dummy_user, token_headers,
-                              test_client):
-    resp = test_client.get(f'/api/v1/categories/{dummy_category.id}/move-requests/{dummy_move_request.id}',
-                           headers=token_headers)
+def test_move_request_details(dummy_category, dummy_event, dummy_move_request, dummy_user, token_headers, test_client):
+    resp = test_client.get(
+        f'/api/v1/categories/{dummy_category.id}/move-requests/{dummy_move_request.id}', headers=token_headers
+    )
     assert resp.status_code == 200
-    assert resp.json == {'id': dummy_move_request.id, 'category_id': dummy_category.id, 'event_id': dummy_event.id,
-                         'state': 'pending', 'requestor': resp.json['requestor'],
-                         'requestor_comment': 'This fits better here.', 'requested_dt': '2026-09-01T08:00:00+00:00',
-                         'moderator': None, 'moderator_comment': ''}
+    assert resp.json == {
+        'id': dummy_move_request.id,
+        'category_id': dummy_category.id,
+        'event_id': dummy_event.id,
+        'state': 'pending',
+        'requestor': resp.json['requestor'],
+        'requestor_comment': 'This fits better here.',
+        'requested_dt': '2026-09-01T08:00:00+00:00',
+        'moderator': None,
+        'moderator_comment': '',
+    }
     assert resp.json['requestor']['id'] == dummy_user.id
 
 
 @pytest.mark.usefixtures('category_manager')
-def test_move_request_list_carries_every_state(db, dummy_category, dummy_event, dummy_move_request, create_event,
-                                               create_move_request, dummy_user, token_headers, test_client):
+def test_move_request_list_carries_every_state(
+    db,
+    dummy_category,
+    dummy_event,
+    dummy_move_request,
+    create_event,
+    create_move_request,
+    dummy_user,
+    token_headers,
+    test_client,
+):
     other = create_event()
-    rejected = create_move_request(other, state=MoveRequestState.rejected, moderator=dummy_user,
-                                   moderator_comment='Not this one.')
+    rejected = create_move_request(
+        other, state=MoveRequestState.rejected, moderator=dummy_user, moderator_comment='Not this one.'
+    )
     url = f'/api/v1/categories/{dummy_category.id}/move-requests'
     resp = test_client.get(url, headers=token_headers)
     assert resp.status_code == 200
@@ -75,13 +92,15 @@ def test_move_requests_are_manager_only(dummy_category, dummy_move_request, outs
 
 
 @pytest.mark.usefixtures('category_manager')
-def test_move_request_of_another_category_is_not_found(db, dummy_move_request, create_category, dummy_user,
-                                                       token_headers, test_client):
+def test_move_request_of_another_category_is_not_found(
+    db, dummy_move_request, create_category, dummy_user, token_headers, test_client
+):
     other = create_category(1)
     other.update_principal(dummy_user, full_access=True)
     db.session.flush()
-    resp = test_client.get(f'/api/v1/categories/{other.id}/move-requests/{dummy_move_request.id}',
-                           headers=token_headers)
+    resp = test_client.get(
+        f'/api/v1/categories/{other.id}/move-requests/{dummy_move_request.id}', headers=token_headers
+    )
     assert resp.status_code == 404
 
 
@@ -95,15 +114,24 @@ def as_requestor(requestor):
 
 
 @pytest.mark.usefixtures('category_manager')
-def test_move_request_list_matches_current_api(dummy_category, dummy_event, dummy_move_request, token_headers,
-                                               test_client, indico_api, same_json_list):
+def test_move_request_list_matches_current_api(
+    dummy_category, dummy_event, dummy_move_request, token_headers, test_client, indico_api, same_json_list
+):
     current = indico_api(f'/category/{dummy_category.id}/api/event-move-requests')
-    new = test_client.get(f'/api/v1/categories/{dummy_category.id}/move-requests?state=pending',
-                          headers=token_headers).json
-    same_json_list(new['results'], current, same=MOVE_REQUEST_FIELDS,
-                   renamed={'requestor': ('requestor', as_requestor)},
-                   derived={'event_id': lambda current: current['event']['id'],
-                            # the moderation page carries the category the event is in, not the one it would move to
-                            'category_id': lambda _: dummy_category.id,
-                            # it only lists the pending requests, which nobody has answered yet
-                            'moderator': lambda _: None, 'moderator_comment': lambda _: ''})
+    new = test_client.get(
+        f'/api/v1/categories/{dummy_category.id}/move-requests?state=pending', headers=token_headers
+    ).json
+    same_json_list(
+        new['results'],
+        current,
+        same=MOVE_REQUEST_FIELDS,
+        renamed={'requestor': ('requestor', as_requestor)},
+        derived={
+            'event_id': lambda current: current['event']['id'],
+            # the moderation page carries the category the event is in, not the one it would move to
+            'category_id': lambda _: dummy_category.id,
+            # it only lists the pending requests, which nobody has answered yet
+            'moderator': lambda _: None,
+            'moderator_comment': lambda _: '',
+        },
+    )

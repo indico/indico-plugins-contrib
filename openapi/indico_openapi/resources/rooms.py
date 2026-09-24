@@ -5,7 +5,6 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-
 from flask import request
 from marshmallow import fields
 
@@ -20,10 +19,35 @@ from indico_openapi.resources.base import DescribedFieldsMixin, Endpoint, ListAr
 
 class RoomSchema(DescribedFieldsMixin, CoreRoomSchema):
     class Meta(CoreRoomSchema.Meta):
-        fields = ('id', 'name', 'full_name', 'verbose_name', 'location_id', 'location_name', 'site', 'building',
-                  'floor', 'number', 'division', 'capacity', 'surface_area', 'latitude', 'longitude', 'telephone',
-                  'key_location', 'comments', 'owner_name', 'available_equipment', 'is_public', 'is_reservable',
-                  'reservations_need_confirmation', 'max_advance_days', 'has_photo', 'photo_url', 'map_url')
+        fields = (
+            'id',
+            'name',
+            'full_name',
+            'verbose_name',
+            'location_id',
+            'location_name',
+            'site',
+            'building',
+            'floor',
+            'number',
+            'division',
+            'capacity',
+            'surface_area',
+            'latitude',
+            'longitude',
+            'telephone',
+            'key_location',
+            'comments',
+            'owner_name',
+            'available_equipment',
+            'is_public',
+            'is_reservable',
+            'reservations_need_confirmation',
+            'max_advance_days',
+            'has_photo',
+            'photo_url',
+            'map_url',
+        )
         descriptions = {
             'id': 'Numeric identifier of the room, unique across the whole instance.',
             'name': 'Name of the room, either its verbose name or `building/floor-number`.',
@@ -51,7 +75,7 @@ class RoomSchema(DescribedFieldsMixin, CoreRoomSchema):
             'max_advance_days': 'How many days in advance the room can be booked, or `null` when unlimited.',
             'has_photo': 'Whether the room has a photo.',
             'photo_url': 'URL the photo is served from, relative to the Indico instance, or `null` when the room '
-                         'has none.',
+            'has none.',
             'map_url': 'Absolute URL of the room on an external map, or `null` when there is none.',
         }
 
@@ -66,8 +90,7 @@ class RoomReferenceSchema(DescribedFieldsMixin, CoreRoomSchema):
 
 
 class RoomListArgs(ListArgs):
-    location_id = fields.Integer(load_default=None,
-                                 metadata={'description': 'Only list the rooms of this location.'})
+    location_id = fields.Integer(load_default=None, metadata={'description': 'Only list the rooms of this location.'})
 
 
 class RoomMixin:
@@ -106,8 +129,21 @@ class RHRoomList(RoomMixin, RHListBase, RHRoomBookingBase):
 
 
 ENDPOINTS = [
-    Endpoint(rule='/rooms', name='rooms', rh=RHRoomList, schema=RoomSchema, many=True,
-             summary='List the rooms that can be booked', tag='Rooms'),
-    Endpoint(rule='/rooms/<int:room_id>', name='room', rh=RHRoom, schema=RoomSchema,
-             summary='Details of one room that can be booked', tag='Rooms'),
+    Endpoint(
+        rule='/rooms',
+        name='rooms',
+        rh=RHRoomList,
+        schema=RoomSchema,
+        many=True,
+        summary='List the rooms that can be booked',
+        tag='Rooms',
+    ),
+    Endpoint(
+        rule='/rooms/<int:room_id>',
+        name='room',
+        rh=RHRoom,
+        schema=RoomSchema,
+        summary='Details of one room that can be booked',
+        tag='Rooms',
+    ),
 ]

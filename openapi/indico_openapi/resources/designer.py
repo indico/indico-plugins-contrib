@@ -5,7 +5,6 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-
 from operator import attrgetter
 
 from flask import request
@@ -32,7 +31,7 @@ class DesignerImageSchema(DescribedFieldsMixin, mm.SQLAlchemyAutoSchema):
         fields = ('id', 'download_url')
         descriptions = {
             'id': 'Numeric identifier of the image, unique across the whole instance. The items of `data` '
-                  'reference it.',
+            'reference it.',
             'download_url': 'URL the image is downloaded from, relative to the Indico instance.',
         }
 
@@ -68,17 +67,18 @@ class DesignerTemplateSchema(DescribedFieldsMixin, mm.SQLAlchemyAutoSchema):
             'id': 'Numeric identifier of the template, unique across the whole instance.',
             'title': 'Title of the template.',
             'data': 'The drawing itself: the page format under `width`, `height` and `landscape`, the background '
-                    'position under `background_position`, and the text and image boxes under `items`. Each item '
-                    'carries its `type`, its position under `x` and `y`, its size, and the styling it renders '
-                    'with.',
+            'position under `background_position`, and the text and image boxes under `items`. Each item '
+            'carries its `type`, its position under `x` and `y`, its size, and the styling it renders '
+            'with.',
             'background_url': 'URL of the image drawn behind everything else, relative to the Indico instance, '
-                              'or `null` when the template has no background.',
+            'or `null` when the template has no background.',
             'images': 'Images the items of the template reference.',
         }
 
     data = fields.Raw()
-    background_url = fields.Function(lambda template: (template.background_image.download_url
-                                                       if template.background_image else None))
+    background_url = fields.Function(
+        lambda template: template.background_image.download_url if template.background_image else None
+    )
     images = SortedImages(fields.Nested(DesignerImageSchema))
 
 
@@ -119,10 +119,21 @@ class RHDesignerTemplateList(DesignerTemplateMixin, RHManageEventBase):
 
 
 ENDPOINTS = [
-    Endpoint(rule='/events/<int:event_id>/designer-templates', name='designer_templates',
-             rh=RHDesignerTemplateList, schema=DesignerTemplateSchema, many=True,
-             summary='List the badge and poster templates available to an event', tag='Designer'),
-    Endpoint(rule='/events/<int:event_id>/designer-templates/<int:template_id>', name='designer_template',
-             rh=RHDesignerTemplate, schema=DesignerTemplateSchema, summary='Details of one badge or poster template',
-             tag='Designer'),
+    Endpoint(
+        rule='/events/<int:event_id>/designer-templates',
+        name='designer_templates',
+        rh=RHDesignerTemplateList,
+        schema=DesignerTemplateSchema,
+        many=True,
+        summary='List the badge and poster templates available to an event',
+        tag='Designer',
+    ),
+    Endpoint(
+        rule='/events/<int:event_id>/designer-templates/<int:template_id>',
+        name='designer_template',
+        rh=RHDesignerTemplate,
+        schema=DesignerTemplateSchema,
+        summary='Details of one badge or poster template',
+        tag='Designer',
+    ),
 ]

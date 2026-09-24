@@ -5,7 +5,6 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-
 from indico.modules.users.models.affiliations import Affiliation
 
 
@@ -72,26 +71,39 @@ def test_user_affiliation(db, dummy_user, token_headers, test_client):
     assert resp.json['affiliation_meta']['name'] == 'CERN'
 
 
-USER_FIELDS = ('id', 'identifier', 'first_name', 'last_name', 'email', 'affiliation', 'affiliation_id', 'title',
-               'affiliation_meta', 'full_name', 'phone', 'avatar_url')
+USER_FIELDS = (
+    'id',
+    'identifier',
+    'first_name',
+    'last_name',
+    'email',
+    'affiliation',
+    'affiliation_id',
+    'title',
+    'affiliation_meta',
+    'full_name',
+    'phone',
+    'avatar_url',
+)
 
 
-def test_user_matches_current_api(dummy_user, dummy_affiliation, admin_headers, test_client, indico_api,
-                                  same_json):
+def test_user_matches_current_api(dummy_user, dummy_affiliation, admin_headers, test_client, indico_api, same_json):
     current = indico_api(f'/export/user/{dummy_user.id}.json')['results'][0]
     new = test_client.get(f'/api/v1/users/{dummy_user.id}', headers=admin_headers).json
     same_json(new, current, same=USER_FIELDS)
 
 
-def test_current_user_matches_current_api(dummy_user, dummy_affiliation, token_headers, test_client,
-                                          indico_api, same_json):
+def test_current_user_matches_current_api(
+    dummy_user, dummy_affiliation, token_headers, test_client, indico_api, same_json
+):
     current = indico_api(f'/export/user/{dummy_user.id}.json')['results'][0]
     new = test_client.get('/api/v1/users/me', headers=token_headers).json
     same_json(new, current, same=USER_FIELDS)
 
 
-def test_user_list_matches_current_api(dummy_user, dummy_affiliation, outsider, admin_headers, test_client,
-                                       indico_api, same_json_list):
+def test_user_list_matches_current_api(
+    dummy_user, dummy_affiliation, outsider, admin_headers, test_client, indico_api, same_json_list
+):
     new = test_client.get('/api/v1/users', headers=admin_headers).json['results']
     # the legacy export serves one user per call
     current = [indico_api(f'/export/user/{user["id"]}.json')['results'][0] for user in new]

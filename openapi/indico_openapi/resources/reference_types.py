@@ -5,7 +5,6 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-
 from flask import request
 
 from indico.core.db import db
@@ -27,7 +26,7 @@ class ReferenceTypeSchema(DescribedFieldsMixin, mm.SQLAlchemyAutoSchema):
             'name': 'Name of the system the identifiers belong to, such as `DOI`.',
             'scheme': 'URN scheme the identifiers are built with, or an empty string when the system has none.',
             'url_template': 'Template a link to an entry is built from, with `{value}` standing for the identifier, '
-                            'or an empty string when the system has no URL.',
+            'or an empty string when the system has no URL.',
         }
 
 
@@ -45,8 +44,12 @@ class ReferenceTypeMixin:
 @json_errors
 class RHReferenceType(ReferenceTypeMixin, RHProtected):
     def _process_args(self):
-        self.reference_type = (self._reference_type_query()
-                               .filter(ReferenceType.id == request.view_args['reference_type_id']).first_or_404())
+        self.reference_type = (
+            self
+            ._reference_type_query()
+            .filter(ReferenceType.id == request.view_args['reference_type_id'])
+            .first_or_404()
+        )
 
     def _process_GET(self):
         return ReferenceTypeSchema().jsonify(self.reference_type)
@@ -64,9 +67,21 @@ class RHReferenceTypeList(ReferenceTypeMixin, RHListBase, RHProtected):
 
 
 ENDPOINTS = [
-    Endpoint(rule='/reference-types', name='reference_types', rh=RHReferenceTypeList, schema=ReferenceTypeSchema,
-             many=True, summary='List the systems external identifiers point at', tag='Reference types'),
-    Endpoint(rule='/reference-types/<int:reference_type_id>', name='reference_type', rh=RHReferenceType,
-             schema=ReferenceTypeSchema,
-             summary='Details of one system external identifiers point at', tag='Reference types'),
+    Endpoint(
+        rule='/reference-types',
+        name='reference_types',
+        rh=RHReferenceTypeList,
+        schema=ReferenceTypeSchema,
+        many=True,
+        summary='List the systems external identifiers point at',
+        tag='Reference types',
+    ),
+    Endpoint(
+        rule='/reference-types/<int:reference_type_id>',
+        name='reference_type',
+        rh=RHReferenceType,
+        schema=ReferenceTypeSchema,
+        summary='Details of one system external identifiers point at',
+        tag='Reference types',
+    ),
 ]

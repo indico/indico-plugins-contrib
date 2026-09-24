@@ -24,8 +24,19 @@ class ContributionFieldSchema(DescribedFieldsMixin, CoreContributionFieldSchema)
     """
 
     class Meta(CoreContributionFieldSchema.Meta):
-        fields = ('id', 'event_id', 'position', 'title', 'description', 'is_required', 'is_active',
-                  'is_user_editable', 'visibility', 'field_type', 'field_data')
+        fields = (
+            'id',
+            'event_id',
+            'position',
+            'title',
+            'description',
+            'is_required',
+            'is_active',
+            'is_user_editable',
+            'visibility',
+            'field_type',
+            'field_data',
+        )
         descriptions = {
             'id': 'Numeric identifier of the field, unique across the whole instance.',
             'event_id': 'Identifier of the event defining the field.',
@@ -38,7 +49,7 @@ class ContributionFieldSchema(DescribedFieldsMixin, CoreContributionFieldSchema)
             'visibility': 'Who may read the values: `public`, `managers_and_submitters` or `managers_only`.',
             'field_type': 'Kind of field, such as `text`, `single_choice` or `multiselect`.',
             'field_data': 'Settings of the field, whose keys depend on `field_type`: the options of a choice field, '
-                          'the length limits of a text field.',
+            'the length limits of a text field.',
         }
 
 
@@ -64,8 +75,7 @@ class ContributionFieldMixin:
 class RHContributionField(ContributionFieldMixin, RHProtectedEventBase):
     def _process_args(self):
         ContributionFieldMixin._process_args(self)
-        self.field = (self._field_query()
-                      .filter(ContributionField.id == request.view_args['field_id']).first_or_404())
+        self.field = self._field_query().filter(ContributionField.id == request.view_args['field_id']).first_or_404()
 
     def _check_access(self):
         RHProtectedEventBase._check_access(self)
@@ -88,10 +98,21 @@ class RHContributionFieldList(ContributionFieldMixin, RHListBase, RHProtectedEve
 
 
 ENDPOINTS = [
-    Endpoint(rule='/events/<int:event_id>/contribution-fields', name='contribution_fields',
-             rh=RHContributionFieldList, schema=ContributionFieldSchema, many=True,
-             summary='List the custom contribution fields of an event', tag='Contributions'),
-    Endpoint(rule='/events/<int:event_id>/contribution-fields/<int:field_id>', name='contribution_field',
-             rh=RHContributionField, schema=ContributionFieldSchema,
-             summary='Details of one custom contribution field of an event', tag='Contributions'),
+    Endpoint(
+        rule='/events/<int:event_id>/contribution-fields',
+        name='contribution_fields',
+        rh=RHContributionFieldList,
+        schema=ContributionFieldSchema,
+        many=True,
+        summary='List the custom contribution fields of an event',
+        tag='Contributions',
+    ),
+    Endpoint(
+        rule='/events/<int:event_id>/contribution-fields/<int:field_id>',
+        name='contribution_field',
+        rh=RHContributionField,
+        schema=ContributionFieldSchema,
+        summary='Details of one custom contribution field of an event',
+        tag='Contributions',
+    ),
 ]

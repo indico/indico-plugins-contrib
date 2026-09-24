@@ -5,7 +5,6 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-
 from flask import request
 
 from indico.core.db import db
@@ -44,8 +43,7 @@ class EventLabelMixin:
 @json_errors
 class RHEventLabel(EventLabelMixin, RHProtected):
     def _process_args(self):
-        self.label = (self._label_query()
-                      .filter(EventLabel.id == request.view_args['event_label_id']).first_or_404())
+        self.label = self._label_query().filter(EventLabel.id == request.view_args['event_label_id']).first_or_404()
 
     def _process_GET(self):
         return LabelSchema().jsonify(self.label)
@@ -63,8 +61,21 @@ class RHEventLabelList(EventLabelMixin, RHListBase, RHProtected):
 
 
 ENDPOINTS = [
-    Endpoint(rule='/event-labels', name='event_labels', rh=RHEventLabelList, schema=LabelSchema, many=True,
-             summary='List the labels an event can be marked with', tag='Events'),
-    Endpoint(rule='/event-labels/<int:event_label_id>', name='event_label', rh=RHEventLabel, schema=LabelSchema,
-             summary='Details of one label an event can be marked with', tag='Events'),
+    Endpoint(
+        rule='/event-labels',
+        name='event_labels',
+        rh=RHEventLabelList,
+        schema=LabelSchema,
+        many=True,
+        summary='List the labels an event can be marked with',
+        tag='Events',
+    ),
+    Endpoint(
+        rule='/event-labels/<int:event_label_id>',
+        name='event_label',
+        rh=RHEventLabel,
+        schema=LabelSchema,
+        summary='Details of one label an event can be marked with',
+        tag='Events',
+    ),
 ]

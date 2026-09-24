@@ -5,7 +5,6 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-
 from datetime import UTC, datetime
 
 import pytest
@@ -28,8 +27,11 @@ def create_log_entry(db, dummy_event, dummy_user):
 
 @pytest.fixture
 def dummy_log_entry(create_log_entry):
-    return create_log_entry('Event settings changed', logged_dt=datetime(2026, 9, 1, 8, 0, tzinfo=UTC),
-                            data={'Title': ['Old title', 'New title', 'text']})
+    return create_log_entry(
+        'Event settings changed',
+        logged_dt=datetime(2026, 9, 1, 8, 0, tzinfo=UTC),
+        data={'Title': ['Old title', 'New title', 'text']},
+    )
 
 
 @pytest.fixture
@@ -103,12 +105,15 @@ def test_log_list_filters_by_text(dummy_event, dummy_log_entry, create_log_entry
 
 
 @pytest.mark.usefixtures('event_manager')
-def test_log_list_filters_by_registration(dummy_event, dummy_log_entry, create_log_entry, dummy_reg, token_headers,
-                                          test_client):
-    entry = create_log_entry('Registration modified', realm=EventLogRealm.participants,
-                             meta={'registration_id': dummy_reg.id})
-    resp = test_client.get(f'/api/v1/events/{dummy_event.id}/logs?registration_id={dummy_reg.id}',
-                           headers=token_headers)
+def test_log_list_filters_by_registration(
+    dummy_event, dummy_log_entry, create_log_entry, dummy_reg, token_headers, test_client
+):
+    entry = create_log_entry(
+        'Registration modified', realm=EventLogRealm.participants, meta={'registration_id': dummy_reg.id}
+    )
+    resp = test_client.get(
+        f'/api/v1/events/{dummy_event.id}/logs?registration_id={dummy_reg.id}', headers=token_headers
+    )
     assert resp.status_code == 200
     assert [listed['id'] for listed in resp.json['results']] == [entry.id]
 
@@ -122,15 +127,18 @@ def test_logs_are_manager_only(dummy_event, dummy_log_entry, outsider_headers, t
 
 
 @pytest.mark.usefixtures('registration_manager')
-def test_registration_logs_need_the_registration_filter(dummy_event, dummy_log_entry, create_log_entry, dummy_reg,
-                                                        token_headers, test_client):
-    entry = create_log_entry('Registration modified', realm=EventLogRealm.participants,
-                             meta={'registration_id': dummy_reg.id})
+def test_registration_logs_need_the_registration_filter(
+    dummy_event, dummy_log_entry, create_log_entry, dummy_reg, token_headers, test_client
+):
+    entry = create_log_entry(
+        'Registration modified', realm=EventLogRealm.participants, meta={'registration_id': dummy_reg.id}
+    )
     resp = test_client.get(f'/api/v1/events/{dummy_event.id}/logs', headers=token_headers)
     assert resp.status_code == 403
     assert 'error' in resp.json
-    resp = test_client.get(f'/api/v1/events/{dummy_event.id}/logs?registration_id={dummy_reg.id}',
-                           headers=token_headers)
+    resp = test_client.get(
+        f'/api/v1/events/{dummy_event.id}/logs?registration_id={dummy_reg.id}', headers=token_headers
+    )
     assert resp.status_code == 200
     assert [listed['id'] for listed in resp.json['results']] == [entry.id]
     resp = test_client.get(f'/api/v1/events/{dummy_event.id}/logs/{entry.id}', headers=token_headers)
@@ -154,8 +162,12 @@ def log_keys(tzinfo):
     def _in_event_tz(value):
         return datetime.fromisoformat(value).astimezone(tzinfo).isoformat()
 
-    return {'summary': ('description', None), 'data': ('payload', None), 'logged_dt': ('time', _in_event_tz),
-            'user': ('user', rename_keys({'full_name': 'fullName', 'avatar_url': 'avatarURL'}))}
+    return {
+        'summary': ('description', None),
+        'data': ('payload', None),
+        'logged_dt': ('time', _in_event_tz),
+        'user': ('user', rename_keys({'full_name': 'fullName', 'avatar_url': 'avatarURL'})),
+    }
 
 
 @pytest.fixture
@@ -172,16 +184,25 @@ def current_entries(dummy_event, indico_api):
 
 
 @pytest.mark.usefixtures('event_manager')
-def test_log_entry_matches_current_api(dummy_event, dummy_log_entry, token_headers, test_client, current_entries,
-                                       same_json, log_mapping):
+def test_log_entry_matches_current_api(
+    dummy_event, dummy_log_entry, token_headers, test_client, current_entries, same_json, log_mapping
+):
     current = next(entry for entry in current_entries() if entry['id'] == dummy_log_entry.id)
     new = test_client.get(f'/api/v1/events/{dummy_event.id}/logs/{dummy_log_entry.id}', headers=token_headers).json
     same_json(new, current, same=LOG_FIELDS, renamed=log_mapping)
 
 
 @pytest.mark.usefixtures('event_manager')
-def test_log_list_matches_current_api(dummy_event, dummy_log_entry, create_log_entry, token_headers, test_client,
-                                      current_entries, same_json_list, log_mapping):
+def test_log_list_matches_current_api(
+    dummy_event,
+    dummy_log_entry,
+    create_log_entry,
+    token_headers,
+    test_client,
+    current_entries,
+    same_json_list,
+    log_mapping,
+):
     create_log_entry('Reminder sent', realm=EventLogRealm.participants, user=None)
     new = test_client.get(f'/api/v1/events/{dummy_event.id}/logs', headers=token_headers).json['results']
     same_json_list(new, current_entries(), same=LOG_FIELDS, renamed=log_mapping)

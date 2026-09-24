@@ -5,7 +5,6 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-
 from flask import request
 
 from indico.modules.rb.controllers import RHRoomBookingBase
@@ -63,8 +62,21 @@ class RHMapAreaList(MapAreaMixin, RHListBase, RHRoomBookingBase):
 
 
 ENDPOINTS = [
-    Endpoint(rule='/map-areas', name='map_areas', rh=RHMapAreaList, schema=MapAreaSchema, many=True,
-             summary='List the areas of the room map', tag='Rooms'),
-    Endpoint(rule='/map-areas/<int:area_id>', name='map_area', rh=RHMapArea, schema=MapAreaSchema,
-             summary='Details of one area of the room map', tag='Rooms'),
+    Endpoint(
+        rule='/map-areas',
+        name='map_areas',
+        rh=RHMapAreaList,
+        schema=MapAreaSchema,
+        many=True,
+        summary='List the areas of the room map',
+        tag='Rooms',
+    ),
+    Endpoint(
+        rule='/map-areas/<int:area_id>',
+        name='map_area',
+        rh=RHMapArea,
+        schema=MapAreaSchema,
+        summary='Details of one area of the room map',
+        tag='Rooms',
+    ),
 ]

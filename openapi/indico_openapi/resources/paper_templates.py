@@ -46,16 +46,16 @@ class PaperTemplateMixin:
     EVENT_FEATURE = 'papers'
 
     def _template_query(self):
-        return (PaperTemplate.query.with_parent(self.event)
-                .order_by(db.func.lower(PaperTemplate.name), PaperTemplate.id))
+        return PaperTemplate.query.with_parent(self.event).order_by(db.func.lower(PaperTemplate.name), PaperTemplate.id)
 
 
 @json_errors
 class RHPaperTemplate(PaperTemplateMixin, RHProtectedEventBase):
     def _process_args(self):
         RHProtectedEventBase._process_args(self)
-        self.template = (self._template_query()
-                         .filter(PaperTemplate.id == request.view_args['template_id']).first_or_404())
+        self.template = (
+            self._template_query().filter(PaperTemplate.id == request.view_args['template_id']).first_or_404()
+        )
 
     def _process_GET(self):
         return PaperTemplateSchema().jsonify(self.template)
@@ -73,9 +73,21 @@ class RHPaperTemplateList(PaperTemplateMixin, RHListBase, RHProtectedEventBase):
 
 
 ENDPOINTS = [
-    Endpoint(rule='/events/<int:event_id>/paper-templates', name='paper_templates', rh=RHPaperTemplateList,
-             schema=PaperTemplateSchema, many=True, summary='List the paper templates of an event', tag='Papers'),
-    Endpoint(rule='/events/<int:event_id>/paper-templates/<int:template_id>', name='paper_template',
-             rh=RHPaperTemplate, schema=PaperTemplateSchema,
-             summary='Details of one paper template of an event', tag='Papers'),
+    Endpoint(
+        rule='/events/<int:event_id>/paper-templates',
+        name='paper_templates',
+        rh=RHPaperTemplateList,
+        schema=PaperTemplateSchema,
+        many=True,
+        summary='List the paper templates of an event',
+        tag='Papers',
+    ),
+    Endpoint(
+        rule='/events/<int:event_id>/paper-templates/<int:template_id>',
+        name='paper_template',
+        rh=RHPaperTemplate,
+        schema=PaperTemplateSchema,
+        summary='Details of one paper template of an event',
+        tag='Papers',
+    ),
 ]

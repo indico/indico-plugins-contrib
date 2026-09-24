@@ -5,7 +5,6 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-
 from flask import request, session
 from marshmallow import fields
 
@@ -51,16 +50,25 @@ class RHRoomAttributeList(RHListBase, RHRoomBookingBase):
         self.room = Room.query.filter(Room.id == request.view_args['room_id'], ~Room.is_deleted).first_or_404()
 
     def _query(self):
-        return (RoomAttributeAssociation.query
-                .filter(RoomAttributeAssociation.room_id == self.room.id)
-                .join(RoomAttribute)
-                .order_by(RoomAttribute.name, RoomAttribute.id))
+        return (
+            RoomAttributeAssociation.query
+            .filter(RoomAttributeAssociation.room_id == self.room.id)
+            .join(RoomAttribute)
+            .order_by(RoomAttribute.name, RoomAttribute.id)
+        )
 
     def _can_access(self, obj):
         return not obj.attribute.is_hidden or self.room.can_manage(session.user)
 
 
 ENDPOINTS = [
-    Endpoint(rule='/rooms/<int:room_id>/attributes', name='room_attributes', rh=RHRoomAttributeList,
-             schema=RoomAttributeValueSchema, many=True, summary='List the attribute values of a room', tag='Rooms'),
+    Endpoint(
+        rule='/rooms/<int:room_id>/attributes',
+        name='room_attributes',
+        rh=RHRoomAttributeList,
+        schema=RoomAttributeValueSchema,
+        many=True,
+        summary='List the attribute values of a room',
+        tag='Rooms',
+    ),
 ]

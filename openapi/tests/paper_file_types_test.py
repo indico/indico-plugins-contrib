@@ -31,21 +31,32 @@ def create_paper_file_type(db, dummy_event):
 
 @pytest.fixture
 def pdf_file_type(create_paper_file_type):
-    return create_paper_file_type('Paper', extensions=['pdf'], required=True, publishable=True,
-                                  filename_template='paper-{code}')
+    return create_paper_file_type(
+        'Paper', extensions=['pdf'], required=True, publishable=True, filename_template='paper-{code}'
+    )
 
 
 def test_paper_file_type_details(dummy_event, pdf_file_type, token_headers, test_client):
-    resp = test_client.get(f'/api/v1/events/{dummy_event.id}/paper-file-types/{pdf_file_type.id}',
-                           headers=token_headers)
+    resp = test_client.get(
+        f'/api/v1/events/{dummy_event.id}/paper-file-types/{pdf_file_type.id}', headers=token_headers
+    )
     assert resp.status_code == 200
-    assert resp.json == {'id': pdf_file_type.id, 'event_id': dummy_event.id, 'name': 'Paper', 'extensions': ['pdf'],
-                         'allow_multiple_files': False, 'required': True, 'publishable': True,
-                         'filename_template': 'paper-{code}', 'is_used': False}
+    assert resp.json == {
+        'id': pdf_file_type.id,
+        'event_id': dummy_event.id,
+        'name': 'Paper',
+        'extensions': ['pdf'],
+        'allow_multiple_files': False,
+        'required': True,
+        'publishable': True,
+        'filename_template': 'paper-{code}',
+        'is_used': False,
+    }
 
 
-def test_paper_file_type_list_is_sorted_by_name(dummy_event, pdf_file_type, create_paper_file_type, token_headers,
-                                                test_client):
+def test_paper_file_type_list_is_sorted_by_name(
+    dummy_event, pdf_file_type, create_paper_file_type, token_headers, test_client
+):
     slides = create_paper_file_type('Slides', extensions=['pdf', 'pptx'], allow_multiple_files=True)
     source = create_paper_file_type('archive', extensions=['zip'])
     resp = test_client.get(f'/api/v1/events/{dummy_event.id}/paper-file-types', headers=token_headers)
@@ -65,8 +76,9 @@ def test_paper_file_types_need_the_papers_feature(db, dummy_event, pdf_file_type
 def test_paper_file_type_denied_without_event_access(db, dummy_event, pdf_file_type, outsider_headers, test_client):
     dummy_event.protection_mode = ProtectionMode.protected
     db.session.flush()
-    resp = test_client.get(f'/api/v1/events/{dummy_event.id}/paper-file-types/{pdf_file_type.id}',
-                           headers=outsider_headers)
+    resp = test_client.get(
+        f'/api/v1/events/{dummy_event.id}/paper-file-types/{pdf_file_type.id}', headers=outsider_headers
+    )
     assert resp.status_code == 403
     assert 'error' in resp.json
     resp = test_client.get(f'/api/v1/events/{dummy_event.id}/paper-file-types', headers=outsider_headers)
@@ -81,12 +93,21 @@ def test_paper_file_type_of_another_event_is_not_found(db, pdf_file_type, create
     assert resp.status_code == 404
 
 
-FILE_TYPE_FIELDS = ('id', 'name', 'extensions', 'allow_multiple_files', 'required', 'publishable', 'is_used',
-                    'filename_template')
+FILE_TYPE_FIELDS = (
+    'id',
+    'name',
+    'extensions',
+    'allow_multiple_files',
+    'required',
+    'publishable',
+    'is_used',
+    'filename_template',
+)
 
 
-def test_paper_file_type_list_matches_current_api(dummy_event, pdf_file_type, create_paper_file_type, token_headers,
-                                                  test_client, indico_api, same_json_list):
+def test_paper_file_type_list_matches_current_api(
+    dummy_event, pdf_file_type, create_paper_file_type, token_headers, test_client, indico_api, same_json_list
+):
     create_paper_file_type('Slides', extensions=['pdf', 'pptx'], allow_multiple_files=True)
     current = indico_api(f'/event/{dummy_event.id}/papers/api/file-types/')
     new = test_client.get(f'/api/v1/events/{dummy_event.id}/paper-file-types', headers=token_headers).json

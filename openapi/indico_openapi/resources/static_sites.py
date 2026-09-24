@@ -5,7 +5,6 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-
 from flask import request
 from marshmallow import fields
 
@@ -61,8 +60,7 @@ class OfflineCopyMixin:
     """
 
     def _site_query(self):
-        return (StaticSite.query.with_parent(self.event)
-                .order_by(StaticSite.requested_dt.desc(), StaticSite.id.desc()))
+        return StaticSite.query.with_parent(self.event).order_by(StaticSite.requested_dt.desc(), StaticSite.id.desc())
 
 
 @json_errors
@@ -87,8 +85,21 @@ class RHOfflineCopyList(OfflineCopyMixin, RHListBase, RHManageEventBase):
 
 
 ENDPOINTS = [
-    Endpoint(rule='/events/<int:event_id>/offline-copies', name='offline_copies', rh=RHOfflineCopyList,
-             schema=OfflineCopySchema, many=True, summary='List the offline copies of an event', tag='Offline copies'),
-    Endpoint(rule='/events/<int:event_id>/offline-copies/<int:site_id>', name='offline_copy', rh=RHOfflineCopy,
-             schema=OfflineCopySchema, summary='Details of one offline copy of an event', tag='Offline copies'),
+    Endpoint(
+        rule='/events/<int:event_id>/offline-copies',
+        name='offline_copies',
+        rh=RHOfflineCopyList,
+        schema=OfflineCopySchema,
+        many=True,
+        summary='List the offline copies of an event',
+        tag='Offline copies',
+    ),
+    Endpoint(
+        rule='/events/<int:event_id>/offline-copies/<int:site_id>',
+        name='offline_copy',
+        rh=RHOfflineCopy,
+        schema=OfflineCopySchema,
+        summary='Details of one offline copy of an event',
+        tag='Offline copies',
+    ),
 ]

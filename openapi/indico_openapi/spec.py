@@ -5,7 +5,6 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-
 import re
 
 from apispec import APISpec
@@ -45,14 +44,23 @@ def page_schema(schema_cls):
     """Build (once) the paginated envelope wrapping a resource schema."""
     if schema_cls not in _page_schemas:
         name = re.sub(r'Schema$', '', schema_cls.__name__)
-        _page_schemas[schema_cls] = type(f'{name}PageSchema', (mm.Schema,), {
-            'results': fields.List(fields.Nested(schema_cls),
-                                   metadata={'description': 'The results of this page.'}),
-            'count': fields.Integer(metadata={'description': 'Number of results in this page.'}),
-            'next_offset': fields.Integer(allow_none=True,
-                                          metadata={'description': 'Value to pass as `offset` to get the next '
-                                                                   'page, or `null` when this is the last one.'}),
-        })
+        _page_schemas[schema_cls] = type(
+            f'{name}PageSchema',
+            (mm.Schema,),
+            {
+                'results': fields.List(
+                    fields.Nested(schema_cls), metadata={'description': 'The results of this page.'}
+                ),
+                'count': fields.Integer(metadata={'description': 'Number of results in this page.'}),
+                'next_offset': fields.Integer(
+                    allow_none=True,
+                    metadata={
+                        'description': 'Value to pass as `offset` to get the next '
+                        'page, or `null` when this is the last one.'
+                    },
+                ),
+            },
+        )
     return _page_schemas[schema_cls]
 
 
@@ -91,16 +99,20 @@ def _operation(endpoint, params):
     }
     if args_schema := getattr(endpoint.rh, 'args_schema', None):
         params = [*params, {'in': 'query', 'schema': args_schema}]
-    return {'get': {'summary': endpoint.summary, 'tags': [endpoint.tag],
-                    'parameters': params, 'responses': responses}}
+    return {'get': {'summary': endpoint.summary, 'tags': [endpoint.tag], 'parameters': params, 'responses': responses}}
 
 
 def build_spec():
-    spec = APISpec(title='Indico REST API', version=SPEC_VERSION, openapi_version=OPENAPI_VERSION,
-                   plugins=[MarshmallowPlugin(schema_name_resolver=_component_name)],
-                   info={'description': DESCRIPTION})
-    spec.components.security_scheme('bearer', {'type': 'http', 'scheme': 'bearer',
-                                               'description': 'Indico personal token or OAuth access token'})
+    spec = APISpec(
+        title='Indico REST API',
+        version=SPEC_VERSION,
+        openapi_version=OPENAPI_VERSION,
+        plugins=[MarshmallowPlugin(schema_name_resolver=_component_name)],
+        info={'description': DESCRIPTION},
+    )
+    spec.components.security_scheme(
+        'bearer', {'type': 'http', 'scheme': 'bearer', 'description': 'Indico personal token or OAuth access token'}
+    )
     for endpoint in ENDPOINTS:
         path, params = _path_and_params(endpoint.rule)
         spec.path(path=BASE_PATH + path, operations=_operation(endpoint, params))

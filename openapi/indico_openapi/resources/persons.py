@@ -5,7 +5,6 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-
 import hashlib
 
 from flask import request, session
@@ -37,7 +36,7 @@ class EventPersonSchema(DescribedFieldsMixin, CoreEventPersonSchema):
             'email': 'Email address. Only present for users who can manage the event.',
             'email_hash': 'MD5 hash of the email address, so an avatar can be fetched without exposing the address.',
             'roles': 'What the person does in the event: `chairperson`, `convener`, `speaker` or `author`. '
-                     'Only roles the requesting user can see are listed.',
+            'Only roles the requesting user can see are listed.',
         }
 
     email_hash = fields.Function(lambda p: hashlib.md5(p.email.encode()).hexdigest() if p.email else None)
@@ -60,9 +59,11 @@ class PersonMixin:
     """
 
     def _contributions_published(self):
-        return (contribution_settings.get(self.event, 'published') or
-                self.event.can_manage(session.user, permission='contributions') or
-                has_contributions_with_user_as_submitter(self.event, session.user))
+        return (
+            contribution_settings.get(self.event, 'published')
+            or self.event.can_manage(session.user, permission='contributions')
+            or has_contributions_with_user_as_submitter(self.event, session.user)
+        )
 
     def _visible_roles(self, person):
         user = session.user
@@ -79,8 +80,11 @@ class PersonMixin:
                     roles.add('author')
             for link in person.subcontribution_links:
                 subcontrib = link.subcontribution
-                if (not subcontrib.is_deleted and not subcontrib.contribution.is_deleted
-                        and subcontrib.contribution.can_access(user)):
+                if (
+                    not subcontrib.is_deleted
+                    and not subcontrib.contribution.is_deleted
+                    and subcontrib.contribution.can_access(user)
+                ):
                     roles.add('speaker')
         for link in person.session_block_links:
             if link.session_block.session.can_access(user):
@@ -88,13 +92,14 @@ class PersonMixin:
         return roles
 
     def _person_query(self):
-        return (EventPerson.query.with_parent(self.event)
-                .order_by(EventPerson.last_name, EventPerson.first_name, EventPerson.id))
+        return EventPerson.query.with_parent(self.event).order_by(
+            EventPerson.last_name, EventPerson.first_name, EventPerson.id
+        )
 
     def _schema(self, roles, **kwargs):
-        return EventPersonSchema(context={'roles': roles,
-                                          'hide_restricted_data': not self.event.can_manage(session.user)},
-                                 **kwargs)
+        return EventPersonSchema(
+            context={'roles': roles, 'hide_restricted_data': not self.event.can_manage(session.user)}, **kwargs
+        )
 
 
 @json_errors
@@ -135,8 +140,21 @@ class RHEventPersonList(PersonMixin, RHListBase, RHProtectedEventBase):
 
 
 ENDPOINTS = [
-    Endpoint(rule='/events/<int:event_id>/persons', name='persons', rh=RHEventPersonList, schema=EventPersonSchema,
-             many=True, summary='List the people taking part in an event', tag='Persons'),
-    Endpoint(rule='/events/<int:event_id>/persons/<int:person_id>', name='person', rh=RHEventPerson,
-             schema=EventPersonSchema, summary='Details of one person taking part in an event', tag='Persons'),
+    Endpoint(
+        rule='/events/<int:event_id>/persons',
+        name='persons',
+        rh=RHEventPersonList,
+        schema=EventPersonSchema,
+        many=True,
+        summary='List the people taking part in an event',
+        tag='Persons',
+    ),
+    Endpoint(
+        rule='/events/<int:event_id>/persons/<int:person_id>',
+        name='person',
+        rh=RHEventPerson,
+        schema=EventPersonSchema,
+        summary='Details of one person taking part in an event',
+        tag='Persons',
+    ),
 ]

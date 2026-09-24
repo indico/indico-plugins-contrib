@@ -5,7 +5,6 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-
 from flask import request, session
 from marshmallow import fields
 from werkzeug.exceptions import Forbidden
@@ -29,20 +28,33 @@ class AgreementSchema(DescribedFieldsMixin, mm.SQLAlchemyAutoSchema):
 
     class Meta:
         model = Agreement
-        fields = ('id', 'event_id', 'type', 'identifier', 'person_name', 'person_email', 'user_id', 'state',
-                  'timestamp', 'signed_dt', 'reason', 'attachment_filename', 'data')
+        fields = (
+            'id',
+            'event_id',
+            'type',
+            'identifier',
+            'person_name',
+            'person_email',
+            'user_id',
+            'state',
+            'timestamp',
+            'signed_dt',
+            'reason',
+            'attachment_filename',
+            'data',
+        )
         descriptions = {
             'id': 'Numeric identifier of the agreement, unique across the whole instance.',
             'event_id': 'Identifier of the event the agreement was requested for.',
             'type': 'Name of the agreement definition the request came from, such as `cern-speaker-release`. '
-                    'Definitions are provided by plugins.',
+            'Definitions are provided by plugins.',
             'identifier': 'Identifier of the person within the event and the agreement type, as built by the '
-                          'definition.',
+            'definition.',
             'person_name': 'Full name of the person who was asked to sign.',
             'person_email': 'Email address the request was sent to, or `null` when the definition provided none.',
             'user_id': 'Identifier of the Indico account of the signer, or `null` when they have none.',
             'state': 'Where the request stands: `pending`, `accepted`, `rejected`, `accepted_on_behalf` or '
-                     '`rejected_on_behalf`, the last two meaning a manager answered for the person.',
+            '`rejected_on_behalf`, the last two meaning a manager answered for the person.',
             'timestamp': 'Moment the request was created, in UTC.',
             'signed_dt': 'Moment the person answered, in UTC, or `null` while the request is pending.',
             'reason': 'Explanation the signer gave along with their answer, or `null` when they gave none.',
@@ -55,9 +67,11 @@ class AgreementSchema(DescribedFieldsMixin, mm.SQLAlchemyAutoSchema):
 
 
 class AgreementListArgs(ListArgs):
-    agreement_type = fields.String(data_key='type', load_default=None,
-                                   metadata={'description': 'Only list the agreements of this definition, such as '
-                                                            '`cern-speaker-release`.'})
+    agreement_type = fields.String(
+        data_key='type',
+        load_default=None,
+        metadata={'description': 'Only list the agreements of this definition, such as `cern-speaker-release`.'},
+    )
 
 
 class AgreementMixin:
@@ -74,16 +88,16 @@ class AgreementMixin:
             raise Forbidden
 
     def _agreement_query(self):
-        return (Agreement.query.with_parent(self.event)
-                .order_by(db.func.lower(Agreement.person_name), Agreement.id))
+        return Agreement.query.with_parent(self.event).order_by(db.func.lower(Agreement.person_name), Agreement.id)
 
 
 @json_errors
 class RHAgreement(AgreementMixin, RHProtectedEventBase):
     def _process_args(self):
         RHProtectedEventBase._process_args(self)
-        self.agreement = (self._agreement_query()
-                          .filter(Agreement.id == request.view_args['agreement_id']).first_or_404())
+        self.agreement = (
+            self._agreement_query().filter(Agreement.id == request.view_args['agreement_id']).first_or_404()
+        )
 
     def _process_GET(self):
         return AgreementSchema().jsonify(self.agreement)
@@ -105,8 +119,21 @@ class RHAgreementList(AgreementMixin, RHListBase, RHProtectedEventBase):
 
 
 ENDPOINTS = [
-    Endpoint(rule='/events/<int:event_id>/agreements', name='agreements', rh=RHAgreementList, schema=AgreementSchema,
-             many=True, summary='List the agreements an event asked for', tag='Agreements'),
-    Endpoint(rule='/events/<int:event_id>/agreements/<int:agreement_id>', name='agreement', rh=RHAgreement,
-             schema=AgreementSchema, summary='Details of one agreement an event asked for', tag='Agreements'),
+    Endpoint(
+        rule='/events/<int:event_id>/agreements',
+        name='agreements',
+        rh=RHAgreementList,
+        schema=AgreementSchema,
+        many=True,
+        summary='List the agreements an event asked for',
+        tag='Agreements',
+    ),
+    Endpoint(
+        rule='/events/<int:event_id>/agreements/<int:agreement_id>',
+        name='agreement',
+        rh=RHAgreement,
+        schema=AgreementSchema,
+        summary='Details of one agreement an event asked for',
+        tag='Agreements',
+    ),
 ]

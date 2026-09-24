@@ -5,7 +5,6 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-
 from datetime import timedelta
 
 import pytest
@@ -25,8 +24,10 @@ def decorated_event(db, dummy_event, doi, create_label):
     dummy_event.label = create_label('Cancelled')
     dummy_event.label.is_event_not_happening = True
     dummy_event.label_message = 'Moved to next year'
-    event_contact_settings.set_multi(dummy_event, {'title': 'Organisers', 'emails': ['org@example.com'],
-                                                   'phones': ['+41 22 767 6111', '+41 22 767 6112']})
+    event_contact_settings.set_multi(
+        dummy_event,
+        {'title': 'Organisers', 'emails': ['org@example.com'], 'phones': ['+41 22 767 6111', '+41 22 767 6112']},
+    )
     db.session.flush()
     return dummy_event
 
@@ -45,10 +46,18 @@ def test_event_details_carry_references_label_and_contact(decorated_event, token
         {'type': 'DOI', 'value': '10.1000/xyz', 'url': 'https://doi.org/10.1000/xyz', 'urn': 'doi:10.1000/xyz'},
         {'type': 'Ticket', 'value': '42', 'url': None, 'urn': None},
     ]
-    assert resp.json['label'] == {'id': decorated_event.label.id, 'title': 'Cancelled', 'color': 'red',
-                                  'is_event_not_happening': True, 'message': 'Moved to next year'}
-    assert resp.json['contact'] == {'title': 'Organisers', 'emails': ['org@example.com'],
-                                    'phones': ['+41 22 767 6111', '+41 22 767 6112']}
+    assert resp.json['label'] == {
+        'id': decorated_event.label.id,
+        'title': 'Cancelled',
+        'color': 'red',
+        'is_event_not_happening': True,
+        'message': 'Moved to next year',
+    }
+    assert resp.json['contact'] == {
+        'title': 'Organisers',
+        'emails': ['org@example.com'],
+        'phones': ['+41 22 767 6111', '+41 22 767 6112'],
+    }
 
 
 def test_event_without_extras(dummy_event, token_headers, test_client):
@@ -117,8 +126,20 @@ def test_event_list_filters_by_category(dummy_event, create_category, create_eve
     assert other.id not in listed
 
 
-EVENT_FIELDS = ('title', 'description', 'timezone', 'type', 'url', 'location', 'room', 'address', 'keywords',
-                'organizer', 'language', 'references')
+EVENT_FIELDS = (
+    'title',
+    'description',
+    'timezone',
+    'type',
+    'url',
+    'location',
+    'room',
+    'address',
+    'keywords',
+    'organizer',
+    'language',
+    'references',
+)
 
 
 def without_label_id(label):
@@ -126,14 +147,22 @@ def without_label_id(label):
     return label and {key: value for key, value in label.items() if key != 'id'}
 
 
-EVENT_KEYS = {'id': ('id', str), 'category_id': ('categoryId', None), 'category_title': ('category', None),
-              'room_full_name': ('roomFullname', None), 'is_protected': ('hasAnyProtection', None),
-              'label': ('label', without_label_id)}
+EVENT_KEYS = {
+    'id': ('id', str),
+    'category_id': ('categoryId', None),
+    'category_title': ('category', None),
+    'room_full_name': ('roomFullname', None),
+    'is_protected': ('hasAnyProtection', None),
+    'label': ('label', without_label_id),
+}
 
 
 def date_keys(as_legacy_date):
-    return {'start_dt': ('startDate', as_legacy_date), 'end_dt': ('endDate', as_legacy_date),
-            'created_dt': ('creationDate', as_legacy_date)}
+    return {
+        'start_dt': ('startDate', as_legacy_date),
+        'end_dt': ('endDate', as_legacy_date),
+        'created_dt': ('creationDate', as_legacy_date),
+    }
 
 
 def as_category_chain(current):
@@ -142,8 +171,11 @@ def as_category_chain(current):
 
 def as_contact(current):
     info = current['supportInfo']
-    return {'title': info['caption'], 'emails': info['email'].split(', ') if info['email'] else [],
-            'phones': info['telephone'].split(', ') if info['telephone'] else []}
+    return {
+        'title': info['caption'],
+        'emails': info['email'].split(', ') if info['email'] else [],
+        'phones': info['telephone'].split(', ') if info['telephone'] else [],
+    }
 
 
 DERIVED = {'category_chain': as_category_chain, 'contact': as_contact}
@@ -154,23 +186,44 @@ def with_extras(indico_api, sessions):
     def add(current):
         session = sessions[int(current['id'])]
         slots = indico_api(f'/export/event/{current["id"]}/session/{session.id}.json')['results']
-        return {**current, 'chain': indico_api(f'/category/{current["categoryId"]}/info')['category']['path'],
-                'supportInfo': slots[0]['conference']['supportInfo']}
+        return {
+            **current,
+            'chain': indico_api(f'/category/{current["categoryId"]}/info')['category']['path'],
+            'supportInfo': slots[0]['conference']['supportInfo'],
+        }
 
     return add
 
 
-def test_event_matches_current_api(decorated_event, dummy_session, dummy_session_block, token_headers, test_client,
-                                   indico_api, as_legacy_date, same_json):
+def test_event_matches_current_api(
+    decorated_event,
+    dummy_session,
+    dummy_session_block,
+    token_headers,
+    test_client,
+    indico_api,
+    as_legacy_date,
+    same_json,
+):
     add_extras = with_extras(indico_api, {decorated_event.id: dummy_session})
     current = add_extras(indico_api(f'/export/event/{decorated_event.id}.json')['results'][0])
     new = test_client.get(f'/api/v1/events/{decorated_event.id}', headers=token_headers).json
     same_json(new, current, same=EVENT_FIELDS, renamed={**EVENT_KEYS, **date_keys(as_legacy_date)}, derived=DERIVED)
 
 
-def test_event_list_matches_current_api(decorated_event, dummy_session, dummy_session_block, create_event,
-                                        create_session, create_session_block, token_headers, test_client,
-                                        indico_api, as_legacy_date, same_json_list):
+def test_event_list_matches_current_api(
+    decorated_event,
+    dummy_session,
+    dummy_session_block,
+    create_event,
+    create_session,
+    create_session_block,
+    token_headers,
+    test_client,
+    indico_api,
+    as_legacy_date,
+    same_json_list,
+):
     other = create_event(title='Another event')
     other_session = create_session(other, 'Other session')
     create_session_block(other_session, 'Other block', timedelta(minutes=20), now_utc())
@@ -178,5 +231,6 @@ def test_event_list_matches_current_api(decorated_event, dummy_session, dummy_se
     ids = f'{decorated_event.id}-{other.id}'
     current = [add_extras(event) for event in indico_api(f'/export/event/{ids}.json')['results']]
     new = test_client.get('/api/v1/events', headers=token_headers).json['results']
-    same_json_list(new, current, same=EVENT_FIELDS, renamed={**EVENT_KEYS, **date_keys(as_legacy_date)},
-                   derived=DERIVED)
+    same_json_list(
+        new, current, same=EVENT_FIELDS, renamed={**EVENT_KEYS, **date_keys(as_legacy_date)}, derived=DERIVED
+    )

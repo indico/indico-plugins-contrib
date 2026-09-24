@@ -5,7 +5,6 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-
 from flask import request, session
 from marshmallow import fields
 
@@ -30,8 +29,16 @@ class ReservationLinkSchema(DescribedFieldsMixin, mm.SQLAlchemyAutoSchema):
 
     class Meta:
         model = ReservationOccurrenceLink
-        fields = ('id', 'type', 'event_id', 'contribution_id', 'session_block_id', 'title', 'occurrence_start_dt',
-                  'occurrence_state')
+        fields = (
+            'id',
+            'type',
+            'event_id',
+            'contribution_id',
+            'session_block_id',
+            'title',
+            'occurrence_start_dt',
+            'occurrence_state',
+        )
         descriptions = {
             'id': 'Numeric identifier of the link, unique across the whole instance.',
             'type': 'What the occurrence was booked for: `event`, `contribution` or `session_block`.',
@@ -70,17 +77,25 @@ class RHReservationLinkList(RHListBase, RHRoomBookingBase):
         self.reservation = Reservation.get_or_404(request.view_args['reservation_id'])
 
     def _query(self):
-        return (ReservationOccurrenceLink.query
-                .join(ReservationOccurrence, ReservationOccurrence.link_id == ReservationOccurrenceLink.id)
-                .filter(ReservationOccurrence.reservation_id == self.reservation.id)
-                .order_by(ReservationOccurrence.start_dt, ReservationOccurrenceLink.id))
+        return (
+            ReservationOccurrenceLink.query
+            .join(ReservationOccurrence, ReservationOccurrence.link_id == ReservationOccurrenceLink.id)
+            .filter(ReservationOccurrence.reservation_id == self.reservation.id)
+            .order_by(ReservationOccurrence.start_dt, ReservationOccurrenceLink.id)
+        )
 
     def _can_access(self, obj):
         return True
 
 
 ENDPOINTS = [
-    Endpoint(rule='/reservations/<int:reservation_id>/links', name='reservation_links', rh=RHReservationLinkList,
-             schema=ReservationLinkSchema, many=True, summary='List the objects a room booking was made for',
-             tag='Reservations'),
+    Endpoint(
+        rule='/reservations/<int:reservation_id>/links',
+        name='reservation_links',
+        rh=RHReservationLinkList,
+        schema=ReservationLinkSchema,
+        many=True,
+        summary='List the objects a room booking was made for',
+        tag='Reservations',
+    ),
 ]

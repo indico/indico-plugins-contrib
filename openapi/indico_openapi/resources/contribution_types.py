@@ -36,16 +36,18 @@ class ContributionTypeSchema(DescribedFieldsMixin, CoreContributionTypeSchema):
 
 class ContributionTypeMixin:
     def _type_query(self):
-        return (ContributionType.query.with_parent(self.event)
-                .order_by(db.func.lower(ContributionType.name), ContributionType.id))
+        return ContributionType.query.with_parent(self.event).order_by(
+            db.func.lower(ContributionType.name), ContributionType.id
+        )
 
 
 @json_errors
 class RHContributionType(ContributionTypeMixin, RHProtectedEventBase):
     def _process_args(self):
         RHProtectedEventBase._process_args(self)
-        self.contrib_type = (self._type_query()
-                             .filter(ContributionType.id == request.view_args['type_id']).first_or_404())
+        self.contrib_type = (
+            self._type_query().filter(ContributionType.id == request.view_args['type_id']).first_or_404()
+        )
 
     def _process_GET(self):
         return ContributionTypeSchema().jsonify(self.contrib_type)
@@ -63,10 +65,21 @@ class RHContributionTypeList(ContributionTypeMixin, RHListBase, RHProtectedEvent
 
 
 ENDPOINTS = [
-    Endpoint(rule='/events/<int:event_id>/contribution-types', name='contribution_types', rh=RHContributionTypeList,
-             schema=ContributionTypeSchema, many=True, summary='List the contribution types of an event',
-             tag='Contributions'),
-    Endpoint(rule='/events/<int:event_id>/contribution-types/<int:type_id>', name='contribution_type',
-             rh=RHContributionType, schema=ContributionTypeSchema,
-             summary='Details of one contribution type of an event', tag='Contributions'),
+    Endpoint(
+        rule='/events/<int:event_id>/contribution-types',
+        name='contribution_types',
+        rh=RHContributionTypeList,
+        schema=ContributionTypeSchema,
+        many=True,
+        summary='List the contribution types of an event',
+        tag='Contributions',
+    ),
+    Endpoint(
+        rule='/events/<int:event_id>/contribution-types/<int:type_id>',
+        name='contribution_type',
+        rh=RHContributionType,
+        schema=ContributionTypeSchema,
+        summary='Details of one contribution type of an event',
+        tag='Contributions',
+    ),
 ]

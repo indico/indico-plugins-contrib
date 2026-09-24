@@ -5,7 +5,6 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-
 from indico.modules.rb import rb_settings
 
 
@@ -24,8 +23,7 @@ def test_location_details_sorts_rooms(dummy_location, dummy_room, create_room, t
     assert [r['id'] for r in resp.json['rooms']] == [dummy_room.id, other.id]
 
 
-def test_location_details_skips_deleted_rooms(db, dummy_location, dummy_room, create_room, token_headers,
-                                              test_client):
+def test_location_details_skips_deleted_rooms(db, dummy_location, dummy_room, create_room, token_headers, test_client):
     other = create_room(building='9')
     dummy_room.is_deleted = True
     db.session.flush()
@@ -77,16 +75,18 @@ def test_location_requires_login(dummy_location, dummy_room, test_client):
 LOCATION_FIELDS = ('id', 'name')
 
 
-def test_location_matches_current_api(dummy_location, dummy_room, create_room, token_headers, test_client,
-                                      indico_api, same_json):
+def test_location_matches_current_api(
+    dummy_location, dummy_room, create_room, token_headers, test_client, indico_api, same_json
+):
     create_room(building='9')
     current = next(loc for loc in indico_api('/rooms/api/locations') if loc['id'] == dummy_location.id)
     new = test_client.get(f'/api/v1/locations/{dummy_location.id}', headers=token_headers).json
     same_json(new, current, same=(*LOCATION_FIELDS, 'rooms'))
 
 
-def test_location_list_matches_current_api(dummy_location, dummy_room, create_location, create_room, token_headers,
-                                           test_client, indico_api, same_json_list):
+def test_location_list_matches_current_api(
+    dummy_location, dummy_room, create_location, create_room, token_headers, test_client, indico_api, same_json_list
+):
     create_room(location=create_location('Other'))
     current = indico_api('/rooms/api/locations')
     new = test_client.get('/api/v1/locations', headers=token_headers).json['results']

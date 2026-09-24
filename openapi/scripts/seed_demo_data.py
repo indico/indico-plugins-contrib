@@ -173,11 +173,50 @@ CONFERENCES_PER_TOPIC = 5
 MEETING_COUNT = 4
 USER_COUNT = 60
 
-FIRST_NAMES = ('Ada', 'Bruno', 'Chiara', 'Diego', 'Elena', 'Farid', 'Greta', 'Hugo', 'Ilse', 'Jonas',
-               'Katia', 'Lars', 'Mireia', 'Nadia', 'Olek', 'Pilar', 'Quim', 'Rosa', 'Sven', 'Tomas')
-LAST_NAMES = ('Alvarez', 'Bianchi', 'Costa', 'Dubois', 'Eriksen', 'Fischer', 'Garcia', 'Horvath', 'Iversen',
-              'Jankowski', 'Kowal', 'Lindgren', 'Moreau', 'Nowak', 'Oliveira', 'Petrov', 'Quintero', 'Rossi',
-              'Silva', 'Tanaka')
+FIRST_NAMES = (
+    'Ada',
+    'Bruno',
+    'Chiara',
+    'Diego',
+    'Elena',
+    'Farid',
+    'Greta',
+    'Hugo',
+    'Ilse',
+    'Jonas',
+    'Katia',
+    'Lars',
+    'Mireia',
+    'Nadia',
+    'Olek',
+    'Pilar',
+    'Quim',
+    'Rosa',
+    'Sven',
+    'Tomas',
+)
+LAST_NAMES = (
+    'Alvarez',
+    'Bianchi',
+    'Costa',
+    'Dubois',
+    'Eriksen',
+    'Fischer',
+    'Garcia',
+    'Horvath',
+    'Iversen',
+    'Jankowski',
+    'Kowal',
+    'Lindgren',
+    'Moreau',
+    'Nowak',
+    'Oliveira',
+    'Petrov',
+    'Quintero',
+    'Rossi',
+    'Silva',
+    'Tanaka',
+)
 AFFILIATIONS = ('CERN', 'DESY', 'Fermilab', 'INFN', 'KEK', 'PSI', 'RAL', 'SLAC')
 COUNTRIES = ('CH', 'DE', 'ES', 'FR', 'IT', 'JP', 'GB', 'US')
 CITIES = ('Geneva', 'Hamburg', 'Madrid', 'Paris', 'Rome', 'Tsukuba', 'Oxford', 'Menlo Park')
@@ -188,9 +227,23 @@ FEATURES = (('vc', 'Videoconference', 'video-camera'), ('screen', 'Screen', 'pro
 EQUIPMENT_FEATURES = {'Video conference': ('vc',), 'Webcast': ('vc', 'screen'), 'Projector': ('screen',)}
 REGISTRATION_TAGS = (('VIP', 'blue'), ('Catering', 'green'), ('Speaker', 'purple'))
 AGREEMENT_TYPES = ('speaker-release', 'data-protection')
-SUBJECTS = ('beam dynamics', 'calorimetry', 'cryogenics', 'data acquisition', 'event reconstruction',
-            'lattice QCD', 'machine learning', 'magnet design', 'radiation hardness', 'silicon trackers',
-            'superconductivity', 'trigger systems', 'vacuum systems', 'wakefields', 'neutrino oscillations')
+SUBJECTS = (
+    'beam dynamics',
+    'calorimetry',
+    'cryogenics',
+    'data acquisition',
+    'event reconstruction',
+    'lattice QCD',
+    'machine learning',
+    'magnet design',
+    'radiation hardness',
+    'silicon trackers',
+    'superconductivity',
+    'trigger systems',
+    'vacuum systems',
+    'wakefields',
+    'neutrino oscillations',
+)
 COLORS = ('1f77b4', 'ff7f0e', '2ca02c', 'd62728', '9467bd', '8c564b')
 ROLES = (('Programme Committee', 'PC'), ('Local Organisers', 'LOC'), ('Reviewers', 'REV'))
 CONFERENCE_THEMES = ('orange.css', 'brown.css', 'right_menu.css')
@@ -279,8 +332,9 @@ def get_affiliations():
         # the name is unique regardless of case
         affiliation = Affiliation.query.filter(db.func.lower(Affiliation.name) == name.lower()).first()
         if affiliation is None:
-            affiliation = Affiliation(name=name, code=name[:3].upper(), city=pick(CITIES, i),
-                                      country_code=pick(COUNTRIES, i))
+            affiliation = Affiliation(
+                name=name, code=name[:3].upper(), city=pick(CITIES, i), country_code=pick(COUNTRIES, i)
+            )
             db.session.add(affiliation)
         affiliations[name] = affiliation
     db.session.flush()
@@ -294,8 +348,13 @@ def create_users(affiliations):
         last_name = pick(LAST_NAMES, i * 7)
         username = f'openapi.user{i:02d}'
         name = pick(AFFILIATIONS, i)
-        user = User(first_name=first_name, last_name=last_name, email=f'{username}@example.test',
-                    affiliation=name, affiliation_link=affiliations[name])
+        user = User(
+            first_name=first_name,
+            last_name=last_name,
+            email=f'{username}@example.test',
+            affiliation=name,
+            affiliation_link=affiliations[name],
+        )
         user.identities.add(Identity(provider='indico', identifier=username, password=os.environ['SEED_PASSWORD']))
         db.session.add(user)
         users.append(user)
@@ -304,10 +363,16 @@ def create_users(affiliations):
 
 
 def create_manager(affiliations):
-    manager = User(first_name='Olivia', last_name='Manager', email=f'{MANAGER_USERNAME}@example.test',
-                   affiliation='CERN', affiliation_link=affiliations['CERN'])
-    manager.identities.add(Identity(provider='indico', identifier=MANAGER_USERNAME,
-                                    password=os.environ['SEED_PASSWORD']))
+    manager = User(
+        first_name='Olivia',
+        last_name='Manager',
+        email=f'{MANAGER_USERNAME}@example.test',
+        affiliation='CERN',
+        affiliation_link=affiliations['CERN'],
+    )
+    manager.identities.add(
+        Identity(provider='indico', identifier=MANAGER_USERNAME, password=os.environ['SEED_PASSWORD'])
+    )
     manager.is_admin = True
     db.session.add(manager)
     db.session.flush()
@@ -315,21 +380,41 @@ def create_manager(affiliations):
 
 
 def create_categories(root):
-    demo = Category(title=CATEGORY_TITLE, parent=root, timezone=config.DEFAULT_TIMEZONE, acl_entries=set(),
-                    description='Every entity the read-only REST API serves, with enough rows to page through.')
+    demo = Category(
+        title=CATEGORY_TITLE,
+        parent=root,
+        timezone=config.DEFAULT_TIMEZONE,
+        acl_entries=set(),
+        description='Every entity the read-only REST API serves, with enough rows to page through.',
+    )
     db.session.add(demo)
-    topics = [Category(title=title, parent=demo, timezone=config.DEFAULT_TIMEZONE, acl_entries=set(),
-                       description=f'Demo events about {title.lower()}.')
-              for title in TOPICS]
+    topics = [
+        Category(
+            title=title,
+            parent=demo,
+            timezone=config.DEFAULT_TIMEZONE,
+            acl_entries=set(),
+            description=f'Demo events about {title.lower()}.',
+        )
+        for title in TOPICS
+    ]
     db.session.add_all(topics)
     db.session.flush()
     return demo, topics
 
 
 def create_event(category, manager, title, start, event_type, days):
-    event = Event(creator=manager, category=category, title=title, type_=event_type, acl_entries=set(),
-                  start_dt=start, end_dt=start + timedelta(days=days, hours=9), timezone=config.DEFAULT_TIMEZONE,
-                  description=f'Demo event: {title}.')
+    event = Event(
+        creator=manager,
+        category=category,
+        title=title,
+        type_=event_type,
+        acl_entries=set(),
+        start_dt=start,
+        end_dt=start + timedelta(days=days, hours=9),
+        timezone=config.DEFAULT_TIMEZONE,
+        description=f'Demo event: {title}.',
+    )
     event.update_principal(manager, full_access=True)
     # friendly ids are drawn from the event row through a separate connection,
     # so nothing inside the event can be created before the event is committed
@@ -341,8 +426,14 @@ def create_persons(event, users, count, offset):
     persons = []
     for i in range(count):
         user = pick(users, offset + i)
-        person = EventPerson(event=event, user=user, first_name=user.first_name, last_name=user.last_name,
-                             email=user.email, affiliation=user.affiliation)
+        person = EventPerson(
+            event=event,
+            user=user,
+            first_name=user.first_name,
+            last_name=user.last_name,
+            email=user.email,
+            affiliation=user.affiliation,
+        )
         db.session.add(person)
         persons.append(person)
     db.session.flush()
@@ -355,9 +446,13 @@ def create_tracks(event, index):
     tracks = []
     for i in range(3):
         subject = pick(SUBJECTS, index * 3 + i)
-        track = Track(event=event, title=subject.capitalize(), code=f'T{i + 1}',
-                      description=f'Contributions about {subject}.',
-                      track_group=(group if i < 2 else None))
+        track = Track(
+            event=event,
+            title=subject.capitalize(),
+            code=f'T{i + 1}',
+            description=f'Contributions about {subject}.',
+            track_group=(group if i < 2 else None),
+        )
         db.session.add(track)
         tracks.append(track)
     db.session.flush()
@@ -367,8 +462,7 @@ def create_tracks(event, index):
 def create_sessions(event, persons, count, blocks_per_session, start):
     sessions, blocks = [], []
     for i in range(count):
-        sess = Session(event=event, title=f'Session {chr(ord("A") + i)}', code=f'S{i + 1}',
-                       description='Demo session.')
+        sess = Session(event=event, title=f'Session {chr(ord("A") + i)}', code=f'S{i + 1}', description='Demo session.')
         db.session.add(sess)
         db.session.flush()
         sessions.append(sess)
@@ -390,22 +484,34 @@ def create_contributions(event, persons, tracks, blocks, count, index):
     contributions = []
     for i in range(count):
         subject = pick(SUBJECTS, index + i)
-        contrib = Contribution(event=event, title=f'Progress on {subject}', duration=timedelta(minutes=20),
-                               description=f'A demo contribution about {subject}.', code=f'C{i + 1:03d}',
-                               keywords=[subject.split()[0], 'demo'],
-                               track=(pick(tracks, i) if tracks else None))
-        contrib.person_links.append(ContributionPersonLink(person=pick(persons, i), is_speaker=True,
-                                                           author_type=AuthorType.primary, display_order=0))
-        contrib.person_links.append(ContributionPersonLink(person=pick(persons, i + 3), is_speaker=False,
-                                                           author_type=AuthorType.secondary, display_order=1))
+        contrib = Contribution(
+            event=event,
+            title=f'Progress on {subject}',
+            duration=timedelta(minutes=20),
+            description=f'A demo contribution about {subject}.',
+            code=f'C{i + 1:03d}',
+            keywords=[subject.split()[0], 'demo'],
+            track=(pick(tracks, i) if tracks else None),
+        )
+        contrib.person_links.append(
+            ContributionPersonLink(
+                person=pick(persons, i), is_speaker=True, author_type=AuthorType.primary, display_order=0
+            )
+        )
+        contrib.person_links.append(
+            ContributionPersonLink(
+                person=pick(persons, i + 3), is_speaker=False, author_type=AuthorType.secondary, display_order=1
+            )
+        )
         db.session.add(contrib)
         db.session.flush()
         block = pick(blocks, i)
         contrib.session = block.session
         contrib.session_block = block
         start = block.timetable_entry.start_dt + timedelta(minutes=25 * (i // len(blocks)))
-        entry = TimetableEntry(event=event, start_dt=start, type=TimetableEntryType.CONTRIBUTION,
-                               parent=block.timetable_entry)
+        entry = TimetableEntry(
+            event=event, start_dt=start, type=TimetableEntryType.CONTRIBUTION, parent=block.timetable_entry
+        )
         entry.object = contrib
         db.session.add(entry)
         db.session.flush()
@@ -420,9 +526,13 @@ def create_subcontributions(contributions, persons):
     subcontributions = []
     for i, contrib in enumerate(contributions):
         for j in range(1 + i % 2):
-            subcontrib = SubContribution(contribution=contrib, title=f'{contrib.title}: part {j + 1}',
-                                         duration=timedelta(minutes=8), description='A demo subcontribution.',
-                                         code=f'{contrib.code}.{j + 1}')
+            subcontrib = SubContribution(
+                contribution=contrib,
+                title=f'{contrib.title}: part {j + 1}',
+                duration=timedelta(minutes=8),
+                description='A demo subcontribution.',
+                code=f'{contrib.code}.{j + 1}',
+            )
             subcontrib.person_links.append(SubContributionPersonLink(person=pick(persons, i + j)))
             db.session.add(subcontrib)
             subcontributions.append(subcontrib)
@@ -433,8 +543,11 @@ def create_subcontributions(contributions, persons):
 def create_breaks(event, blocks, count, start):
     breaks = []
     for i in range(count):
-        break_ = Break(title=pick(('Coffee break', 'Lunch', 'Poster session'), i), duration=timedelta(minutes=30),
-                       description='A demo break.')
+        break_ = Break(
+            title=pick(('Coffee break', 'Lunch', 'Poster session'), i),
+            duration=timedelta(minutes=30),
+            description='A demo break.',
+        )
         db.session.add(break_)
         db.session.flush()
         parent = blocks[i].timetable_entry if i < len(blocks) else None
@@ -461,8 +574,9 @@ def create_note(obj, author, html):
 def create_file_attachment(obj, author, title, description):
     folder = AttachmentFolder(object=obj, title='Slides', description='Material shown during the talk.')
     file = AttachmentFile(user=author, filename='slides.txt', content_type='text/plain')
-    attachment = Attachment(folder=folder, user=author, type=AttachmentType.file, file=file, title=title,
-                            description=description)
+    attachment = Attachment(
+        folder=folder, user=author, type=AttachmentType.file, file=file, title=title, description=description
+    )
     file.save(f'{title}\n'.encode())
     db.session.flush()
     return attachment
@@ -470,8 +584,9 @@ def create_file_attachment(obj, author, title, description):
 
 def create_link_attachment(obj, author, title, url):
     folder = AttachmentFolder(object=obj, title='Links', description='External material.')
-    attachment = Attachment(folder=folder, user=author, type=AttachmentType.link, title=title, link_url=url,
-                            description='A demo link.')
+    attachment = Attachment(
+        folder=folder, user=author, type=AttachmentType.link, title=title, link_url=url, description='A demo link.'
+    )
     db.session.flush()
     return attachment
 
@@ -480,12 +595,19 @@ def create_abstracts(event, persons, tracks, users, count, index):
     abstracts = []
     for i in range(count):
         subject = pick(SUBJECTS, index + i)
-        abstract = Abstract(event=event, title=f'Abstract on {subject}', submitter=pick(users, index + i),
-                            description=f'We report on {subject} and its demo implications.',
-                            submitted_dt=event.start_dt - timedelta(days=30 - i))
+        abstract = Abstract(
+            event=event,
+            title=f'Abstract on {subject}',
+            submitter=pick(users, index + i),
+            description=f'We report on {subject} and its demo implications.',
+            submitted_dt=event.start_dt - timedelta(days=30 - i),
+        )
         for j in range(2):
-            abstract.person_links.append(AbstractPersonLink(person=pick(persons, i + j), is_speaker=(j == 0),
-                                                            author_type=AuthorType.primary, display_order=j))
+            abstract.person_links.append(
+                AbstractPersonLink(
+                    person=pick(persons, i + j), is_speaker=(j == 0), author_type=AuthorType.primary, display_order=j
+                )
+            )
         if i % 3 == 0:
             abstract.state = AbstractState.accepted
             abstract.judge = pick(users, index)
@@ -512,12 +634,14 @@ def create_papers(contributions, users, index):
         paper = Paper(contrib)
         submitter = pick(users, index + i)
         for j in range(1 + i % 2):
-            revision = PaperRevision(paper=paper, submitter=submitter,
-                                     submitted_dt=contrib.event.start_dt - timedelta(days=20 - j))
+            revision = PaperRevision(
+                paper=paper, submitter=submitter, submitted_dt=contrib.event.start_dt - timedelta(days=20 - j)
+            )
             db.session.add(revision)
             db.session.flush()
-            paper_file = PaperFile(filename='paper.txt', content_type='text/plain', paper_revision=revision,
-                                   _contribution=contrib)
+            paper_file = PaperFile(
+                filename='paper.txt', content_type='text/plain', paper_revision=revision, _contribution=contrib
+            )
             paper_file.save(f'{contrib.title}\n'.encode())
         if i % 2 == 0:
             revision.state = PaperRevisionState.accepted
@@ -535,15 +659,33 @@ def create_reviewing(event, abstracts, papers, tracks, users, index):
     Every question is a rating but one, so the demo carries both the answers
     that count towards the score of a review and the ones that do not.
     """
-    abstract_questions = [AbstractReviewQuestion(event=event, field_type='rating', title='Originality',
-                                                 description='How novel the work is.',
-                                                 field_data={'min': 0, 'max': 5}),
-                          AbstractReviewQuestion(event=event, field_type='text', title='Remarks for the judges')]
-    paper_questions = [PaperReviewQuestion(event=event, type=PaperReviewType.content, field_type='rating',
-                                           title='Soundness', description='How solid the results are.',
-                                           field_data={'min': 0, 'max': 5}),
-                       PaperReviewQuestion(event=event, type=PaperReviewType.layout, field_type='rating',
-                                           title='Formatting', field_data={'min': 0, 'max': 5})]
+    abstract_questions = [
+        AbstractReviewQuestion(
+            event=event,
+            field_type='rating',
+            title='Originality',
+            description='How novel the work is.',
+            field_data={'min': 0, 'max': 5},
+        ),
+        AbstractReviewQuestion(event=event, field_type='text', title='Remarks for the judges'),
+    ]
+    paper_questions = [
+        PaperReviewQuestion(
+            event=event,
+            type=PaperReviewType.content,
+            field_type='rating',
+            title='Soundness',
+            description='How solid the results are.',
+            field_data={'min': 0, 'max': 5},
+        ),
+        PaperReviewQuestion(
+            event=event,
+            type=PaperReviewType.layout,
+            field_type='rating',
+            title='Formatting',
+            field_data={'min': 0, 'max': 5},
+        ),
+    ]
     db.session.add_all(abstract_questions + paper_questions)
     db.session.flush()
 
@@ -552,33 +694,59 @@ def create_reviewing(event, abstracts, papers, tracks, users, index):
         track = pick(tracks, index + i)
         abstract.reviewed_for_tracks = {track}
         reviewer = pick(users, index + i)
-        review = AbstractReview(abstract=abstract, user=reviewer, track=track, comment='Fits the track.',
-                                proposed_action=AbstractAction.accept)
-        db.session.add_all([AbstractReviewRating(review=review, question=abstract_questions[0], value=3 + i % 3),
-                            AbstractReviewRating(review=review, question=abstract_questions[1],
-                                                 value='Nothing else to add.')])
+        review = AbstractReview(
+            abstract=abstract,
+            user=reviewer,
+            track=track,
+            comment='Fits the track.',
+            proposed_action=AbstractAction.accept,
+        )
+        db.session.add_all([
+            AbstractReviewRating(review=review, question=abstract_questions[0], value=3 + i % 3),
+            AbstractReviewRating(review=review, question=abstract_questions[1], value='Nothing else to add.'),
+        ])
         abstract_reviews.append(review)
-        abstract_comments.append(AbstractComment(abstract=abstract, user=reviewer,
-                                                 text='Could the authors extend the description?',
-                                                 visibility=AbstractCommentVisibility.contributors))
+        abstract_comments.append(
+            AbstractComment(
+                abstract=abstract,
+                user=reviewer,
+                text='Could the authors extend the description?',
+                visibility=AbstractCommentVisibility.contributors,
+            )
+        )
     db.session.add_all(abstract_comments)
 
     paper_reviews, paper_comments = [], []
     for i, paper in enumerate(papers[:4]):
         revision = paper.last_revision
         reviewer = pick(users, index + i + 1)
-        review = PaperReview(revision=revision, user=reviewer, type=PaperReviewType.content,
-                             comment='The results hold.', proposed_action=PaperAction.accept)
+        review = PaperReview(
+            revision=revision,
+            user=reviewer,
+            type=PaperReviewType.content,
+            comment='The results hold.',
+            proposed_action=PaperAction.accept,
+        )
         db.session.add(PaperReviewRating(review=review, question=paper_questions[0], value=4 + i % 2))
         paper_reviews.append(review)
-        paper_comments.append(PaperReviewComment(paper_revision=revision, user=reviewer,
-                                                 text='Please check the references.',
-                                                 visibility=PaperCommentVisibility.contributors))
+        paper_comments.append(
+            PaperReviewComment(
+                paper_revision=revision,
+                user=reviewer,
+                text='Please check the references.',
+                visibility=PaperCommentVisibility.contributors,
+            )
+        )
     db.session.add_all(paper_comments)
     db.session.flush()
-    return {'abstract_questions': abstract_questions, 'paper_questions': paper_questions,
-            'abstract_reviews': abstract_reviews, 'abstract_comments': abstract_comments,
-            'paper_reviews': paper_reviews, 'paper_comments': paper_comments}
+    return {
+        'abstract_questions': abstract_questions,
+        'paper_questions': paper_questions,
+        'abstract_reviews': abstract_reviews,
+        'abstract_comments': abstract_comments,
+        'paper_reviews': paper_reviews,
+        'paper_comments': paper_comments,
+    }
 
 
 def create_editing(event, contributions, users, index):
@@ -588,21 +756,27 @@ def create_editing(event, contributions, users, index):
     adds a default one per editable type to an event that has none.
     """
     file_types = {
-        'pdf': EditingFileType(event=event, type=EditableType.paper, name='PDF', extensions=['pdf'],
-                               required=True, publishable=True),
-        'source': EditingFileType(event=event, type=EditableType.paper, name='Source', extensions=['tex', 'zip'],
-                                  allow_multiple_files=True),
-        'slides': EditingFileType(event=event, type=EditableType.slides, name='PDF', extensions=['pdf'],
-                                  required=True, publishable=True),
-        'poster': EditingFileType(event=event, type=EditableType.poster, name='PDF', extensions=['pdf'],
-                                  required=True, publishable=True),
+        'pdf': EditingFileType(
+            event=event, type=EditableType.paper, name='PDF', extensions=['pdf'], required=True, publishable=True
+        ),
+        'source': EditingFileType(
+            event=event, type=EditableType.paper, name='Source', extensions=['tex', 'zip'], allow_multiple_files=True
+        ),
+        'slides': EditingFileType(
+            event=event, type=EditableType.slides, name='PDF', extensions=['pdf'], required=True, publishable=True
+        ),
+        'poster': EditingFileType(
+            event=event, type=EditableType.poster, name='PDF', extensions=['pdf'], required=True, publishable=True
+        ),
     }
     db.session.add_all(file_types.values())
     db.session.flush()
     set_feature_enabled(event, 'editing', True)
     condition = EditingReviewCondition(event=event, type=EditableType.paper, file_types={file_types['pdf']})
-    tags = [EditingTag(event=event, title='Under review', code='REV', color='blue'),
-            EditingTag(event=event, title='Ready to publish', code='PUB', color='green')]
+    tags = [
+        EditingTag(event=event, title='Under review', code='REV', color='blue'),
+        EditingTag(event=event, title='Ready to publish', code='PUB', color='green'),
+    ]
     db.session.add_all([condition, *tags])
     db.session.flush()
 
@@ -613,42 +787,60 @@ def create_editing(event, contributions, users, index):
         editable = Editable(contribution=contrib, type=EditableType.paper, editor=(editor if i % 2 == 0 else None))
         db.session.add(editable)
         db.session.flush()
-        submission = EditingRevision(editable=editable, user=submitter, type=RevisionType.ready_for_review,
-                                     comment='Submitted for editing.')
+        submission = EditingRevision(
+            editable=editable, user=submitter, type=RevisionType.ready_for_review, comment='Submitted for editing.'
+        )
         submission.tags.add(tags[0])
         db.session.add(submission)
         db.session.flush()
         file = File(filename='paper.pdf', content_type='application/pdf', meta={'event_id': event.id})
-        file.save(('event', event.id, 'editing', contrib.id, EditableType.paper.name),
-                  f'Editable of {contrib.title}\n'.encode())
+        file.save(
+            ('event', event.id, 'editing', contrib.id, EditableType.paper.name),
+            f'Editable of {contrib.title}\n'.encode(),
+        )
         file.claim()
         db.session.add(EditingRevisionFile(revision=submission, file=file, file_type=file_types['pdf']))
         revisions.append(submission)
         if i % 2 == 0:
-            judgment = EditingRevision(editable=editable, user=editor, type=RevisionType.acceptance,
-                                       comment='Accepted as it is.')
+            judgment = EditingRevision(
+                editable=editable, user=editor, type=RevisionType.acceptance, comment='Accepted as it is.'
+            )
             judgment.tags.add(tags[1])
             db.session.add(judgment)
             revisions.append(judgment)
         comments.append(EditingRevisionComment(revision=submission, user=editor, text='Please check the figures.'))
-        comments.append(EditingRevisionComment(revision=submission, user=editor, internal=True,
-                                               text='Assigned to me after the deadline.'))
+        comments.append(
+            EditingRevisionComment(
+                revision=submission, user=editor, internal=True, text='Assigned to me after the deadline.'
+            )
+        )
         editables.append(editable)
     db.session.add_all(comments)
     db.session.flush()
-    return {'editables': editables, 'editing_revisions': revisions, 'editing_comments': comments,
-            'editing_file_types': list(file_types.values()), 'editing_tags': tags,
-            'editing_review_conditions': [condition]}
+    return {
+        'editables': editables,
+        'editing_revisions': revisions,
+        'editing_comments': comments,
+        'editing_file_types': list(file_types.values()),
+        'editing_tags': tags,
+        'editing_review_conditions': [condition],
+    }
 
 
 def create_regform(event, users, count, index):
-    regform = RegistrationForm(event=event, title='Participant registration', currency='EUR',
-                               base_price=REGISTRATION_FEE, introduction='Register for the demo event.',
-                               start_dt=event.start_dt - timedelta(days=60),
-                               end_dt=event.start_dt - timedelta(days=1),
-                               publish_registrations_public=PublishRegistrationsMode.show_all,
-                               publish_registrations_participants=PublishRegistrationsMode.show_all,
-                               publish_checkin_enabled=True, publish_registration_count=True)
+    regform = RegistrationForm(
+        event=event,
+        title='Participant registration',
+        currency='EUR',
+        base_price=REGISTRATION_FEE,
+        introduction='Register for the demo event.',
+        start_dt=event.start_dt - timedelta(days=60),
+        end_dt=event.start_dt - timedelta(days=1),
+        publish_registrations_public=PublishRegistrationsMode.show_all,
+        publish_registrations_participants=PublishRegistrationsMode.show_all,
+        publish_checkin_enabled=True,
+        publish_registration_count=True,
+    )
     create_personal_data_fields(regform)
     for field in regform.sections[0].fields:
         field.is_enabled = True
@@ -658,38 +850,82 @@ def create_regform(event, users, count, index):
     registrations = []
     for i in range(count):
         user = pick(users, index + i)
-        values = {'first_name': user.first_name, 'last_name': user.last_name, 'email': user.email,
-                  'affiliation': user.affiliation, 'position': pick(POSITIONS, i), 'country': pick(COUNTRIES, i),
-                  'address': f'{i + 1} Demo street', 'city': pick(CITIES, i), 'phone': f'+41 22 767 {i:04d}'}
+        values = {
+            'first_name': user.first_name,
+            'last_name': user.last_name,
+            'email': user.email,
+            'affiliation': user.affiliation,
+            'position': pick(POSITIONS, i),
+            'country': pick(COUNTRIES, i),
+            'address': f'{i + 1} Demo street',
+            'city': pick(CITIES, i),
+            'phone': f'+41 22 767 {i:04d}',
+        }
         data = {'email': user.email}
         for field in regform.active_fields:
             pd_type = field.personal_data_type
             if pd_type is not None and pd_type.name in values:
                 data[field.html_field_name] = values[pd_type.name]
         registration = create_registration(regform, data, management=True, notify_user=False)
-        registration.checked_in = (i % 4 == 0)
+        registration.checked_in = i % 4 == 0
         registrations.append(registration)
     db.session.flush()
     return regform, registrations
 
 
 def create_survey(event, users, count, index):
-    survey = Survey(event=event, title='How did it go?', introduction='Tell us what you think.',
-                    start_dt=event.start_dt, end_dt=event.end_dt + timedelta(days=30))
-    section = SurveySection(survey=survey, title='General', description='Overall impression.',
-                            display_as_section=True, position=1)
-    options = [{'id': str(uuid4()), 'option': label, 'is_enabled': True}
-               for label in ('Excellent', 'Good', 'Poor')]
+    survey = Survey(
+        event=event,
+        title='How did it go?',
+        introduction='Tell us what you think.',
+        start_dt=event.start_dt,
+        end_dt=event.end_dt + timedelta(days=30),
+    )
+    section = SurveySection(
+        survey=survey, title='General', description='Overall impression.', display_as_section=True, position=1
+    )
+    options = [{'id': str(uuid4()), 'option': label, 'is_enabled': True} for label in ('Excellent', 'Good', 'Poor')]
     questions = [
-        SurveyQuestion(survey=survey, parent=section, title='Your name', description='As you want it published.',
-                       field_type='text', is_required=True, position=1, field_data={}),
-        SurveyQuestion(survey=survey, parent=section, title='Comments', description='Anything else.',
-                       field_type='text', is_required=False, position=2, field_data={'multiline': True}),
-        SurveyQuestion(survey=survey, parent=section, title='Talks attended', description='How many.',
-                       field_type='number', is_required=False, position=3, field_data={'min_value': 0}),
-        SurveyQuestion(survey=survey, parent=section, title='Overall rating', description='Pick one.',
-                       field_type='single_choice', is_required=False, position=4,
-                       field_data={'options': options, 'display': 'radio', 'with_extra_fields': False}),
+        SurveyQuestion(
+            survey=survey,
+            parent=section,
+            title='Your name',
+            description='As you want it published.',
+            field_type='text',
+            is_required=True,
+            position=1,
+            field_data={},
+        ),
+        SurveyQuestion(
+            survey=survey,
+            parent=section,
+            title='Comments',
+            description='Anything else.',
+            field_type='text',
+            is_required=False,
+            position=2,
+            field_data={'multiline': True},
+        ),
+        SurveyQuestion(
+            survey=survey,
+            parent=section,
+            title='Talks attended',
+            description='How many.',
+            field_type='number',
+            is_required=False,
+            position=3,
+            field_data={'min_value': 0},
+        ),
+        SurveyQuestion(
+            survey=survey,
+            parent=section,
+            title='Overall rating',
+            description='Pick one.',
+            field_type='single_choice',
+            is_required=False,
+            position=4,
+            field_data={'options': options, 'display': 'radio', 'with_extra_fields': False},
+        ),
     ]
     db.session.add(survey)
     # submissions draw their friendly id from the survey row
@@ -698,8 +934,9 @@ def create_survey(event, users, count, index):
     submissions = []
     for i in range(count):
         user = pick(users, index + i)
-        submission = SurveySubmission(survey=survey, user=user, is_submitted=True,
-                                      submitted_dt=event.end_dt + timedelta(days=1, hours=i))
+        submission = SurveySubmission(
+            survey=survey, user=user, is_submitted=True, submitted_dt=event.end_dt + timedelta(days=1, hours=i)
+        )
         answers = (user.full_name, f'Demo answer {i}', i % 7, pick(options, i)['id'])
         for question, answer in zip(questions, answers, strict=True):
             submission.answers.append(SurveyAnswer(question=question, data=answer))
@@ -713,12 +950,26 @@ def create_agreements(event, persons, count):
     agreements = []
     for i in range(count):
         person = pick(persons, i)
-        state = pick((AgreementState.pending, AgreementState.accepted, AgreementState.rejected,
-                      AgreementState.accepted_on_behalf), i)
-        agreement = Agreement(uuid=str(uuid4()), event=event, type=pick(AGREEMENT_TYPES, i),
-                              identifier=f'Email:{person.email}', person_name=person.full_name,
-                              person_email=person.email, state=state, user=person.user,
-                              timestamp=event.start_dt - timedelta(days=20 - i))
+        state = pick(
+            (
+                AgreementState.pending,
+                AgreementState.accepted,
+                AgreementState.rejected,
+                AgreementState.accepted_on_behalf,
+            ),
+            i,
+        )
+        agreement = Agreement(
+            uuid=str(uuid4()),
+            event=event,
+            type=pick(AGREEMENT_TYPES, i),
+            identifier=f'Email:{person.email}',
+            person_name=person.full_name,
+            person_email=person.email,
+            state=state,
+            user=person.user,
+            timestamp=event.start_dt - timedelta(days=20 - i),
+        )
         if state != AgreementState.pending:
             agreement.signed_dt = event.start_dt - timedelta(days=15 - i)
             agreement.reason = 'Signed for the demo dataset.'
@@ -761,11 +1012,22 @@ def create_rooms(manager, users, equipment):
         db.session.flush()
         locations.append(location)
         for j in range(10):
-            room = Room(location=location, owner=pick(users, i * 10 + j), building=pick(BUILDINGS, j),
-                        floor=str(j % 4), number=f'{i}{j:02d}', verbose_name=f'{name} room {j + 1}',
-                        capacity=10 + 5 * j, surface_area=20 + 3 * j, division='DG',
-                        telephone=f'+41 22 767 {i}{j:03d}', key_location='Reception',
-                        comments='Demo room.', max_advance_days=30, site=name)
+            room = Room(
+                location=location,
+                owner=pick(users, i * 10 + j),
+                building=pick(BUILDINGS, j),
+                floor=str(j % 4),
+                number=f'{i}{j:02d}',
+                verbose_name=f'{name} room {j + 1}',
+                capacity=10 + 5 * j,
+                surface_area=20 + 3 * j,
+                division='DG',
+                telephone=f'+41 22 767 {i}{j:03d}',
+                key_location='Reception',
+                comments='Demo room.',
+                max_advance_days=30,
+                site=name,
+            )
             room.available_equipment = [pick(equipment, j), pick(equipment, j + 1)]
             db.session.add(room)
             rooms.append(room)
@@ -781,11 +1043,16 @@ def create_reservations(rooms, users, count):
         day = first_day + timedelta(days=i // len(rooms))
         start = midnight(day) + timedelta(hours=1 + (i % 6))
         frequency = pick((RepeatFrequency.NEVER, RepeatFrequency.NEVER, RepeatFrequency.WEEK), i)
-        reservation = Reservation(room=room, start_dt=start, end_dt=start + timedelta(hours=1),
-                                  repeat_frequency=frequency,
-                                  repeat_interval=int(frequency != RepeatFrequency.NEVER),
-                                  booking_reason=f'Demo booking {i + 1}', booked_for_user=pick(users, i),
-                                  created_by_user=pick(users, i + 1))
+        reservation = Reservation(
+            room=room,
+            start_dt=start,
+            end_dt=start + timedelta(hours=1),
+            repeat_frequency=frequency,
+            repeat_interval=int(frequency != RepeatFrequency.NEVER),
+            booking_reason=f'Demo booking {i + 1}',
+            booked_for_user=pick(users, i),
+            created_by_user=pick(users, i + 1),
+        )
         reservation.create_occurrences(skip_conflicts=True)
         db.session.add(reservation)
         reservations.append(reservation)
@@ -798,8 +1065,12 @@ def create_blockings(rooms, users, count):
     first_day = date.today() + timedelta(days=60)
     for i in range(count):
         day = first_day + timedelta(days=i)
-        blocking = Blocking(start_date=day, end_date=day + timedelta(days=1), reason=f'Demo blocking {i + 1}',
-                            created_by_user=pick(users, i))
+        blocking = Blocking(
+            start_date=day,
+            end_date=day + timedelta(days=1),
+            reason=f'Demo blocking {i + 1}',
+            created_by_user=pick(users, i),
+        )
         state = pick((BlockedRoom.State.pending, BlockedRoom.State.accepted, BlockedRoom.State.rejected), i)
         blocked = BlockedRoom(room=pick(rooms, i), state=state, blocking=blocking)
         if state == BlockedRoom.State.rejected:
@@ -814,8 +1085,13 @@ def create_blockings(rooms, users, count):
 def create_roles(event, users, index):
     roles = []
     for i, (name, code) in enumerate(ROLES):
-        role = EventRole(event=event, name=name, code=code, color=pick(COLORS, index + i),
-                         members={pick(users, index * 5 + i * 3 + j) for j in range(2 + i)})
+        role = EventRole(
+            event=event,
+            name=name,
+            code=code,
+            color=pick(COLORS, index + i),
+            members={pick(users, index * 5 + i * 3 + j) for j in range(2 + i)},
+        )
         db.session.add(role)
         roles.append(role)
     db.session.flush()
@@ -846,16 +1122,34 @@ def create_registration_tags(event, registrations):
 
 def create_reminders(event, manager, regform=None, tags=()):
     reminders = [
-        EventReminder(event=event, creator=manager, scheduled_dt=event.start_dt - timedelta(days=1),
-                      event_start_delta=timedelta(days=1), reminder_type=ReminderType.standard,
-                      subject='See you tomorrow', message='<p>Doors open at 8:30.</p>',
-                      recipients=[manager.email], reply_to_address=manager.email,
-                      send_to_participants=regform is not None, send_to_speakers=True, include_summary=True,
-                      forms={regform} if regform else set(), tags=set(tags[:1])),
-        EventReminder(event=event, creator=manager, scheduled_dt=event.start_dt - timedelta(days=30),
-                      reminder_type=ReminderType.custom, subject='Registration is open',
-                      message='<p>Register before the deadline.</p>', recipients=[manager.email],
-                      reply_to_address=manager.email, is_sent=True, attach_ical=False),
+        EventReminder(
+            event=event,
+            creator=manager,
+            scheduled_dt=event.start_dt - timedelta(days=1),
+            event_start_delta=timedelta(days=1),
+            reminder_type=ReminderType.standard,
+            subject='See you tomorrow',
+            message='<p>Doors open at 8:30.</p>',
+            recipients=[manager.email],
+            reply_to_address=manager.email,
+            send_to_participants=regform is not None,
+            send_to_speakers=True,
+            include_summary=True,
+            forms={regform} if regform else set(),
+            tags=set(tags[:1]),
+        ),
+        EventReminder(
+            event=event,
+            creator=manager,
+            scheduled_dt=event.start_dt - timedelta(days=30),
+            reminder_type=ReminderType.custom,
+            subject='Registration is open',
+            message='<p>Register before the deadline.</p>',
+            recipients=[manager.email],
+            reply_to_address=manager.email,
+            is_sent=True,
+            attach_ical=False,
+        ),
     ]
     db.session.add_all(reminders)
     db.session.flush()
@@ -864,18 +1158,38 @@ def create_reminders(event, manager, regform=None, tags=()):
 
 def create_log_entries(event, manager, registrations=()):
     entries = [
-        event.log(EventLogRealm.event, LogKind.change, 'Event', 'Description updated', manager,
-                  data={'Description': ['A demo event.', event.description, 'text']}),
-        event.log(EventLogRealm.management, LogKind.positive, 'Protection', 'Access restricted to participants',
-                  manager, data={'Mode': 'protected'}),
-        event.log(EventLogRealm.reviewing, LogKind.negative, 'Abstracts', 'Abstract rejected',
-                  data={'Reason': 'Out of scope'}),
+        event.log(
+            EventLogRealm.event,
+            LogKind.change,
+            'Event',
+            'Description updated',
+            manager,
+            data={'Description': ['A demo event.', event.description, 'text']},
+        ),
+        event.log(
+            EventLogRealm.management,
+            LogKind.positive,
+            'Protection',
+            'Access restricted to participants',
+            manager,
+            data={'Mode': 'protected'},
+        ),
+        event.log(
+            EventLogRealm.reviewing, LogKind.negative, 'Abstracts', 'Abstract rejected', data={'Reason': 'Out of scope'}
+        ),
     ]
-    entries += [event.log(EventLogRealm.participants, LogKind.other, 'Registration',
-                          f'Registration of {registration.full_name} modified', manager,
-                          data={'Affiliation': [registration.user.affiliation, 'CERN', 'string']},
-                          meta={'registration_id': registration.id})
-                for registration in registrations[:3]]
+    entries += [
+        event.log(
+            EventLogRealm.participants,
+            LogKind.other,
+            'Registration',
+            f'Registration of {registration.full_name} modified',
+            manager,
+            data={'Affiliation': [registration.user.affiliation, 'CERN', 'string']},
+            meta={'registration_id': registration.id},
+        )
+        for registration in registrations[:3]
+    ]
     for i, entry in enumerate(entries):
         entry.logged_dt = now_utc() - timedelta(hours=len(entries) - i)
     db.session.flush()
@@ -884,12 +1198,30 @@ def create_log_entries(event, manager, registrations=()):
 
 def create_category_log_entries(category, manager):
     entries = [
-        category.log(CategoryLogRealm.category, LogKind.change, 'Category', 'Settings updated', manager,
-                     data={'Timezone': ['UTC', category.timezone, 'text']}),
-        category.log(CategoryLogRealm.category, LogKind.positive, 'Protection', 'Manager added', manager,
-                     data={'Manager': manager.full_name}),
-        category.log(CategoryLogRealm.events, LogKind.positive, 'Events', 'Event created', manager,
-                     data={'Title': f'{category.title} Conference 1'}),
+        category.log(
+            CategoryLogRealm.category,
+            LogKind.change,
+            'Category',
+            'Settings updated',
+            manager,
+            data={'Timezone': ['UTC', category.timezone, 'text']},
+        ),
+        category.log(
+            CategoryLogRealm.category,
+            LogKind.positive,
+            'Protection',
+            'Manager added',
+            manager,
+            data={'Manager': manager.full_name},
+        ),
+        category.log(
+            CategoryLogRealm.events,
+            LogKind.positive,
+            'Events',
+            'Event created',
+            manager,
+            data={'Title': f'{category.title} Conference 1'},
+        ),
     ]
     for i, entry in enumerate(entries):
         entry.logged_dt = now_utc() - timedelta(hours=len(entries) - i)
@@ -905,16 +1237,24 @@ def create_payments(registrations, manager):
             continue
         paid = i % 3 == 0
         if i == 0:
-            cancelled = PaymentTransaction(amount=registration.price, currency=registration.currency,
-                                           provider='_manual', data=manual, status=TransactionStatus.cancelled,
-                                           timestamp=now_utc() - timedelta(days=1))
+            cancelled = PaymentTransaction(
+                amount=registration.price,
+                currency=registration.currency,
+                provider='_manual',
+                data=manual,
+                status=TransactionStatus.cancelled,
+                timestamp=now_utc() - timedelta(days=1),
+            )
             registration.transactions.append(cancelled)
             transactions.append(cancelled)
-        transaction = PaymentTransaction(amount=registration.price, currency=registration.currency,
-                                         provider='_manual' if paid else 'paypal',
-                                         data=manual if paid else {'order_id': f'DEMO-{registration.friendly_id:04d}'},
-                                         status=TransactionStatus.successful if paid else TransactionStatus.pending,
-                                         timestamp=now_utc() - timedelta(hours=i))
+        transaction = PaymentTransaction(
+            amount=registration.price,
+            currency=registration.currency,
+            provider='_manual' if paid else 'paypal',
+            data=manual if paid else {'order_id': f'DEMO-{registration.friendly_id:04d}'},
+            status=TransactionStatus.successful if paid else TransactionStatus.pending,
+            timestamp=now_utc() - timedelta(hours=i),
+        )
         registration.transactions.append(transaction)
         registration.transaction = transaction
         if paid:
@@ -926,19 +1266,40 @@ def create_payments(registrations, manager):
 
 def create_vc_rooms(event, manager, contributions, index):
     rooms = []
-    specs = ((f'{event.title} plenary', event, True), (f'{event.title} side room', contributions[0], True),
-             (f'{event.title} rehearsal', event, False))
+    specs = (
+        (f'{event.title} plenary', event, True),
+        (f'{event.title} side room', contributions[0], True),
+        (f'{event.title} rehearsal', event, False),
+    )
     for i, (name, link_object, show) in enumerate(specs):
         zoom_id = str(9000000000 + index * 10 + i)
-        vc_room = VCRoom(name=name, type='zoom', status=VCRoomStatus.created, created_by_user=manager, data={
-            'zoom_id': zoom_id, 'url': f'https://zoom.example.test/j/{zoom_id}',
-            'public_url': f'https://zoom.example.test/j/{zoom_id}',
-            'start_url': f'https://zoom.example.test/s/{zoom_id}', 'host': manager.persistent_identifier,
-            'meeting_type': 'regular', 'description': 'Demo Zoom meeting.', 'password': '123456',
-            'alternative_hosts': '', 'mute_audio': False, 'mute_host_video': False, 'mute_participant_video': True,
-            'waiting_room': True, 'auto_register': False, 'registration_required': False, 'registration_forms': [],
-            'language_interpretation': False, 'interpreters': [], 'auto_checkin': False,
-        })
+        vc_room = VCRoom(
+            name=name,
+            type='zoom',
+            status=VCRoomStatus.created,
+            created_by_user=manager,
+            data={
+                'zoom_id': zoom_id,
+                'url': f'https://zoom.example.test/j/{zoom_id}',
+                'public_url': f'https://zoom.example.test/j/{zoom_id}',
+                'start_url': f'https://zoom.example.test/s/{zoom_id}',
+                'host': manager.persistent_identifier,
+                'meeting_type': 'regular',
+                'description': 'Demo Zoom meeting.',
+                'password': '123456',
+                'alternative_hosts': '',
+                'mute_audio': False,
+                'mute_host_video': False,
+                'mute_participant_video': True,
+                'waiting_room': True,
+                'auto_register': False,
+                'registration_required': False,
+                'registration_forms': [],
+                'language_interpretation': False,
+                'interpreters': [],
+                'auto_checkin': False,
+            },
+        )
         # linking fires listeners that fill in the event and the link type, and an
         # autoflush in between would write the row before they ran
         with db.session.no_autoflush:
@@ -953,8 +1314,7 @@ def create_vc_rooms(event, manager, contributions, index):
 def create_offline_copies(event, manager):
     sites = []
     for i, state in enumerate((StaticSiteState.success, StaticSiteState.failed, StaticSiteState.pending)):
-        site = StaticSite(event=event, creator=manager, state=state,
-                          requested_dt=now_utc() - timedelta(days=3 - i))
+        site = StaticSite(event=event, creator=manager, state=state, requested_dt=now_utc() - timedelta(days=3 - i))
         db.session.add(site)
         if state == StaticSiteState.success:
             site.content_type = 'application/zip'
@@ -975,24 +1335,26 @@ def create_series(events, **kwargs):
 def create_layout(event, index):
     logo = png_image(pick(COLORS, index))
     event.logo = logo
-    event.logo_metadata = {'hash': crc32(logo), 'size': len(logo), 'filename': 'logo.png',
-                           'content_type': 'image/png'}
+    event.logo_metadata = {'hash': crc32(logo), 'size': len(logo), 'filename': 'logo.png', 'content_type': 'image/png'}
     stylesheet = f'h1 {{ color: #{pick(COLORS, index)}; }}'
     event.stylesheet = stylesheet
     event.stylesheet_metadata = {'hash': crc32(stylesheet), 'size': len(stylesheet), 'filename': 'custom.css'}
-    layout_settings.set_multi(event, {
-        'use_custom_css': index % 2 == 0,
-        'theme': pick(CONFERENCE_THEMES, index),
-        'announcement': f'Registration for {event.title} closes soon.',
-        'show_announcement': index % 3 != 2,
-        'show_banner': True,
-        'header_text_color': '#ffffff',
-        'header_background_color': f'#{pick(COLORS, index)}',
-        'name_format': NameFormat.first_last,
-        'timetable_theme': 'indico_weeks_view',
-        'show_vc_rooms': True,
-        'use_custom_menu': True,
-    })
+    layout_settings.set_multi(
+        event,
+        {
+            'use_custom_css': index % 2 == 0,
+            'theme': pick(CONFERENCE_THEMES, index),
+            'announcement': f'Registration for {event.title} closes soon.',
+            'show_announcement': index % 3 != 2,
+            'show_banner': True,
+            'header_text_color': '#ffffff',
+            'header_background_color': f'#{pick(COLORS, index)}',
+            'name_format': NameFormat.first_last,
+            'timetable_theme': 'indico_weeks_view',
+            'show_vc_rooms': True,
+            'use_custom_menu': True,
+        },
+    )
     # Indico stores the default entries the first time the menu is read, and only then can they be customised
     menu_entries_for_event(event)
     pages = []
@@ -1003,8 +1365,16 @@ def create_layout(event, index):
     links = MenuEntry(event=event, type=MenuEntryType.user_link, title='Useful links', link_url='https://getindico.io')
     db.session.add(links)
     db.session.flush()
-    db.session.add(MenuEntry(event=event, type=MenuEntryType.user_link, title='Documentation', new_tab=True,
-                             link_url='https://docs.getindico.io', parent_id=links.id))
+    db.session.add(
+        MenuEntry(
+            event=event,
+            type=MenuEntryType.user_link,
+            title='Documentation',
+            new_tab=True,
+            link_url='https://docs.getindico.io',
+            parent_id=links.id,
+        )
+    )
     db.session.add(MenuEntry(event=event, type=MenuEntryType.separator))
     set_feature_enabled(event, 'images', True)
     images = []
@@ -1018,8 +1388,9 @@ def create_layout(event, index):
 
 
 def create_receipt_template(title, html, yaml, default_filename, **owner):
-    template = ReceiptTemplate(title=title, html=html, css='h1 { color: #1f77b4; }', yaml=yaml,
-                               default_filename=default_filename, **owner)
+    template = ReceiptTemplate(
+        title=title, html=html, css='h1 { color: #1f77b4; }', yaml=yaml, default_filename=default_filename, **owner
+    )
     db.session.add(template)
     db.session.flush()
     return template
@@ -1030,12 +1401,20 @@ def create_documents(event, template, registrations, custom_fields):
     for i, registration in enumerate(registrations):
         context = get_safe_template_context(event, registration, custom_fields)
         pdf = create_pdf(event, [compile_jinja_code(template.html, context)], template.css)
-        file = File(filename=f'{template.default_filename}-{registration.friendly_id}.pdf',
-                    content_type='application/pdf', meta={'event_id': event.id})
+        file = File(
+            filename=f'{template.default_filename}-{registration.friendly_id}.pdf',
+            content_type='application/pdf',
+            meta={'event_id': event.id},
+        )
         file.save(('event', event.id, 'registration', registration.id, 'receipts'), pdf)
         file.claim()
-        document = ReceiptFile(file=file, registration=registration, template=template,
-                               template_params=custom_fields, is_published=(i % 2 == 0))
+        document = ReceiptFile(
+            file=file,
+            registration=registration,
+            template=template,
+            template_params=custom_fields,
+            is_published=(i % 2 == 0),
+        )
         db.session.add(document)
         documents.append(document)
     db.session.flush()
@@ -1096,31 +1475,44 @@ def create_references(event, contributions, subcontributions, types, index):
     doi, report = types['DOI'], types['Report number']
     # a reference type holds the references made with it, so a new reference is
     # already pending when it is built and has to carry its owner from the start
-    references = [EventReference(event=event, reference_type=doi, value=f'10.5170/OPENAPI-2026-{index:03d}'),
-                  EventReference(event=event, reference_type=report, value=f'OPENAPI-EVENT-{index:03d}')]
-    references += [ContributionReference(contribution=contribution, reference_type=doi,
-                                         value=f'10.5170/OPENAPI-2026-{index:03d}.{i + 1}')
-                   for i, contribution in enumerate(contributions[:4])]
-    references += [SubContributionReference(subcontribution=subcontribution, reference_type=report,
-                                            value=f'OPENAPI-TALK-{index:03d}-{i + 1}')
-                   for i, subcontribution in enumerate(subcontributions[:2])]
+    references = [
+        EventReference(event=event, reference_type=doi, value=f'10.5170/OPENAPI-2026-{index:03d}'),
+        EventReference(event=event, reference_type=report, value=f'OPENAPI-EVENT-{index:03d}'),
+    ]
+    references += [
+        ContributionReference(
+            contribution=contribution, reference_type=doi, value=f'10.5170/OPENAPI-2026-{index:03d}.{i + 1}'
+        )
+        for i, contribution in enumerate(contributions[:4])
+    ]
+    references += [
+        SubContributionReference(
+            subcontribution=subcontribution, reference_type=report, value=f'OPENAPI-TALK-{index:03d}-{i + 1}'
+        )
+        for i, subcontribution in enumerate(subcontributions[:2])
+    ]
     db.session.flush()
     return references
 
 
 def set_contact(event, index):
-    event_contact_settings.set_multi(event, {
-        'title': 'Conference secretariat',
-        'emails': [f'openapi.contact{index}@example.test'],
-        'phones': [f'+41 22 767 {index:04d}'],
-    })
+    event_contact_settings.set_multi(
+        event,
+        {
+            'title': 'Conference secretariat',
+            'emails': [f'openapi.contact{index}@example.test'],
+            'phones': [f'+41 22 767 {index:04d}'],
+        },
+    )
 
 
 def create_contribution_types(event, contributions):
     types = []
-    for name, description, private in (('Oral', 'A talk given in a session.', False),
-                                       ('Poster', 'Shown in the poster session.', False),
-                                       ('Keynote', 'An invited talk.', True)):
+    for name, description, private in (
+        ('Oral', 'A talk given in a session.', False),
+        ('Poster', 'Shown in the poster session.', False),
+        ('Keynote', 'An invited talk.', True),
+    ):
         contribution_type = ContributionType(event=event, name=name, description=description, is_private=private)
         db.session.add(contribution_type)
         types.append(contribution_type)
@@ -1134,28 +1526,48 @@ def create_contribution_types(event, contributions):
 
 
 def create_contribution_fields(event, contributions):
-    summary = ContributionField(event=event, title='Extended summary', description='A longer abstract.',
-                                field_type='text', field_data={'multiline': True}, position=1, is_required=False)
-    options = [{'id': str(uuid4()), 'option': label, 'is_enabled': True}
-               for label in ('Beginner', 'Advanced')]
-    level = ContributionField(event=event, title='Audience level', description='Who the talk is aimed at.',
-                              field_type='single_choice', position=2, is_required=False,
-                              visibility=ContributionFieldVisibility.managers_only,
-                              field_data={'options': options, 'display': 'select'})
+    summary = ContributionField(
+        event=event,
+        title='Extended summary',
+        description='A longer abstract.',
+        field_type='text',
+        field_data={'multiline': True},
+        position=1,
+        is_required=False,
+    )
+    options = [{'id': str(uuid4()), 'option': label, 'is_enabled': True} for label in ('Beginner', 'Advanced')]
+    level = ContributionField(
+        event=event,
+        title='Audience level',
+        description='Who the talk is aimed at.',
+        field_type='single_choice',
+        position=2,
+        is_required=False,
+        visibility=ContributionFieldVisibility.managers_only,
+        field_data={'options': options, 'display': 'select'},
+    )
     db.session.add_all([summary, level])
     db.session.flush()
     for i, contribution in enumerate(contributions[:6]):
-        db.session.add(ContributionFieldValue(contribution=contribution, contribution_field=summary,
-                                              data=f'Extended summary of {contribution.title.lower()}.'))
-        db.session.add(ContributionFieldValue(contribution=contribution, contribution_field=level,
-                                              data=pick(options, i)['id']))
+        db.session.add(
+            ContributionFieldValue(
+                contribution=contribution,
+                contribution_field=summary,
+                data=f'Extended summary of {contribution.title.lower()}.',
+            )
+        )
+        db.session.add(
+            ContributionFieldValue(contribution=contribution, contribution_field=level, data=pick(options, i)['id'])
+        )
     db.session.flush()
     return [summary, level]
 
 
 def create_session_types(event, sessions):
-    types = [SessionType(event=event, name='Plenary', code='PL', is_poster=False),
-             SessionType(event=event, name='Poster session', code='PO', is_poster=True)]
+    types = [
+        SessionType(event=event, name='Plenary', code='PL', is_poster=False),
+        SessionType(event=event, name='Poster session', code='PO', is_poster=True),
+    ]
     db.session.add_all(types)
     db.session.flush()
     for i, sess in enumerate(sessions):
@@ -1165,14 +1577,26 @@ def create_session_types(event, sessions):
 
 
 def create_paper_setup(event):
-    template = PaperTemplate(event=event, name='Paper template', description='The skeleton every paper starts from.',
-                             filename='template.tex', content_type='text/x-tex')
+    template = PaperTemplate(
+        event=event,
+        name='Paper template',
+        description='The skeleton every paper starts from.',
+        filename='template.tex',
+        content_type='text/x-tex',
+    )
     template.save(b'\\documentclass{article}\n')
     db.session.add(template)
-    file_types = [PaperFileType(event=event, name='Paper', extensions=['pdf'], required=True, publishable=True,
-                                filename_template='paper-{code}'),
-                  PaperFileType(event=event, name='Sources', extensions=['tex', 'zip'], required=False,
-                                publishable=False)]
+    file_types = [
+        PaperFileType(
+            event=event,
+            name='Paper',
+            extensions=['pdf'],
+            required=True,
+            publishable=True,
+            filename_template='paper-{code}',
+        ),
+        PaperFileType(event=event, name='Sources', extensions=['tex', 'zip'], required=False, publishable=False),
+    ]
     db.session.add_all(file_types)
     db.session.flush()
     return template, file_types
@@ -1180,18 +1604,34 @@ def create_paper_setup(event):
 
 def create_abstract_emails(event, abstracts, manager):
     templates = [
-        AbstractEmailTemplate(event=event, title='Acceptance', position=1, stop_on_match=True,
-                              subject='Your abstract was accepted',
-                              body='Dear {abstract_submitter},\n\n{abstract_title} was accepted.',
-                              reply_to_address='', extra_cc_emails=[], include_submitter=True,
-                              include_authors=True, include_coauthors=False,
-                              rules=[{'state': [AbstractState.accepted.value]}]),
-        AbstractEmailTemplate(event=event, title='Rejection', position=2, stop_on_match=True,
-                              subject='Your abstract was rejected',
-                              body='Dear {abstract_submitter},\n\n{abstract_title} was rejected.',
-                              reply_to_address='', extra_cc_emails=[], include_submitter=True,
-                              include_authors=False, include_coauthors=False,
-                              rules=[{'state': [AbstractState.rejected.value]}]),
+        AbstractEmailTemplate(
+            event=event,
+            title='Acceptance',
+            position=1,
+            stop_on_match=True,
+            subject='Your abstract was accepted',
+            body='Dear {abstract_submitter},\n\n{abstract_title} was accepted.',
+            reply_to_address='',
+            extra_cc_emails=[],
+            include_submitter=True,
+            include_authors=True,
+            include_coauthors=False,
+            rules=[{'state': [AbstractState.accepted.value]}],
+        ),
+        AbstractEmailTemplate(
+            event=event,
+            title='Rejection',
+            position=2,
+            stop_on_match=True,
+            subject='Your abstract was rejected',
+            body='Dear {abstract_submitter},\n\n{abstract_title} was rejected.',
+            reply_to_address='',
+            extra_cc_emails=[],
+            include_submitter=True,
+            include_authors=False,
+            include_coauthors=False,
+            rules=[{'state': [AbstractState.rejected.value]}],
+        ),
     ]
     db.session.add_all(templates)
     db.session.flush()
@@ -1201,10 +1641,16 @@ def create_abstract_emails(event, abstracts, manager):
         template = by_state.get(abstract.state)
         if template is None:
             continue
-        entry = AbstractEmailLogEntry(abstract=abstract, email_template=template, user=manager,
-                                      sent_dt=abstract.judgment_dt, recipients=[abstract.submitter.email],
-                                      subject=template.subject, body=template.body,
-                                      data={'template_name': template.title})
+        entry = AbstractEmailLogEntry(
+            abstract=abstract,
+            email_template=template,
+            user=manager,
+            sent_dt=abstract.judgment_dt,
+            recipients=[abstract.submitter.email],
+            subject=template.subject,
+            body=template.body,
+            data={'template_name': template.title},
+        )
         db.session.add(entry)
         entries.append(entry)
     db.session.flush()
@@ -1215,12 +1661,16 @@ def create_invitations(regform, registrations, index, count=4):
     invitations = []
     for i in range(count):
         state = pick((InvitationState.pending, InvitationState.accepted, InvitationState.declined), i)
-        invitation = RegistrationInvitation(registration_form=regform,
-                                            first_name=pick(FIRST_NAMES, index + i),
-                                            last_name=pick(LAST_NAMES, index + i),
-                                            email=f'openapi.invitee{index}.{i}@example.test',
-                                            affiliation=pick(AFFILIATIONS, i), state=state,
-                                            skip_moderation=(i % 2 == 0), lock_email=(i % 3 == 0))
+        invitation = RegistrationInvitation(
+            registration_form=regform,
+            first_name=pick(FIRST_NAMES, index + i),
+            last_name=pick(LAST_NAMES, index + i),
+            email=f'openapi.invitee{index}.{i}@example.test',
+            affiliation=pick(AFFILIATIONS, i),
+            state=state,
+            skip_moderation=(i % 2 == 0),
+            lock_email=(i % 3 == 0),
+        )
         if state == InvitationState.accepted:
             invitation.registration = pick(registrations, i)
         invitations.append(invitation)
@@ -1231,8 +1681,13 @@ def create_invitations(regform, registrations, index, count=4):
 def create_category_roles(category, users):
     roles = []
     for i, (name, code) in enumerate((('Category managers', 'CATMAN'), ('Event creators', 'CREATORS'))):
-        role = CategoryRole(category=category, name=name, code=code, color=pick(COLORS, i),
-                            members={pick(users, i), pick(users, i + 1), pick(users, i + 2)})
+        role = CategoryRole(
+            category=category,
+            name=name,
+            code=code,
+            color=pick(COLORS, i),
+            members={pick(users, i), pick(users, i + 1), pick(users, i + 2)},
+        )
         db.session.add(role)
         roles.append(role)
     db.session.flush()
@@ -1243,9 +1698,14 @@ def create_move_requests(category, events, users, manager):
     requests = []
     for i, event in enumerate(events):
         state = pick((MoveRequestState.pending, MoveRequestState.accepted, MoveRequestState.rejected), i)
-        request = EventMoveRequest(event=event, category=category, requestor=pick(users, i), state=state,
-                                   requestor_comment='This event belongs in the demo category.',
-                                   requested_dt=now_utc() - timedelta(days=30 - i))
+        request = EventMoveRequest(
+            event=event,
+            category=category,
+            requestor=pick(users, i),
+            state=state,
+            requestor_comment='This event belongs in the demo category.',
+            requested_dt=now_utc() - timedelta(days=30 - i),
+        )
         if state != MoveRequestState.pending:
             request.moderator = manager
             request.moderator_comment = 'Answered for the demo dataset.'
@@ -1264,9 +1724,14 @@ def get_map_areas():
         area = MapArea.query.filter_by(name=name).first()
         if area is None:
             top_left_latitude, top_left_longitude, bottom_right_latitude, bottom_right_longitude = corner
-            area = MapArea(name=name, is_default=is_default, top_left_latitude=top_left_latitude,
-                           top_left_longitude=top_left_longitude, bottom_right_latitude=bottom_right_latitude,
-                           bottom_right_longitude=bottom_right_longitude)
+            area = MapArea(
+                name=name,
+                is_default=is_default,
+                top_left_latitude=top_left_latitude,
+                top_left_longitude=top_left_longitude,
+                bottom_right_latitude=bottom_right_latitude,
+                bottom_right_longitude=bottom_right_longitude,
+            )
             db.session.add(area)
         is_default = False
         areas.append(area)
@@ -1276,8 +1741,7 @@ def get_map_areas():
 
 def get_room_attributes(rooms):
     attributes = []
-    for name, title, hidden in (('demo-manager-group', 'Manager group', False),
-                                ('demo-door-code', 'Door code', True)):
+    for name, title, hidden in (('demo-manager-group', 'Manager group', False), ('demo-door-code', 'Door code', True)):
         attribute = RoomAttribute.query.filter_by(name=name).first()
         if attribute is None:
             attribute = RoomAttribute(name=name, title=title, is_hidden=hidden)
@@ -1319,12 +1783,23 @@ def create_room_photos(rooms, count):
 def create_reservation_logs(reservations, manager):
     entries = []
     for i, reservation in enumerate(reservations):
-        entries.append(ReservationEditLog(reservation=reservation, user_name=reservation.created_by_user.full_name,
-                                          info=['Booking created'], timestamp=reservation.created_dt))
+        entries.append(
+            ReservationEditLog(
+                reservation=reservation,
+                user_name=reservation.created_by_user.full_name,
+                info=['Booking created'],
+                timestamp=reservation.created_dt,
+            )
+        )
         if i % 5 == 0:
-            entries.append(ReservationEditLog(reservation=reservation, user_name=manager.full_name,
-                                              info=['Booking accepted', 'Notification sent'],
-                                              timestamp=reservation.created_dt + timedelta(hours=1)))
+            entries.append(
+                ReservationEditLog(
+                    reservation=reservation,
+                    user_name=manager.full_name,
+                    info=['Booking accepted', 'Notification sent'],
+                    timestamp=reservation.created_dt + timedelta(hours=1),
+                )
+            )
     db.session.add_all(entries)
     db.session.flush()
     return entries
@@ -1336,8 +1811,9 @@ def link_reservations(reservations, datasets):
     Indico allows a single booking occurrence per object, and a demo booking
     takes one hour of a single day, so every object takes a booking of its own.
     """
-    objects = [obj for dataset in datasets
-               for obj in (dataset['event'], dataset['contributions'][0], dataset['blocks'][0])]
+    objects = [
+        obj for dataset in datasets for obj in (dataset['event'], dataset['contributions'][0], dataset['blocks'][0])
+    ]
     links = []
     for reservation, obj in zip(reservations, objects, strict=False):
         occurrence = reservation.occurrences[0]
@@ -1374,15 +1850,16 @@ def seed_conference(category, manager, users, index, start, reference_types, lab
     references = create_references(event, contributions, subcontributions, reference_types, index)
 
     notes = [create_note(event, manager, f'<p>Minutes of {title}.</p>')]
-    notes += [create_note(contributions[i], manager, f'<p>Notes for {contributions[i].title}.</p>')
-              for i in range(4)]
+    notes += [create_note(contributions[i], manager, f'<p>Notes for {contributions[i].title}.</p>') for i in range(4)]
     notes.append(create_note(sessions[0], manager, '<p>Session minutes.</p>'))
 
-    attachments = [create_file_attachment(event, manager, 'Programme', 'The full programme.'),
-                   create_link_attachment(event, manager, 'Indico', 'https://getindico.io'),
-                   create_file_attachment(contributions[0], manager, 'Talk slides', 'Slides of the opening talk.'),
-                   create_link_attachment(contributions[1], manager, 'Preprint', 'https://arxiv.org'),
-                   create_file_attachment(sessions[0], manager, 'Session notes', 'Shared during the session.')]
+    attachments = [
+        create_file_attachment(event, manager, 'Programme', 'The full programme.'),
+        create_link_attachment(event, manager, 'Indico', 'https://getindico.io'),
+        create_file_attachment(contributions[0], manager, 'Talk slides', 'Slides of the opening talk.'),
+        create_link_attachment(contributions[1], manager, 'Preprint', 'https://arxiv.org'),
+        create_file_attachment(sessions[0], manager, 'Session notes', 'Shared during the session.'),
+    ]
 
     abstracts = create_abstracts(event, persons, tracks, users, 10, index)
     abstract_email_templates, abstract_emails = create_abstract_emails(event, abstracts, manager)
@@ -1404,26 +1881,59 @@ def seed_conference(category, manager, users, index, start, reference_types, lab
     offline_copies = create_offline_copies(event, manager)
     pages, images = create_layout(event, index)
     receipt_template = create_receipt_template('Invoice', INVOICE_HTML, INVOICE_YAML, 'invoice', event=event)
-    receipt_defaults.set_multi(event, {f'custom_fields:{receipt_template.id}': INVOICE_DEFAULTS,
-                                       f'filename:{receipt_template.id}': 'invoice'})
+    receipt_defaults.set_multi(
+        event, {f'custom_fields:{receipt_template.id}': INVOICE_DEFAULTS, f'filename:{receipt_template.id}': 'invoice'}
+    )
     documents = create_documents(event, receipt_template, registrations[:3], INVOICE_DEFAULTS)
-    designer_template = create_designer_template(f'{title} badge', TemplateType.badge, DEFAULT_TICKET_DATA, index,
-                                                 event=event)
+    designer_template = create_designer_template(
+        f'{title} badge', TemplateType.badge, DEFAULT_TICKET_DATA, index, event=event
+    )
     uploads = create_uploads(event, 2)
 
     return {
-        'event': event, 'persons': persons, 'track_group': group, 'tracks': tracks, 'sessions': sessions,
-        'blocks': blocks, 'contributions': contributions, 'subcontributions': subcontributions, 'breaks': breaks,
-        'notes': notes, 'attachments': attachments, 'abstracts': abstracts, 'papers': papers, 'regform': regform,
-        'registrations': registrations, 'payments': payments, 'survey': survey, 'questions': questions,
-        'submissions': submissions, 'agreements': agreements, 'roles': roles, 'reminders': reminders,
-        'log_entries': log_entries, 'vc_rooms': vc_rooms, 'offline_copies': offline_copies, 'pages': pages,
-        'images': images, 'receipt_templates': [receipt_template], 'documents': documents,
-        'designer_templates': [designer_template], 'uploads': uploads, 'references': references,
-        'contribution_types': contribution_types, 'contribution_fields': contribution_fields,
-        'session_types': session_types, 'paper_templates': [paper_template], 'paper_file_types': paper_file_types,
-        'abstract_email_templates': abstract_email_templates, 'abstract_emails': abstract_emails,
-        'invitations': invitations, 'registration_tags': registration_tags, **reviewing, **editing,
+        'event': event,
+        'persons': persons,
+        'track_group': group,
+        'tracks': tracks,
+        'sessions': sessions,
+        'blocks': blocks,
+        'contributions': contributions,
+        'subcontributions': subcontributions,
+        'breaks': breaks,
+        'notes': notes,
+        'attachments': attachments,
+        'abstracts': abstracts,
+        'papers': papers,
+        'regform': regform,
+        'registrations': registrations,
+        'payments': payments,
+        'survey': survey,
+        'questions': questions,
+        'submissions': submissions,
+        'agreements': agreements,
+        'roles': roles,
+        'reminders': reminders,
+        'log_entries': log_entries,
+        'vc_rooms': vc_rooms,
+        'offline_copies': offline_copies,
+        'pages': pages,
+        'images': images,
+        'receipt_templates': [receipt_template],
+        'documents': documents,
+        'designer_templates': [designer_template],
+        'uploads': uploads,
+        'references': references,
+        'contribution_types': contribution_types,
+        'contribution_fields': contribution_fields,
+        'session_types': session_types,
+        'paper_templates': [paper_template],
+        'paper_file_types': paper_file_types,
+        'abstract_email_templates': abstract_email_templates,
+        'abstract_emails': abstract_emails,
+        'invitations': invitations,
+        'registration_tags': registration_tags,
+        **reviewing,
+        **editing,
     }
 
 
@@ -1438,15 +1948,26 @@ def seed_meeting(category, manager, users, index, start, reference_types):
     breaks = create_breaks(event, blocks, 2, start)
     references = create_references(event, contributions, subcontributions, reference_types, 100 + index)
     notes = [create_note(event, manager, f'<p>Minutes of {title}.</p>')]
-    attachments = [create_file_attachment(event, manager, 'Agenda', 'The agenda of the meeting.'),
-                   create_link_attachment(event, manager, 'Indico', 'https://getindico.io')]
+    attachments = [
+        create_file_attachment(event, manager, 'Agenda', 'The agenda of the meeting.'),
+        create_link_attachment(event, manager, 'Indico', 'https://getindico.io'),
+    ]
     reminders = create_reminders(event, manager)
     log_entries = create_log_entries(event, manager)
     vc_rooms = create_vc_rooms(event, manager, contributions, CONFERENCES_PER_TOPIC * len(TOPICS) + index)
     return {
-        'event': event, 'persons': persons, 'sessions': sessions, 'blocks': blocks,
-        'contributions': contributions, 'subcontributions': subcontributions, 'breaks': breaks, 'notes': notes,
-        'attachments': attachments, 'reminders': reminders, 'log_entries': log_entries, 'vc_rooms': vc_rooms,
+        'event': event,
+        'persons': persons,
+        'sessions': sessions,
+        'blocks': blocks,
+        'contributions': contributions,
+        'subcontributions': subcontributions,
+        'breaks': breaks,
+        'notes': notes,
+        'attachments': attachments,
+        'reminders': reminders,
+        'log_entries': log_entries,
+        'vc_rooms': vc_rooms,
         'references': references,
     }
 
@@ -1488,8 +2009,11 @@ def describe(dataset):
         'invitations': len(dataset.get('invitations', ())),
         'regform_id': dataset['regform'].id if 'regform' in dataset else None,
         'features': sorted(get_enabled_features(dataset['event'])),
-        'announcement': (layout_settings.get(dataset['event'], 'announcement')
-                         if layout_settings.get(dataset['event'], 'show_announcement') else None),
+        'announcement': (
+            layout_settings.get(dataset['event'], 'announcement')
+            if layout_settings.get(dataset['event'], 'show_announcement')
+            else None
+        ),
     }
 
 
@@ -1504,20 +2028,34 @@ def create_personal_data(manager, users, categories, events, rooms):
     manager.favorite_events.update(events[:4])
     manager.favorite_rooms.update(rooms[:3])
     manager.secondary_emails.add(f'{MANAGER_USERNAME}.backup@example.test')
-    settings = {'timezone': 'Europe/Zurich', 'force_timezone': True, 'name_format': NameFormat.last_f,
-                'add_ical_alerts': True, 'add_ical_alerts_mins': 30, 'use_markdown_for_minutes': True}
+    settings = {
+        'timezone': 'Europe/Zurich',
+        'force_timezone': True,
+        'name_format': NameFormat.last_f,
+        'add_ical_alerts': True,
+        'add_ical_alerts_mins': 30,
+        'use_markdown_for_minutes': True,
+    }
     manager.settings.set_multi(settings)
-    export_request = DataExportRequest(user=manager, state=DataExportRequestState.running, include_files=False,
-                                       selected_options=[DataExportOptions.personal_data, DataExportOptions.settings])
+    export_request = DataExportRequest(
+        user=manager,
+        state=DataExportRequestState.running,
+        include_files=False,
+        selected_options=[DataExportOptions.personal_data, DataExportOptions.settings],
+    )
     db.session.add(export_request)
     db.session.flush()
-    return {'settings': {**settings, 'name_format': settings['name_format'].name},
-            'export_state': export_request.state.name,
-            'counts': {'favorite_users': len(manager.favorite_users),
-                       'favorite_categories': len(manager.favorite_categories),
-                       'favorite_events': len(manager.favorite_events),
-                       'favorite_rooms': len(manager.favorite_rooms),
-                       'emails': len(manager.all_emails)}}
+    return {
+        'settings': {**settings, 'name_format': settings['name_format'].name},
+        'export_state': export_request.state.name,
+        'counts': {
+            'favorite_users': len(manager.favorite_users),
+            'favorite_categories': len(manager.favorite_categories),
+            'favorite_events': len(manager.favorite_events),
+            'favorite_rooms': len(manager.favorite_rooms),
+            'emails': len(manager.all_emails),
+        },
+    }
 
 
 def create_acls(manager, users, groups, category, dataset, location, room):
@@ -1555,20 +2093,27 @@ def create_acls(manager, users, groups, category, dataset, location, room):
     group_id = group.persistent_identifier
     return [
         {'path': f'/categories/{category.id}/acl', 'type': 'category', 'identifiers': [group_id]},
-        {'path': f'/events/{event.id}/acl', 'type': 'event',
-         'identifiers': [manager_id, reader_id, group_id]},
+        {'path': f'/events/{event.id}/acl', 'type': 'event', 'identifiers': [manager_id, reader_id, group_id]},
         {'path': f'/events/{event.id}/sessions/{block.id}/acl', 'type': 'session', 'identifiers': [convener_id]},
-        {'path': f'/events/{event.id}/contributions/{contribution.id}/acl', 'type': 'contribution',
-         'identifiers': [reader_id]},
+        {
+            'path': f'/events/{event.id}/contributions/{contribution.id}/acl',
+            'type': 'contribution',
+            'identifiers': [reader_id],
+        },
         {'path': f'/events/{event.id}/tracks/{track.id}/acl', 'type': 'track', 'identifiers': [convener_id]},
         {'path': f'/rooms/{room.id}/acl', 'type': 'room', 'identifiers': [reader_id]},
         {'path': f'/locations/{location.id}/acl', 'type': 'location', 'identifiers': [manager_id]},
-        {'path': f'/events/{event.id}/attachments/{attachment.id}/acl', 'type': 'attachment',
-         'identifiers': [group_id]},
-        {'path': f'/events/{event.id}/attachment-folders/{attachment.folder.id}/acl', 'type': 'attachment folder',
-         'identifiers': [reader_id]},
-        {'path': f'/events/{event.id}/menu/{menu_entry.id}/acl', 'type': 'menu entry',
-         'identifiers': [reader_id]},
+        {
+            'path': f'/events/{event.id}/attachments/{attachment.id}/acl',
+            'type': 'attachment',
+            'identifiers': [group_id],
+        },
+        {
+            'path': f'/events/{event.id}/attachment-folders/{attachment.folder.id}/acl',
+            'type': 'attachment folder',
+            'identifiers': [reader_id],
+        },
+        {'path': f'/events/{event.id}/menu/{menu_entry.id}/acl', 'type': 'menu entry', 'identifiers': [reader_id]},
     ]
 
 
@@ -1582,11 +2127,16 @@ def main(manifest_path):
     groups = create_groups(users)
     demo, topics = create_categories(Category.get_root())
     category_templates = [
-        create_receipt_template('Attendance certificate', CERTIFICATE_HTML, CERTIFICATE_YAML, 'certificate',
-                                category=demo),
+        create_receipt_template(
+            'Attendance certificate', CERTIFICATE_HTML, CERTIFICATE_YAML, 'certificate', category=demo
+        ),
     ]
-    poster_data = {**DEFAULT_TICKET_DATA, 'width': 2480, 'height': 3508,
-                   'items': [item for item in DEFAULT_TICKET_DATA['items'] if item['type'] != 'ticket_qr_code']}
+    poster_data = {
+        **DEFAULT_TICKET_DATA,
+        'width': 2480,
+        'height': 3508,
+        'items': [item for item in DEFAULT_TICKET_DATA['items'] if item['type'] != 'ticket_qr_code'],
+    }
     category_designer_templates = [
         create_designer_template('Demo poster', TemplateType.poster, poster_data, 0, category=demo),
     ]
@@ -1601,16 +2151,24 @@ def main(manifest_path):
     for topic_index, topic in enumerate(topics):
         for i in range(CONFERENCES_PER_TOPIC):
             index = topic_index * CONFERENCES_PER_TOPIC + i
-            conferences.append(seed_conference(topic, manager, users, index,
-                                               start + timedelta(days=7 * index), reference_types, labels))
-    meetings = [seed_meeting(topics[i % len(topics)], manager, users, i, start + timedelta(days=200 + i),
-                             reference_types)
-                for i in range(MEETING_COUNT)]
+            conferences.append(
+                seed_conference(
+                    topic, manager, users, index, start + timedelta(days=7 * index), reference_types, labels
+                )
+            )
+    meetings = [
+        seed_meeting(topics[i % len(topics)], manager, users, i, start + timedelta(days=200 + i), reference_types)
+        for i in range(MEETING_COUNT)
+    ]
     move_requests = create_move_requests(demo, [dataset['event'] for dataset in meetings[:3]], users, manager)
     datasets = conferences + meetings
-    series = [create_series([dataset['event'] for dataset in conferences[i:i + CONFERENCES_PER_TOPIC]],
-                            event_title_pattern=f'{topic.title} Conference {{n}}')
-              for i, topic in zip(range(0, len(conferences), CONFERENCES_PER_TOPIC), topics, strict=True)]
+    series = [
+        create_series(
+            [dataset['event'] for dataset in conferences[i : i + CONFERENCES_PER_TOPIC]],
+            event_title_pattern=f'{topic.title} Conference {{n}}',
+        )
+        for i, topic in zip(range(0, len(conferences), CONFERENCES_PER_TOPIC), topics, strict=True)
+    ]
     series.append(create_series([dataset['event'] for dataset in meetings], show_links=False))
 
     features = get_features()
@@ -1689,8 +2247,7 @@ def main(manifest_path):
         'event_label_id': labels[0].id,
         'reservation_id': reservations[0].id,
         # the first three links are an event, a contribution and a session block
-        'linked_reservation_ids': [link.reservation_occurrence.reservation_id
-                                   for link in reservation_links[:3]],
+        'linked_reservation_ids': [link.reservation_occurrence.reservation_id for link in reservation_links[:3]],
         'blocking_id': blockings[0].id,
         'role_id': sample['roles'][0].id,
         'group_id': groups[0].id,
@@ -1719,7 +2276,8 @@ def main(manifest_path):
             'subcontributions': count_all(datasets, 'subcontributions'),
             'breaks': count_all(datasets, 'breaks'),
             'timetable_entries': TimetableEntry.query.filter(
-                TimetableEntry.event_id.in_([dataset['event'].id for dataset in datasets])).count(),
+                TimetableEntry.event_id.in_([dataset['event'].id for dataset in datasets])
+            ).count(),
             'notes': count_all(datasets, 'notes'),
             'attachments': count_all(datasets, 'attachments'),
             'abstracts': count_all(datasets, 'abstracts'),
@@ -1778,8 +2336,9 @@ def main(manifest_path):
             'editing_tags': count_all(datasets, 'editing_tags'),
             'editing_file_types': count_all(datasets, 'editing_file_types'),
             # every editable carries one file of its own
-            'files': (count_all(datasets, 'uploads') + count_all(datasets, 'documents')
-                      + count_all(datasets, 'editables')),
+            'files': (
+                count_all(datasets, 'uploads') + count_all(datasets, 'documents') + count_all(datasets, 'editables')
+            ),
         },
     }
     with open(manifest_path, 'w') as f:

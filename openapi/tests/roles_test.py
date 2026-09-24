@@ -5,7 +5,6 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-
 from operator import itemgetter
 
 import pytest
@@ -97,8 +96,9 @@ def test_role_matches_current_api(dummy_event, dummy_role, token_headers, test_c
 
 
 @pytest.mark.usefixtures('event_manager')
-def test_role_list_matches_current_api(dummy_event, dummy_role, create_role, outsider, token_headers, test_client,
-                                       merged_roles, same_json_list):
+def test_role_list_matches_current_api(
+    dummy_event, dummy_role, create_role, outsider, token_headers, test_client, merged_roles, same_json_list
+):
     create_role('Another role', 'ANO', members=[outsider])
     new = test_client.get(f'/api/v1/events/{dummy_event.id}/roles', headers=token_headers).json['results']
     same_json_list(new, merged_roles(), same=ROLE_FIELDS, derived={'members': by_id})

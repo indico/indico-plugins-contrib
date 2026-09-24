@@ -5,7 +5,6 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-
 from datetime import UTC, datetime
 
 import pytest
@@ -28,9 +27,11 @@ def create_category_log_entry(db, dummy_category, dummy_user):
 
 @pytest.fixture
 def dummy_category_log_entry(create_category_log_entry):
-    return create_category_log_entry('Category settings changed',
-                                     logged_dt=datetime(2026, 9, 1, 8, 0, tzinfo=UTC),
-                                     data={'Title': ['Old title', 'New title', 'text']})
+    return create_category_log_entry(
+        'Category settings changed',
+        logged_dt=datetime(2026, 9, 1, 8, 0, tzinfo=UTC),
+        data={'Title': ['Old title', 'New title', 'text']},
+    )
 
 
 @pytest.fixture
@@ -43,8 +44,9 @@ def category_manager(db, dummy_category, dummy_user):
 
 @pytest.mark.usefixtures('category_manager')
 def test_category_log_entry_details(dummy_category, dummy_category_log_entry, dummy_user, token_headers, test_client):
-    resp = test_client.get(f'/api/v1/categories/{dummy_category.id}/logs/{dummy_category_log_entry.id}',
-                           headers=token_headers)
+    resp = test_client.get(
+        f'/api/v1/categories/{dummy_category.id}/logs/{dummy_category_log_entry.id}', headers=token_headers
+    )
     assert resp.status_code == 200
     assert resp.json['id'] == dummy_category_log_entry.id
     assert resp.json['realm'] == 'category'
@@ -66,8 +68,9 @@ def test_category_log_list_is_newest_first(dummy_category, create_category_log_e
 
 
 @pytest.mark.usefixtures('category_manager')
-def test_category_log_list_filters_by_realm(dummy_category, dummy_category_log_entry, create_category_log_entry,
-                                            token_headers, test_client):
+def test_category_log_list_filters_by_realm(
+    dummy_category, dummy_category_log_entry, create_category_log_entry, token_headers, test_client
+):
     entry = create_category_log_entry('Event created', realm=CategoryLogRealm.events)
     resp = test_client.get(f'/api/v1/categories/{dummy_category.id}/logs?realm=events', headers=token_headers)
     assert resp.status_code == 200
@@ -75,8 +78,9 @@ def test_category_log_list_filters_by_realm(dummy_category, dummy_category_log_e
 
 
 @pytest.mark.usefixtures('category_manager')
-def test_category_log_list_filters_by_text(dummy_category, dummy_category_log_entry, create_category_log_entry,
-                                           token_headers, test_client):
+def test_category_log_list_filters_by_text(
+    dummy_category, dummy_category_log_entry, create_category_log_entry, token_headers, test_client
+):
     entry = create_category_log_entry('Event of Gudrun moved')
     resp = test_client.get(f'/api/v1/categories/{dummy_category.id}/logs?q=gudrun', headers=token_headers)
     assert resp.status_code == 200
@@ -84,17 +88,18 @@ def test_category_log_list_filters_by_text(dummy_category, dummy_category_log_en
 
 
 def test_category_logs_are_manager_only(dummy_category, dummy_category_log_entry, outsider_headers, test_client):
-    resp = test_client.get(f'/api/v1/categories/{dummy_category.id}/logs/{dummy_category_log_entry.id}',
-                           headers=outsider_headers)
+    resp = test_client.get(
+        f'/api/v1/categories/{dummy_category.id}/logs/{dummy_category_log_entry.id}', headers=outsider_headers
+    )
     assert resp.status_code == 403
     assert 'error' in resp.json
-    assert test_client.get(f'/api/v1/categories/{dummy_category.id}/logs',
-                           headers=outsider_headers).status_code == 403
+    assert test_client.get(f'/api/v1/categories/{dummy_category.id}/logs', headers=outsider_headers).status_code == 403
 
 
 @pytest.mark.usefixtures('category_manager')
-def test_category_log_entry_of_another_category_is_not_found(dummy_category_log_entry, create_category, token_headers,
-                                                             test_client):
+def test_category_log_entry_of_another_category_is_not_found(
+    dummy_category_log_entry, create_category, token_headers, test_client
+):
     other = create_category(123)
     resp = test_client.get(f'/api/v1/categories/{other.id}/logs/{dummy_category_log_entry.id}', headers=token_headers)
     assert resp.status_code == 404
@@ -112,8 +117,15 @@ def current_entries(dummy_category, indico_api):
 
 
 @pytest.mark.usefixtures('category_manager')
-def test_category_log_list_matches_current_api(dummy_category, dummy_category_log_entry, create_category_log_entry,
-                                               token_headers, test_client, current_entries, same_json_list):
+def test_category_log_list_matches_current_api(
+    dummy_category,
+    dummy_category_log_entry,
+    create_category_log_entry,
+    token_headers,
+    test_client,
+    current_entries,
+    same_json_list,
+):
     create_category_log_entry('Event created', realm=CategoryLogRealm.events)
     new = test_client.get(f'/api/v1/categories/{dummy_category.id}/logs', headers=token_headers).json['results']
     same_json_list(new, current_entries(), same=LOG_FIELDS, renamed=log_keys(dummy_category.tzinfo))
