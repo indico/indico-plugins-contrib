@@ -33,6 +33,7 @@ on:
           - affiliation_extras
           - regform_passcode
           - my_registrations
+          - openapi
 
 permissions:
   contents: read
