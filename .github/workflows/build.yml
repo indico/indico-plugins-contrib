@@ -32,6 +32,7 @@ on:
           - registration_prefill
           - affiliation_extras
           - my_registrations
+          - openapi
 
 permissions:
   contents: read
