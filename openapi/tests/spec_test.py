@@ -1,0 +1,106 @@
+# This file is part of the third-party Indico plugins.
+# Copyright (C) 2026 Unconventional
+#
+# The third-party Indico plugins are free software; you can
+# redistribute them and/or modify them under the terms of the;
+# MIT License see the LICENSE file for more details.
+
+import pathlib
+import re
+
+from marshmallow import class_registry
+from marshmallow.exceptions import RegistryError
+
+import indico
+
+
+def test_spec_requires_login(test_client):
+    resp = test_client.get('/api/v1/openapi.json')
+    assert resp.status_code == 403
+
+
+def test_spec_lists_every_endpoint(dummy_user, test_client):
+    from indico_openapi.resources import ENDPOINTS
+
+    with test_client.session_transaction() as sess:
+        sess.set_session_user(dummy_user)
+    resp = test_client.get('/api/v1/openapi.json')
+    assert resp.status_code == 200
+    assert resp.json['openapi'] == '3.0.3'
+    assert len(resp.json['paths']) == len(ENDPOINTS)
+
+
+def test_docs_page_is_served(dummy_user, test_client):
+    with test_client.session_transaction() as sess:
+        sess.set_session_user(dummy_user)
+    resp = test_client.get('/api/v1/docs')
+    assert resp.status_code == 200
+    assert 'swagger-ui' in resp.text
+
+
+def test_docs_page_runs_under_csp(dummy_user, test_client, patch_indico_config):
+    patch_indico_config('CSP_ENABLED', True)
+    with test_client.session_transaction() as sess:
+        sess.set_session_user(dummy_user)
+    resp = test_client.get('/api/v1/docs')
+    nonce = re.search(r"'nonce-([\w-]+)'", resp.headers['Content-Security-Policy']).group(1)
+    inline_scripts = re.findall(r'<script((?:(?!\ssrc=)[^>])*)>', resp.text)
+    assert inline_scripts
+    assert all(f'nonce="{nonce}"' in attrs for attrs in inline_scripts)
+
+
+def test_spec_documents_every_field(dummy_user, test_client):
+    with test_client.session_transaction() as sess:
+        sess.set_session_user(dummy_user)
+    resp = test_client.get('/api/v1/openapi.json')
+    undocumented = [
+        f'{name}.{field}'
+        for name, schema in resp.json['components']['schemas'].items()
+        for field, prop in schema.get('properties', {}).items()
+        if not prop.get('description')
+    ]
+    assert not undocumented
+
+
+def test_spec_describes_every_endpoint(dummy_user, test_client):
+    with test_client.session_transaction() as sess:
+        sess.set_session_user(dummy_user)
+    resp = test_client.get('/api/v1/openapi.json')
+    summaries = {}
+    terse, repeated = [], []
+    for path, item in resp.json['paths'].items():
+        for operation in item.values():
+            summary = operation.get('summary', '')
+            if len(summary.split()) < 4:
+                terse.append(path)
+            if summary in summaries:
+                repeated.append(f'{path} reads like {summaries[summary]}')
+            summaries[summary] = path
+    assert not terse
+    assert not repeated
+
+
+def test_spec_wraps_list_results(dummy_user, test_client):
+    with test_client.session_transaction() as sess:
+        sess.set_session_user(dummy_user)
+    resp = test_client.get('/api/v1/openapi.json')
+    operation = resp.json['paths']['/api/v1/events']['get']
+    schema = operation['responses']['200']['content']['application/json']['schema']
+    assert schema['$ref'] == '#/components/schemas/EventPage'
+    assert {p['name'] for p in operation['parameters']} >= {'limit', 'offset', 'category_id'}
+
+
+def test_plugin_schemas_do_not_shadow_the_ones_indico_nests_by_name(test_client):
+    nested_by_name = {
+        name
+        for path in pathlib.Path(indico.__file__).parent.rglob('schemas.py')
+        for name in re.findall(r"""Nested\(\s*['"]([A-Za-z_]\w*)['"]""", path.read_text())
+    }
+    assert nested_by_name
+    ambiguous = []
+    for name in sorted(nested_by_name):
+        try:
+            class_registry.get_class(name)
+        except RegistryError:
+            ambiguous.append(name)
+    assert not ambiguous
