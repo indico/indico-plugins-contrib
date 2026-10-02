@@ -36,8 +36,6 @@ def _plugin_manifest(mocker):
 
 @pytest.fixture
 def create_representation_field(db):
-    """Return a callable that adds a representation field to a registration form."""
-
     def _create_representation_field(regform):
         field = RegistrationFormField(
             input_type=RepresentationField.name,
@@ -56,8 +54,6 @@ def create_representation_field(db):
 
 @pytest.fixture
 def create_event_catalog(db):
-    """Return a callable that makes a catalog listing ``affiliations`` the event's default one."""
-
     def _create_event_catalog(event, affiliations):
         catalog = AffiliationCatalog(name='Catalog', event=event)
         db.session.add(catalog)
@@ -74,8 +70,6 @@ def create_event_catalog(db):
 
 @pytest.fixture
 def create_catalog_affiliations(db, create_event_catalog):
-    """Return a callable that creates two affiliations listed in the event's catalog."""
-
     def _create_catalog_affiliations(event):
         managed = Affiliation(name='CERN')
         other = Affiliation(name='MIT')
@@ -89,7 +83,6 @@ def create_catalog_affiliations(db, create_event_catalog):
 
 @pytest.fixture
 def create_representation_registration(db):
-    """Return a callable that registers someone representing ``affiliation_id`` through ``field``."""
     ids = count(1)
 
     def _create_representation_registration(field, affiliation_id):
@@ -120,8 +113,6 @@ def create_representation_registration(db):
 
 @pytest.fixture
 def get_scoped_list(request_context):
-    """Return a callable listing the registrations ``user`` sees in the management list."""
-
     def _get_scoped_list(regform, user):
         session.set_session_user(user)
         return RegistrationListGenerator(regform=regform).get_list_kwargs()['registrations']

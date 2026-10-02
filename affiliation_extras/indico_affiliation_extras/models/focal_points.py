@@ -11,8 +11,6 @@ from indico.modules.users.models.users import User
 
 
 class FocalPoint(db.Model):
-    """A user designated as a focal point for an affiliation."""
-
     __tablename__ = 'focal_points'
     __table_args__ = (
         db.Index(None, 'affiliation_id'),

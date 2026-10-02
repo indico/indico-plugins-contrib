@@ -5,10 +5,8 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-# Focal-point access model: while enabled (opt-in per form, off by default), Indico grants the
-# equivalent of `registration_edit` and `registration_moderation` to every focal point of a catalog
-# affiliation via `acl.can_manage`, then bounds it with blacklist signals. The grant is dynamic (no
-# per-user ACL) and a genuine grant always prevails; a manager turns it on or off per form.
+# Focal points get `FOCAL_POINT_PERMISSIONS` dynamically via `acl.can_manage` (no ACL entry), bounded
+# by the blacklist signals; any genuine registration grant prevails.
 
 from indico.modules.events.registration import REGISTRATION_PERMISSIONS
 from indico.util.user import iter_acl
@@ -22,7 +20,6 @@ FOCAL_POINT_PERMISSIONS = ('registration_edit', 'registration_moderation')
 
 
 def focal_point_management_enabled(regform):
-    """Whether focal-point management is enabled on ``regform`` (off by default, opt-in per form)."""
     if not regform_has_representation_field(regform):
         return False
     enabled = event_settings.get(regform.event, 'focal_point_enabled_regform_ids')
@@ -30,7 +27,6 @@ def focal_point_management_enabled(regform):
 
 
 def set_focal_point_management_enabled(regform, enabled):
-    """Turn focal-point management on or off for ``regform`` (persisted on its event)."""
     enabled_ids = set(event_settings.get(regform.event, 'focal_point_enabled_regform_ids'))
     if enabled:
         enabled_ids.add(regform.id)
@@ -40,12 +36,10 @@ def set_focal_point_management_enabled(regform, enabled):
 
 
 def regform_has_representation_field(regform):
-    """Whether ``regform`` has an active representation field (the trigger for focal management)."""
     return any(field.input_type == RepresentationField.name for field in regform.active_fields)
 
 
 def event_has_focal_managed_regform(event):
-    """Whether the event has a non-deleted form with focal-point management enabled."""
     return any(
         focal_point_management_enabled(regform) for regform in event.registration_forms if not regform.is_deleted
     )
@@ -65,7 +59,6 @@ def has_genuine_registration_management(event, user):
 
 
 def is_scoped_focal_point(event, user):
-    """Whether ``user`` manages this event's registrations only as an affiliation focal point."""
     if not focal_affiliations_for_event(user, event):
         return False
     if has_genuine_registration_management(event, user):
