@@ -7,10 +7,11 @@
 
 import pytest
 
+from indico.core import signals
 from indico.modules.events.registration import REGISTRATION_PERMISSIONS
 from indico.modules.users.models.affiliations import Affiliation
 
-from indico_affiliation_extras.focal_points import set_focal_points
+from indico_affiliation_extras.focal_points import get_focal_affiliation_ids, set_focal_points
 from indico_affiliation_extras.permissions import set_focal_point_management_enabled
 
 
@@ -155,3 +156,14 @@ def test_focal_point_management_disabled_allows_download(dummy_regform, setup_fo
     focal, __, __ = setup_focal_point(dummy_regform)
     set_focal_point_management_enabled(dummy_regform, False)
     assert dummy_regform.is_download_blocked(focal) is False
+
+
+def test_focal_point_user_search_bounded_to_own_affiliation(dummy_regform, setup_focal_point, patch_indico_config):
+    patch_indico_config('ALLOW_PUBLIC_USER_SEARCH', False)
+    focal, __, __ = setup_focal_point(dummy_regform)
+    (managed_id,) = get_focal_affiliation_ids(focal)
+    results = [{'id': 1, 'affiliation_id': managed_id}, {'id': 2, 'affiliation_id': None}]
+
+    signals.users.filter_user_search_results.send(object(), user=focal, results=results)
+
+    assert results == [{'id': 1, 'affiliation_id': managed_id}]

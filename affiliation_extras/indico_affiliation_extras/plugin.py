@@ -214,11 +214,11 @@ class AffiliationExtrasPlugin(IndicoPlugin):
     def _filter_user_search_results(self, sender, user, results, **kwargs):
         # Pointless under public search, where it would only hinder a focal point who also manages events.
         if config.ALLOW_PUBLIC_USER_SEARCH or user.is_admin:
-            return None
+            return
         focal_ids = get_focal_affiliation_ids(user)
         if not focal_ids:
-            return None
-        return [entry for entry in results if entry.get('affiliation_id') in focal_ids]
+            return
+        results[:] = [entry for entry in results if entry.get('affiliation_id') in focal_ids]
 
     def _get_affiliation_filters(self, sender, context, **kwargs):
         return get_representation_affiliation_filters(context) + get_extended_affiliation_filters(context)
