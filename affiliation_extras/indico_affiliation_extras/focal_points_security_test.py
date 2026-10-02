@@ -5,150 +5,85 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-from flask import session
+import pytest
 
-from indico.modules.events.registration.lists import RegistrationListGenerator
-from indico.modules.events.registration.models.form_fields import RegistrationFormField
-from indico.modules.events.registration.models.registrations import Registration, RegistrationData, RegistrationState
 from indico.modules.users.models.affiliations import Affiliation
 
-from indico_affiliation_extras.fields import RepresentationField
-from indico_affiliation_extras.models.catalogs import AffiliationCatalog
 from indico_affiliation_extras.models.focal_points import set_focal_points
-from indico_affiliation_extras.models.lists import AffiliationList
 from indico_affiliation_extras.permissions import set_focal_point_management_enabled
-from indico_affiliation_extras.settings import event_settings
 
 
 pytest_plugins = 'indico.modules.events.registration.testing.fixtures'
 
 
-def _add_representation_field(db, regform):
-    field = RegistrationFormField(
-        input_type=RepresentationField.name,
-        title='Representation',
-        parent=regform.sections[0],
-        registration_form=regform,
-    )
-    field.data = {}
-    field.versioned_data = {}
-    db.session.add(field)
-    db.session.flush()
-    return field
+@pytest.fixture
+def setup_focal_point(
+    db, create_user, create_catalog_affiliations, create_representation_field, create_representation_registration
+):
+    def _setup_focal_point(regform, *, user_id=1, full_manager=False):
+        managed, other = create_catalog_affiliations(regform.event)
+        field = create_representation_field(regform)
+        in_range = create_representation_registration(field, managed.id)
+        out_range = create_representation_registration(field, other.id)
+        user = create_user(user_id)
+        set_focal_points(managed, {user})
+        set_focal_point_management_enabled(regform, True)
+        if full_manager:
+            regform.event.update_principal(user, full_access=True)
+        db.session.flush()
+        return user, in_range, out_range
+
+    return _setup_focal_point
 
 
-def _create_registration(db, regform, last_name, email):
-    reg = Registration(
-        first_name='Focal',
-        last_name=last_name,
-        state=RegistrationState.complete,
-        currency='USD',
-        email=email,
-        registration_form=regform,
-    )
-    regform.event.registrations.append(reg)
-    db.session.flush()
-    return reg
-
-
-def _set_representation(db, registration, field, affiliation_id):
-    RegistrationData(
-        registration=registration,
-        field_data=field.current_data,
-        data={
-            'representation_id': 1,
-            'representation_name': 'Delegates',
-            'affiliation': {'id': affiliation_id, 'text': 'CERN'},
-        },
-    )
-    db.session.flush()
-
-
-def _scoped_list(regform, user):
-    session.set_session_user(user)
-    return RegistrationListGenerator(regform=regform).get_list_kwargs()['registrations']
-
-
-def _add_event_catalog(db, event, affiliations):
-    catalog = AffiliationCatalog(name='Catalog', event=event)
-    db.session.add(catalog)
-    db.session.flush()
-    affiliation_list = AffiliationList(catalog=catalog, name='Representatives', position=1, is_enabled=True)
-    affiliation_list.affiliations.update(affiliations)
-    db.session.add(affiliation_list)
-    db.session.flush()
-    event_settings.set(event, 'default_catalog_id', catalog.id)
-
-
-def _setup(db, regform, create_user, *, user_id=1, full_manager=False):
-    """One in-range and one out-of-range registration; ``user`` is a focal point for the in-range org."""
-    managed = Affiliation(name='CERN')
-    other = Affiliation(name='MIT')
-    db.session.add_all([managed, other])
-    db.session.flush()
-    _add_event_catalog(db, regform.event, [managed, other])
-    field = _add_representation_field(db, regform)
-    in_range = _create_registration(db, regform, 'Mine', 'mine@example.test')
-    out_range = _create_registration(db, regform, 'Theirs', 'theirs@example.test')
-    _set_representation(db, in_range, field, managed.id)
-    _set_representation(db, out_range, field, other.id)
-    user = create_user(user_id)
-    set_focal_points(managed, {user})
-    set_focal_point_management_enabled(regform, True)
-    if full_manager:
-        regform.event.update_principal(user, full_access=True)
-    db.session.flush()
-    return user, in_range, out_range
-
-
-def test_focal_point_bounded_to_own_affiliation(db, dummy_regform, create_user, request_context):
-    focal, in_range, out_range = _setup(db, dummy_regform, create_user)
+def test_focal_point_bounded_to_own_affiliation(dummy_regform, setup_focal_point, get_scoped_list):
+    focal, in_range, out_range = setup_focal_point(dummy_regform)
 
     assert in_range.can_manage(focal, 'registration_edit') is True
     assert out_range.can_manage(focal, 'registration_edit') is False
     assert in_range.can_manage(focal, 'registration') is False
     assert in_range.can_manage(focal, 'registration_checkin') is False
-    assert _scoped_list(dummy_regform, focal) == [in_range]
+    assert get_scoped_list(dummy_regform, focal) == [in_range]
     assert dummy_regform.get_managed_registration_count(focal) == 1
 
 
-def test_focal_point_can_moderate_own_affiliation(db, dummy_regform, create_user, request_context):
-    focal, in_range, out_range = _setup(db, dummy_regform, create_user)
+def test_focal_point_can_moderate_own_affiliation(dummy_regform, setup_focal_point):
+    focal, in_range, out_range = setup_focal_point(dummy_regform)
 
     assert in_range.can_manage(focal, 'registration_moderation') is True
     assert out_range.can_manage(focal, 'registration_moderation') is False
 
 
-def test_focal_point_management_disabled_blocks_moderation(db, dummy_regform, create_user, request_context):
-    focal, in_range, __ = _setup(db, dummy_regform, create_user)
+def test_focal_point_management_disabled_blocks_moderation(dummy_regform, setup_focal_point):
+    focal, in_range, __ = setup_focal_point(dummy_regform)
     set_focal_point_management_enabled(dummy_regform, False)
 
     assert in_range.can_manage(focal, 'registration_moderation') is False
 
 
-def test_genuine_moderator_also_focal_is_unrestricted(db, dummy_regform, create_user, request_context):
-    focal, in_range, out_range = _setup(db, dummy_regform, create_user)
+def test_genuine_moderator_also_focal_is_unrestricted(db, dummy_regform, setup_focal_point, get_scoped_list):
+    focal, in_range, out_range = setup_focal_point(dummy_regform)
     dummy_regform.event.update_principal(focal, permissions={'registration_moderation'})
     db.session.flush()
 
     assert out_range.can_manage(focal, 'registration_moderation') is True
-    assert set(_scoped_list(dummy_regform, focal)) == {in_range, out_range}
+    assert set(get_scoped_list(dummy_regform, focal)) == {in_range, out_range}
     assert dummy_regform.is_download_blocked(focal) is False
 
 
-def test_genuine_manager_also_focal_is_unrestricted(db, dummy_regform, create_user, request_context):
-    manager, in_range, out_range = _setup(db, dummy_regform, create_user, user_id=3, full_manager=True)
+def test_genuine_manager_also_focal_is_unrestricted(dummy_regform, setup_focal_point, get_scoped_list):
+    manager, in_range, out_range = setup_focal_point(dummy_regform, user_id=3, full_manager=True)
 
     assert in_range.can_manage(manager, 'registration_edit') is True
     assert out_range.can_manage(manager, 'registration_edit') is True
-    assert set(_scoped_list(dummy_regform, manager)) == {in_range, out_range}
+    assert set(get_scoped_list(dummy_regform, manager)) == {in_range, out_range}
     assert dummy_regform.get_managed_registration_count(manager) == 2
 
 
-def test_non_focal_user_unaffected(db, dummy_regform, create_user, request_context):
+def test_non_focal_user_unaffected(db, dummy_regform, create_user, setup_focal_point):
     from indico_affiliation_extras.plugin import AffiliationExtrasPlugin
 
-    __, in_range, out_range = _setup(db, dummy_regform, create_user)
+    __, in_range, out_range = setup_focal_point(dummy_regform)
     outsider = create_user(9)
     db.session.flush()
 
@@ -157,27 +92,32 @@ def test_non_focal_user_unaffected(db, dummy_regform, create_user, request_conte
     assert AffiliationExtrasPlugin.instance._filter_registration_list(dummy_regform, outsider) is None
 
 
-def test_focal_point_management_disabled_blocks_access(db, dummy_regform, create_user, request_context):
-    focal, in_range, __ = _setup(db, dummy_regform, create_user)
+def test_focal_point_management_disabled_blocks_access(dummy_regform, setup_focal_point):
+    focal, in_range, __ = setup_focal_point(dummy_regform)
     assert in_range.can_manage(focal, 'registration_edit') is True
     set_focal_point_management_enabled(dummy_regform, False)
     assert in_range.can_manage(focal, 'registration_edit') is False
 
 
-def test_per_form_toggle_isolates_forms(db, dummy_regform, create_regform, create_user, request_context):
+def test_per_form_toggle_isolates_forms(
+    db,
+    dummy_regform,
+    create_regform,
+    create_user,
+    create_event_catalog,
+    create_representation_field,
+    create_representation_registration,
+    get_scoped_list,
+):
     event = dummy_regform.event
     managed = Affiliation(name='CERN')
     db.session.add(managed)
     db.session.flush()
-    _add_event_catalog(db, event, [managed])
+    create_event_catalog(event, [managed])
 
     form_a, form_b = dummy_regform, create_regform(event, title='Form B')
-    field_a = _add_representation_field(db, form_a)
-    field_b = _add_representation_field(db, form_b)
-    reg_a = _create_registration(db, form_a, 'Aye', 'a@example.test')
-    reg_b = _create_registration(db, form_b, 'Bee', 'b@example.test')
-    _set_representation(db, reg_a, field_a, managed.id)
-    _set_representation(db, reg_b, field_b, managed.id)
+    reg_a = create_representation_registration(create_representation_field(form_a), managed.id)
+    reg_b = create_representation_registration(create_representation_field(form_b), managed.id)
     focal = create_user(1)
     set_focal_points(managed, {focal})
     set_focal_point_management_enabled(form_a, True)
@@ -190,24 +130,24 @@ def test_per_form_toggle_isolates_forms(db, dummy_regform, create_regform, creat
     set_focal_point_management_enabled(form_a, False)
     assert reg_a.can_manage(focal, 'registration_edit') is False
     assert reg_b.can_manage(focal, 'registration_edit') is True
-    assert _scoped_list(form_a, focal) == []
-    assert _scoped_list(form_b, focal) == [reg_b]
+    assert get_scoped_list(form_a, focal) == []
+    assert get_scoped_list(form_b, focal) == [reg_b]
 
 
-def test_focal_point_cannot_download(db, dummy_regform, create_user, request_context):
-    focal, __, __ = _setup(db, dummy_regform, create_user)
+def test_focal_point_cannot_download(dummy_regform, setup_focal_point):
+    focal, __, __ = setup_focal_point(dummy_regform)
     assert dummy_regform.is_download_blocked(focal) is True
 
 
-def test_genuine_manager_and_outsider_can_download(db, dummy_regform, create_user, request_context):
-    manager, __, __ = _setup(db, dummy_regform, create_user, user_id=3, full_manager=True)
+def test_genuine_manager_and_outsider_can_download(db, dummy_regform, create_user, setup_focal_point):
+    manager, __, __ = setup_focal_point(dummy_regform, user_id=3, full_manager=True)
     outsider = create_user(9)
     db.session.flush()
     assert dummy_regform.is_download_blocked(manager) is False
     assert dummy_regform.is_download_blocked(outsider) is False
 
 
-def test_focal_point_management_disabled_allows_download(db, dummy_regform, create_user, request_context):
-    focal, __, __ = _setup(db, dummy_regform, create_user)
+def test_focal_point_management_disabled_allows_download(dummy_regform, setup_focal_point):
+    focal, __, __ = setup_focal_point(dummy_regform)
     set_focal_point_management_enabled(dummy_regform, False)
     assert dummy_regform.is_download_blocked(focal) is False
