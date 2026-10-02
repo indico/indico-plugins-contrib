@@ -8,6 +8,7 @@
 import pytest
 
 from indico.core import signals
+from indico.modules.events.features.util import set_feature_enabled
 from indico.modules.events.registration import REGISTRATION_PERMISSIONS
 from indico.modules.users.models.affiliations import Affiliation
 
@@ -73,7 +74,6 @@ def test_genuine_registration_grant_also_focal_is_unrestricted(
 
     assert out_range.can_manage(focal, permission) is True
     assert set(get_scoped_list(dummy_regform, focal)) == {in_range, out_range}
-    assert dummy_regform.is_download_blocked(focal) is False
 
 
 def test_genuine_manager_also_focal_is_unrestricted(dummy_regform, setup_focal_point, get_scoped_list):
@@ -139,23 +139,14 @@ def test_per_form_toggle_isolates_forms(
     assert get_scoped_list(form_b, focal) == [reg_b]
 
 
-def test_focal_point_cannot_download(dummy_regform, setup_focal_point):
+def test_focal_point_cannot_export(test_client, dummy_regform, setup_focal_point):
+    set_feature_enabled(dummy_regform.event, 'registration', True)
     focal, __, __ = setup_focal_point(dummy_regform)
-    assert dummy_regform.is_download_blocked(focal) is True
+    with test_client.session_transaction() as sess:
+        sess.set_session_user(focal)
 
-
-def test_genuine_manager_and_outsider_can_download(db, dummy_regform, create_user, setup_focal_point):
-    manager, __, __ = setup_focal_point(dummy_regform, user_id=3, full_manager=True)
-    outsider = create_user(9)
-    db.session.flush()
-    assert dummy_regform.is_download_blocked(manager) is False
-    assert dummy_regform.is_download_blocked(outsider) is False
-
-
-def test_focal_point_management_disabled_allows_download(dummy_regform, setup_focal_point):
-    focal, __, __ = setup_focal_point(dummy_regform)
-    set_focal_point_management_enabled(dummy_regform, False)
-    assert dummy_regform.is_download_blocked(focal) is False
+    url = f'/event/{dummy_regform.event.id}/manage/registration/{dummy_regform.id}/registrations/registrations.csv'
+    assert test_client.get(url).status_code == 403
 
 
 def test_focal_point_user_search_bounded_to_own_affiliation(dummy_regform, setup_focal_point, patch_indico_config):
