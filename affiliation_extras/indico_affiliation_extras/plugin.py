@@ -174,15 +174,11 @@ class AffiliationExtrasPlugin(IndicoPlugin):
     def _extra_linked_events(self, user, dt=None, **kwargs):
         # Focal points hold no ACL entry (access is dynamic), so Indico's linked-event lookup misses
         # their events; contribute them, tagged as managed for the dashboard indicator.
-        event_ids = focal_event_ids(user)
+        event_ids = focal_event_ids(user, dt)
         if not event_ids:
             return None
         events = Event.query.filter(Event.id.in_(event_ids)).all()
-        return {
-            event.id: {'conference_manager'}
-            for event in events
-            if is_scoped_focal_point(event, user) and (dt is None or event.start_dt >= dt)
-        }
+        return {event.id: {'conference_manager'} for event in events if is_scoped_focal_point(event, user)}
 
     def _merge_users(self, target, source, **kwargs):
         merge_focal_points(target, source)

@@ -5,14 +5,38 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
+from datetime import timedelta
+
+import pytest
+
 from indico.modules.users.models.affiliations import Affiliation
-from indico.modules.users.util import merge_users
+from indico.modules.users.util import get_linked_events, merge_users
+from indico.util.date_time import now_utc
 
 from indico_affiliation_extras.focal_points import focal_event_ids, get_focal_affiliation_ids, set_focal_points
 from indico_affiliation_extras.permissions import set_focal_point_management_enabled
 
 
 pytest_plugins = 'indico.modules.events.registration.testing.fixtures'
+
+
+@pytest.fixture
+def create_focal_event(
+    create_event,
+    create_regform,
+    create_event_catalog,
+    create_representation_field,
+    create_representation_registration,
+):
+    def _create_focal_event(affiliation, **kwargs):
+        event = create_event(**kwargs)
+        regform = create_regform(event)
+        create_event_catalog(event, [affiliation])
+        create_representation_registration(create_representation_field(regform), affiliation.id)
+        set_focal_point_management_enabled(regform, True)
+        return event
+
+    return _create_focal_event
 
 
 def test_get_focal_affiliation_ids(db, create_user):
@@ -61,6 +85,32 @@ def test_focal_event_ids(
     set_focal_point_management_enabled(dummy_regform, False)
     db.session.flush()
     assert focal_event_ids(focal) == set()
+
+
+def test_linked_events_scoped_by_end_date(db, create_user, create_focal_event):
+    managed = Affiliation(name='CERN')
+    db.session.add(managed)
+    db.session.flush()
+    now = now_utc()
+    ongoing = create_focal_event(managed, start_dt=now - timedelta(days=30), end_dt=now + timedelta(days=1))
+    create_focal_event(managed, start_dt=now - timedelta(days=60), end_dt=now - timedelta(days=30))
+    focal = create_user(1)
+    set_focal_points(managed, {focal})
+    db.session.flush()
+
+    assert set(get_linked_events(focal, now - timedelta(days=7))) == {ongoing}
+
+
+def test_linked_events_not_truncated(db, create_user, create_focal_event):
+    managed = Affiliation(name='CERN')
+    db.session.add(managed)
+    db.session.flush()
+    events = {create_focal_event(managed) for __ in range(30)}
+    focal = create_user(1)
+    set_focal_points(managed, {focal})
+    db.session.flush()
+
+    assert set(get_linked_events(focal)) == events
 
 
 def test_registration_can_manage_grants_focal_point_edit(
