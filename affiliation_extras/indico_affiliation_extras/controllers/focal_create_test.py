@@ -194,6 +194,25 @@ def test_user_search_unbounded_when_public_search_allowed(
     assert {mine.id, theirs.id} <= returned_ids
 
 
+def test_user_search_unbounded_for_admin_focal_point(
+    test_client, app, db, dummy_regform, create_user, monkeypatch, create_catalog_affiliations
+):
+    monkeypatch.setitem(app.config, 'INDICO', {**app.config['INDICO'], 'ALLOW_PUBLIC_USER_SEARCH': False})
+    managed, other = create_catalog_affiliations(dummy_regform.event)
+    admin = create_user(1, admin=True)
+    set_focal_points(managed, {admin})
+    mine = _user_with_affiliation(create_user, db, 10, managed, first_name='Erin', last_name='Admin')
+    theirs = _user_with_affiliation(create_user, db, 11, other, first_name='Frank', last_name='Admin')
+    db.session.flush()
+    token = _search_token(app, admin)
+
+    _login(test_client, admin)
+    resp = test_client.get('/user/search/', query_string={'last_name': 'Admin', 'token': token})
+    assert resp.status_code == 200
+    returned_ids = {u['id'] for u in resp.json['users']}
+    assert {mine.id, theirs.id} <= returned_ids
+
+
 def test_settings_save_persists_focal_point_toggle(dummy_regform, app, create_representation_field):
     from indico_affiliation_extras.permissions import focal_point_management_enabled
     from indico_affiliation_extras.plugin import AffiliationExtrasPlugin

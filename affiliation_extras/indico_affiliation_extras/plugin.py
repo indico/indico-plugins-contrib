@@ -221,7 +221,7 @@ class AffiliationExtrasPlugin(IndicoPlugin):
     def _filter_user_search_results(self, sender, user, results, **kwargs):
         # Bound a focal point's user search to their own affiliations. Skipped when public user search
         # is allowed: the bound is pointless there and would hinder a dual-hat focal point/manager.
-        if config.ALLOW_PUBLIC_USER_SEARCH:
+        if config.ALLOW_PUBLIC_USER_SEARCH or user.is_admin:
             return None
         focal_ids = get_focal_affiliation_ids(user)
         if not focal_ids:
