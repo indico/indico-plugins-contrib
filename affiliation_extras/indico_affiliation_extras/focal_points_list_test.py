@@ -106,10 +106,13 @@ def test_criterion_matches_representation_field(
     assert _focal_query(dummy_regform, focal) == [mine]
 
 
-@pytest.mark.parametrize(('attr', 'value'), (
-    ('is_enabled', False),
-    ('is_deleted', True),
-))
+@pytest.mark.parametrize(
+    ('attr', 'value'),
+    (
+        ('is_enabled', False),
+        ('is_deleted', True),
+    ),
+)
 def test_criterion_ignores_field_in_inactive_section(
     db,
     dummy_regform,
