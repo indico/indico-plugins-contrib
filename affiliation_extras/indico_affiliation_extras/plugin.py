@@ -34,6 +34,7 @@ from indico_affiliation_extras.focal_points import (
     focal_list_criterion,
     get_focal_affiliation_ids,
     get_submitted_affiliation_ids,
+    merge_focal_points,
 )
 from indico_affiliation_extras.permissions import (
     FOCAL_POINT_PERMISSIONS,
@@ -87,6 +88,7 @@ class AffiliationExtrasPlugin(IndicoPlugin):
         self.connect(signals.event.registration_form_edited, self._persist_focal_point_setting)
         self.connect(signals.users.filter_user_search_results, self._filter_user_search_results)
         self.connect(signals.users.extra_linked_events, self._extra_linked_events)
+        self.connect(signals.users.merged, self._merge_users)
         self.connect(signals.acl.can_manage, self._grant_focal_point_registration_permissions, sender=Event)
         self.connect(signals.menu.items, self._category_sidemenu_items, sender='category-management-sidemenu')
         self.connect(signals.menu.items, self._event_sidemenu_items, sender='event-management-sidemenu')
@@ -181,6 +183,9 @@ class AffiliationExtrasPlugin(IndicoPlugin):
             for event in events
             if is_scoped_focal_point(event, user) and (dt is None or event.start_dt >= dt)
         }
+
+    def _merge_users(self, target, source, **kwargs):
+        merge_focal_points(target, source)
 
     def _get_fields(self, sender, **kwargs):
         yield RepresentationField

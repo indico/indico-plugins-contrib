@@ -50,6 +50,14 @@ def set_focal_points(affiliation, users):
             affiliation.focal_point_entries.discard(entry)
 
 
+def merge_focal_points(target, source):
+    target_affiliations = {entry.affiliation for entry in target.focal_point_entries}
+    for entry in source.focal_point_entries:
+        if entry.affiliation not in target_affiliations:
+            target.focal_point_entries.add(FocalPoint(affiliation=entry.affiliation))
+    source.focal_point_entries.clear()
+
+
 def get_focal_affiliation_ids(user):
     """Return the affiliation ids ``user`` is centrally a focal point for (excluding deleted)."""
     if user is None:
