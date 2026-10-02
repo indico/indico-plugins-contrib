@@ -10,6 +10,7 @@
 # affiliation via `acl.can_manage`, then bounds it with blacklist signals. The grant is dynamic (no
 # per-user ACL) and a genuine grant always prevails; a manager turns it on or off per form.
 
+from indico.modules.events.registration import REGISTRATION_PERMISSIONS
 from indico.util.user import iter_acl
 
 from indico_affiliation_extras.fields import RepresentationField
@@ -58,7 +59,7 @@ def has_genuine_registration_management(event, user):
         return True
     return any(
         user in entry.principal
-        and any(entry.has_management_permission(permission, explicit=True) for permission in FOCAL_POINT_PERMISSIONS)
+        and any(entry.has_management_permission(permission, explicit=True) for permission in REGISTRATION_PERMISSIONS)
         for entry in iter_acl(event.acl_entries)
     )
 

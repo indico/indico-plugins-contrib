@@ -7,6 +7,7 @@
 
 import pytest
 
+from indico.modules.events.registration import REGISTRATION_PERMISSIONS
 from indico.modules.users.models.affiliations import Affiliation
 
 from indico_affiliation_extras.focal_points import set_focal_points
@@ -61,12 +62,15 @@ def test_focal_point_management_disabled_blocks_moderation(dummy_regform, setup_
     assert in_range.can_manage(focal, 'registration_moderation') is False
 
 
-def test_genuine_moderator_also_focal_is_unrestricted(db, dummy_regform, setup_focal_point, get_scoped_list):
+@pytest.mark.parametrize('permission', REGISTRATION_PERMISSIONS)
+def test_genuine_registration_grant_also_focal_is_unrestricted(
+    db, dummy_regform, setup_focal_point, get_scoped_list, permission
+):
     focal, in_range, out_range = setup_focal_point(dummy_regform)
-    dummy_regform.event.update_principal(focal, permissions={'registration_moderation'})
+    dummy_regform.event.update_principal(focal, permissions={permission})
     db.session.flush()
 
-    assert out_range.can_manage(focal, 'registration_moderation') is True
+    assert out_range.can_manage(focal, permission) is True
     assert set(get_scoped_list(dummy_regform, focal)) == {in_range, out_range}
     assert dummy_regform.is_download_blocked(focal) is False
 
