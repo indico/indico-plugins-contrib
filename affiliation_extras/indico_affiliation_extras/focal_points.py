@@ -95,8 +95,7 @@ def _focal_match_criterion(focal_ids):
             RegistrationData.registration_id == Registration.id,
             RegistrationData.field_data_id == RegistrationFormFieldData.id,
             RegistrationFormFieldData.field_id == RegistrationFormField.id,
-            ~RegistrationFormField.is_deleted,
-            RegistrationFormField.is_enabled,
+            RegistrationFormField.is_visible,
             RegistrationFormField.input_type == RepresentationField.name,
             representation_id.in_(focal_ids),
         )

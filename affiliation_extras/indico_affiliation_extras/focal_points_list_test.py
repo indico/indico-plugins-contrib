@@ -5,8 +5,10 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
+import pytest
+
 from indico.modules.events.features.util import set_feature_enabled
-from indico.modules.events.registration.models.items import PersonalDataType
+from indico.modules.events.registration.models.items import PersonalDataType, RegistrationFormSection
 from indico.modules.events.registration.models.registrations import Registration, RegistrationData
 
 from indico_affiliation_extras.focal_points import focal_list_criterion, set_focal_points
@@ -102,6 +104,33 @@ def test_criterion_matches_representation_field(
     db.session.flush()
 
     assert _focal_query(dummy_regform, focal) == [mine]
+
+
+@pytest.mark.parametrize(('attr', 'value'), (
+    ('is_enabled', False),
+    ('is_deleted', True),
+))
+def test_criterion_ignores_field_in_inactive_section(
+    db,
+    dummy_regform,
+    create_user,
+    create_catalog_affiliations,
+    create_representation_field,
+    create_representation_registration,
+    attr,
+    value,
+):
+    managed, __ = create_catalog_affiliations(dummy_regform.event)
+    field = create_representation_field(dummy_regform)
+    field.parent = RegistrationFormSection(registration_form=dummy_regform, title='Extra')
+    create_representation_registration(field, managed.id)
+
+    focal = create_user(1)
+    set_focal_points(managed, {focal})
+    setattr(field.parent, attr, value)
+    db.session.flush()
+
+    assert _focal_query(dummy_regform, focal) == []
 
 
 def test_criterion_matches_representation_only(
