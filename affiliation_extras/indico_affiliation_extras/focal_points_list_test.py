@@ -9,8 +9,7 @@ from indico.modules.events.features.util import set_feature_enabled
 from indico.modules.events.registration.models.items import PersonalDataType
 from indico.modules.events.registration.models.registrations import Registration, RegistrationData
 
-from indico_affiliation_extras.focal_points import focal_list_criterion
-from indico_affiliation_extras.models.focal_points import set_focal_points
+from indico_affiliation_extras.focal_points import focal_list_criterion, set_focal_points
 from indico_affiliation_extras.permissions import set_focal_point_management_enabled
 
 

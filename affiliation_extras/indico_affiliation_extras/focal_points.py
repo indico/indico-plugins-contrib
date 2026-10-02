@@ -37,6 +37,19 @@ def get_submitted_affiliation_ids(regform, data):
     return ids
 
 
+def get_focal_points(affiliation):
+    return {entry.user for entry in affiliation.focal_point_entries}
+
+
+def set_focal_points(affiliation, users):
+    entries = {entry.user: entry for entry in affiliation.focal_point_entries}
+    for user in users - entries.keys():
+        affiliation.focal_point_entries.add(FocalPoint(user=user))
+    for user, entry in entries.items():
+        if user not in users:
+            affiliation.focal_point_entries.discard(entry)
+
+
 def get_focal_affiliation_ids(user):
     """Return the affiliation ids ``user`` is centrally a focal point for (excluding deleted)."""
     if user is None:

@@ -7,7 +7,7 @@
 
 from indico.modules.users.models.affiliations import Affiliation
 
-from indico_affiliation_extras.models.focal_points import get_focal_points, set_focal_points
+from indico_affiliation_extras.focal_points import get_focal_points, set_focal_points
 
 
 def _login(test_client, user):

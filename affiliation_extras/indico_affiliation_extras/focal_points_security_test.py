@@ -9,7 +9,7 @@ import pytest
 
 from indico.modules.users.models.affiliations import Affiliation
 
-from indico_affiliation_extras.models.focal_points import set_focal_points
+from indico_affiliation_extras.focal_points import set_focal_points
 from indico_affiliation_extras.permissions import set_focal_point_management_enabled
 
 

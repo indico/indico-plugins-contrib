@@ -37,7 +37,7 @@ from indico.util.placeholders import get_sorted_placeholders, replace_placeholde
 from indico.util.string import validate_email
 from indico.web.args import use_kwargs, use_rh_args, use_rh_kwargs
 
-from indico_affiliation_extras.models.focal_points import get_focal_points, set_focal_points
+from indico_affiliation_extras.focal_points import get_focal_points, set_focal_points
 from indico_affiliation_extras.models.groups import AffiliationGroup
 from indico_affiliation_extras.models.tags import AffiliationTag
 from indico_affiliation_extras.schemas import (

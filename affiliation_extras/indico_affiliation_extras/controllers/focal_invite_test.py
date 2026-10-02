@@ -10,7 +10,7 @@ import pytest
 from indico.modules.events.registration.models.invitations import RegistrationInvitation
 from indico.modules.users.models.affiliations import Affiliation
 
-from indico_affiliation_extras.models.focal_points import set_focal_points
+from indico_affiliation_extras.focal_points import set_focal_points
 
 
 pytest_plugins = 'indico.modules.events.registration.testing.fixtures'
