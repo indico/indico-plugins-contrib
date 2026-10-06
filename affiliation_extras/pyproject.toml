@@ -2,7 +2,7 @@
 name = 'indico-plugin-affiliation-extras'
 description = 'Affiliation groups, tags, and custom fields for Indico'
 readme = 'README.md'
-version = '3.3.1-dev'
+version = '3.3.2-dev'
 license = 'MIT'
 authors = [{ name = 'Duarte Galvão', email = 'duarte.galvao@unconventional.dev' }]
 classifiers = [
@@ -12,7 +12,7 @@ classifiers = [
     'Programming Language :: Python :: 3.12',
 ]
 requires-python = '>=3.12.2, <3.13'
-dependencies = ['indico>=3.3.11']
+dependencies = ['indico>=3.3.14-dev']
 
 [project.urls]
 GitHub = 'https://github.com/indico/indico-plugins-contrib'
