@@ -8,14 +8,15 @@
 # Controllers for registration form affiliation endpoints.
 
 
-from flask import jsonify
-from marshmallow import fields, validate
+from flask import jsonify, session
+from marshmallow import ValidationError, fields, validate, validates_schema
 from sqlalchemy.orm import joinedload
 from webargs.flaskparser import abort
 from werkzeug.exceptions import NotFound
 
 from indico.core.db import db
 from indico.core.marshmallow import mm
+from indico.modules.events import EventLogRealm
 from indico.modules.events.registration.controllers.display import RHRegistrationFormFieldActionBase
 from indico.modules.events.registration.controllers.management import (
     RHManageRegFormBase,
@@ -24,6 +25,7 @@ from indico.modules.events.registration.controllers.management import (
 from indico.modules.events.registration.models.invitations import InvitationState, RegistrationInvitation
 from indico.modules.events.registration.schemas import RegistrationInvitationSchema
 from indico.modules.events.registration.util import create_invitation
+from indico.modules.logs import LogKind
 from indico.modules.users.models.affiliations import Affiliation
 from indico.modules.users.models.users import User
 from indico.modules.users.util import SearchAffiliationsMixin
@@ -37,6 +39,12 @@ from indico_affiliation_extras.controllers.base import (
 )
 from indico_affiliation_extras.controllers.compat import CountriesListMixin
 from indico_affiliation_extras.focal_points import get_event_catalog_affiliation_ids, get_event_catalog_focal_points
+from indico_affiliation_extras.invitations import (
+    AffiliationCatalogRecipientSource,
+    filter_invitation_recipients,
+    get_affiliation_catalog_invitation_recipients,
+)
+from indico_affiliation_extras.models.contacts import AffiliationContactList
 from indico_affiliation_extras.models.groups import AffiliationGroup
 from indico_affiliation_extras.models.lists import AffiliationList
 from indico_affiliation_extras.models.tags import AffiliationTag
@@ -173,15 +181,31 @@ class InviteByAffiliationArgs(InviteUsersArgs):
     affiliations = fields.Dict(load_default=dict)
 
 
-class InviteFocalPointsArgs(InviteUsersArgs):
-    # The invite dialog stores metadata here for recipient counts and also submits plugin extraFields.
-    focal_points = fields.Dict(load_default=dict)
+class AffiliationCatalogRecipientSelectionArgs(mm.Schema):
+    recipient_source = fields.Enum(AffiliationCatalogRecipientSource, required=True)
+    contact_lists = fields.List(fields.String(validate=not_empty), required=True)
+    include_unnamed_lists = fields.Boolean(required=True)
+
+
+class InviteAffiliationCatalogArgs(InviteUsersArgs, AffiliationCatalogRecipientSelectionArgs):
+    @validates_schema
+    def _validate_recipient_source(self, data, **kwargs):
+        if (
+            data['recipient_source']
+            in {
+                AffiliationCatalogRecipientSource.contacts,
+                AffiliationCatalogRecipientSource.both,
+            }
+            and not data['contact_lists']
+            and not data['include_unnamed_lists']
+        ):
+            raise ValidationError('At least one contact list is required', field_name='contact_lists')
 
 
 class RHInviteUsersBase(RHManageRegFormBase):
-    def _invite_users(
+    def _invite_recipients(
         self,
-        users,
+        recipients,
         sender_address,
         subject,
         body,
@@ -190,6 +214,8 @@ class RHInviteUsersBase(RHManageRegFormBase):
         skip_moderation,
         skip_access_check,
         lock_email,
+        *,
+        audit_log_data=None,
     ):
         sender_address = self.event.get_allowed_sender_emails(_for_sending=True).get(sender_address)
         if not sender_address:
@@ -197,17 +223,14 @@ class RHInviteUsersBase(RHManageRegFormBase):
         if not self.regform.moderation_enabled:
             skip_moderation = False
 
-        users = list(users)
-        invited = {inv.email.lower() for inv in self.regform.invitations}
-        registered = {r.email.lower() for r in self.regform.registrations if r.is_active and r.email}
-        existing = invited | registered
-        users_to_invite = [u for u in users if u.email and u.email.lower() not in existing]
-        skipped = len(users) - len(users_to_invite)
+        recipients = list(recipients)
+        recipients_to_invite = filter_invitation_recipients(self.regform, recipients)
+        skipped = len(recipients) - len(recipients_to_invite)
 
-        for user in users_to_invite:
+        for recipient in recipients_to_invite:
             create_invitation(
                 self.regform,
-                self._serialize_user(user),
+                self._serialize_recipient(recipient),
                 sender_address,
                 subject,
                 body,
@@ -217,6 +240,26 @@ class RHInviteUsersBase(RHManageRegFormBase):
                 bcc_addresses=bcc_addresses,
                 copy_for_sender=copy_for_sender,
             )
+
+        self.regform.log(
+            EventLogRealm.management,
+            LogKind.other,
+            'Registration',
+            'Invitations sent',
+            session.user,
+            data={
+                'Sender': sender_address,
+                'BCC addresses': bcc_addresses,
+                'CC to sender': copy_for_sender,
+                'Subject': subject,
+                'Body': body,
+                'Skip moderation': skip_moderation,
+                'Skip access check': skip_access_check,
+                'Lock email': lock_email,
+                **(audit_log_data or {}),
+                '_html_fields': ['Body'],
+            },
+        )
 
         invitations = (
             RegistrationInvitation.query
@@ -230,19 +273,19 @@ class RHInviteUsersBase(RHManageRegFormBase):
             .all()
         )
         return jsonify(
-            sent=len(users_to_invite),
+            sent=len(recipients_to_invite),
             skipped=skipped,
             has_pending_invitations=any(i.state == InvitationState.pending for i in invitations),
             invitation_list=RegistrationInvitationSchema(many=True).dump(invitations),
         )
 
     @staticmethod
-    def _serialize_user(user):
+    def _serialize_recipient(recipient):
         return {
-            'first_name': user.first_name,
-            'last_name': user.last_name,
-            'email': user.email,
-            'affiliation': user.affiliation or '',
+            'first_name': recipient.first_name,
+            'last_name': recipient.last_name,
+            'email': recipient.email,
+            'affiliation': recipient.affiliation or '',
         }
 
 
@@ -273,7 +316,7 @@ class RHInviteByAffiliation(RHInviteUsersBase):
         users_by_id = {
             user.id: user for user in User.query.filter(User.affiliation_id.in_(a.id for a in all_affiliations))
         }
-        return self._invite_users(
+        return self._invite_recipients(
             users_by_id.values(),
             sender_address,
             subject,
@@ -286,21 +329,47 @@ class RHInviteByAffiliation(RHInviteUsersBase):
         )
 
 
-class RHFocalPointInviteMetadata(RHManageRegFormBase):
-    """Return focal-point recipient information for the invitation dialog."""
+class RHAffiliationCatalogInviteMetadata(RHManageRegFormBase):
+    """Return affiliation-catalog recipient information for the invitation dialog."""
 
     def _process(self):
         affiliation_ids = get_event_catalog_affiliation_ids(self.event)
+        contact_lists = (
+            db.session
+            .query(
+                AffiliationContactList.name,
+                db.func.bool_or(db.func.cardinality(AffiliationContactList.emails) > 0),
+            )
+            .filter(AffiliationContactList.affiliation_id.in_(affiliation_ids))
+            .group_by(AffiliationContactList.name)
+            .order_by(db.func.indico.indico_unaccent(db.func.lower(AffiliationContactList.name)))
+        )
         return jsonify(
             focal_point_count=len(get_event_catalog_focal_points(self.event, affiliation_ids)),
             affiliation_count=len(affiliation_ids),
+            contact_list_options=[{'name': name, 'has_contacts': has_contacts} for name, has_contacts in contact_lists],
+            has_affiliation_catalog=get_default_catalog(self.event) is not None,
         )
 
 
-class RHInviteFocalPoints(RHInviteUsersBase):
-    """Invite focal points for affiliations in the event's catalog."""
+class RHAffiliationCatalogInviteRecipientCount(RHManageRegFormBase):
+    """Return the number of unique recipients for an affiliation-catalog selection."""
 
-    @use_kwargs(InviteFocalPointsArgs)
+    @use_kwargs(AffiliationCatalogRecipientSelectionArgs)
+    def _process(self, recipient_source, contact_lists, include_unnamed_lists):
+        recipients = get_affiliation_catalog_invitation_recipients(
+            self.event,
+            recipient_source=recipient_source,
+            contact_lists=contact_lists,
+            include_unnamed_lists=include_unnamed_lists,
+        )
+        return jsonify(recipient_count=len(recipients))
+
+
+class RHInviteAffiliationCatalog(RHInviteUsersBase):
+    """Invite selected recipients from the event's affiliation catalog."""
+
+    @use_kwargs(InviteAffiliationCatalogArgs)
     def _process(
         self,
         sender_address,
@@ -311,11 +380,23 @@ class RHInviteFocalPoints(RHInviteUsersBase):
         skip_moderation,
         skip_access_check,
         lock_email,
-        focal_points,
+        recipient_source,
+        contact_lists,
+        include_unnamed_lists,
     ):
-        users = sorted(get_event_catalog_focal_points(self.event), key=lambda u: (u.last_name, u.first_name, u.email))
-        return self._invite_users(
-            users,
+        recipients = get_affiliation_catalog_invitation_recipients(
+            self.event,
+            recipient_source=recipient_source,
+            contact_lists=contact_lists,
+            include_unnamed_lists=include_unnamed_lists,
+        )
+        recipients.sort(key=lambda recipient: (recipient.last_name, recipient.first_name, recipient.email))
+        include_contacts = recipient_source in {
+            AffiliationCatalogRecipientSource.contacts,
+            AffiliationCatalogRecipientSource.both,
+        }
+        return self._invite_recipients(
+            recipients,
             sender_address,
             subject,
             body,
@@ -324,4 +405,10 @@ class RHInviteFocalPoints(RHInviteUsersBase):
             skip_moderation,
             skip_access_check,
             lock_email,
+            audit_log_data={
+                'Invitation mode': 'Affiliation catalog',
+                'Recipient source': recipient_source.name,
+                'Contact lists': sorted(contact_lists) if include_contacts else [],
+                'Include unnamed contact lists': include_contacts and include_unnamed_lists,
+            },
         )

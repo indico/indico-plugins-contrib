@@ -7,6 +7,7 @@
 
 from datetime import timedelta
 
+import email_validator
 import pytest
 from flask import session
 
@@ -547,3 +548,86 @@ class TestRegistrationManagement:
         assert registration.can_manage(focal, 'registration_edit') is True
         assert registration.can_manage(focal, 'registration') is False
         assert registration.can_manage(create_user(2), 'registration_edit') is False
+
+
+@pytest.mark.usefixtures('no_csrf_check')
+class TestAffiliationContactsSave:
+    @pytest.mark.parametrize(
+        ('payload', 'expected'),
+        (
+            ({'name': 'Updated'}, [('Ops', ['ops@example.test'])]),
+            ({'contact_lists': []}, []),
+            ({'contact_lists': [{'name': 'New', 'emails': ['NEW@example.test']}]}, [('New', ['new@example.test'])]),
+        ),
+    )
+    def test_update(self, test_client, db, create_user, dummy_contact_affiliation, payload, expected):
+        _login(test_client, create_user(1, admin=True))
+        affiliation = dummy_contact_affiliation
+
+        resp = test_client.patch(f'/api/admin/affiliations/{affiliation.id}', json=payload)
+
+        assert resp.status_code == 204
+        db.session.expire_all()
+        assert [(lst.name, lst.emails) for lst in affiliation.contact_lists] == expected
+        resp = test_client.get('/api/admin/affiliations')
+        assert resp.status_code == 200
+        saved = next(item for item in resp.json if item['id'] == affiliation.id)
+        assert [(lst['name'], lst['emails']) for lst in saved['contact_lists']] == expected
+
+    @pytest.mark.parametrize(
+        'contact_lists',
+        (
+            [{'name': 'New', 'emails': []}],
+            [{'name': 'New', 'emails': ['not-an-email']}],
+            [{'name': 'Ops', 'emails': ['a@example.test']}, {'name': 'ops', 'emails': ['b@example.test']}],
+        ),
+        ids=('empty-emails', 'malformed-email', 'duplicate-names'),
+    )
+    def test_rejected_update_preserves_contacts(
+        self,
+        test_client,
+        db,
+        create_user,
+        dummy_contact_affiliation,
+        contact_lists,
+    ):
+        _login(test_client, create_user(1, admin=True))
+        affiliation = dummy_contact_affiliation
+
+        resp = test_client.patch(
+            f'/api/admin/affiliations/{affiliation.id}',
+            json={'name': 'Changed', 'contact_lists': contact_lists},
+        )
+
+        assert resp.status_code == 422
+        assert 'contact_lists' in resp.json['webargs_errors']
+        db.session.expire_all()
+        assert affiliation.name == 'CERN'
+        assert [(lst.name, lst.emails) for lst in affiliation.contact_lists] == [('Ops', ['ops@example.test'])]
+
+    def test_undeliverable_email_preserves_contacts(
+        self,
+        test_client,
+        db,
+        create_user,
+        dummy_contact_affiliation,
+        mocker,
+    ):
+        _login(test_client, create_user(1, admin=True))
+        affiliation = dummy_contact_affiliation
+        mocker.patch(
+            'email_validator.validate_email',
+            side_effect=email_validator.EmailUndeliverableError('No MX records'),
+        )
+
+        resp = test_client.patch(
+            f'/api/admin/affiliations/{affiliation.id}',
+            json={
+                'contact_lists': [{'name': 'New', 'emails': ['new@example.test']}],
+            },
+        )
+
+        assert resp.status_code == 422
+        assert 'contact_lists' in resp.json['webargs_errors']
+        db.session.expire_all()
+        assert [(lst.name, lst.emails) for lst in affiliation.contact_lists] == [('Ops', ['ops@example.test'])]

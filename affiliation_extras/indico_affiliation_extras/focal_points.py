@@ -5,6 +5,8 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
+from sqlalchemy.orm import selectinload
+
 from indico.core.db import db
 from indico.modules.events import Event
 from indico.modules.events.models.settings import EventSetting
@@ -73,9 +75,12 @@ def get_event_catalog_focal_points(event, affiliation_ids=None):
     if not affiliation_ids:
         return set()
     return set(
-        User.query.join(FocalPoint, FocalPoint.user_id == User.id).filter(
-            FocalPoint.affiliation_id.in_(affiliation_ids), ~User.is_deleted
+        User.query
+        .join(FocalPoint, FocalPoint.user_id == User.id)
+        .options(
+            selectinload('focal_point_entries').joinedload('affiliation'),
         )
+        .filter(FocalPoint.affiliation_id.in_(affiliation_ids), ~User.is_deleted)
     )
 
 

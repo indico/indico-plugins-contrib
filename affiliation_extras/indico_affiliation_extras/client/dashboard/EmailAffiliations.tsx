@@ -13,16 +13,17 @@ import emailImageUploadURL from 'indico-url:plugin_affiliation_extras.email_repr
 import {AxiosResponse} from 'axios';
 import React, {useState, useMemo} from 'react';
 import {Message, Dimmer, Loader, Modal, List, Accordion} from 'semantic-ui-react';
-import {FormSpy, Field, useForm} from 'react-final-form';
+import {FormSpy} from 'react-final-form';
 
 import {EmailDialog} from 'indico/modules/events/persons/EmailDialog';
 import indicoAxios from 'indico/utils/axios';
-import {FinalCheckbox, FinalDropdown, handleSubmitError} from 'indico/react/forms';
+import {handleSubmitError} from 'indico/react/forms';
 import {Plural, PluralTranslate, Singular, Translate} from 'indico/react/i18n';
 import {useIndicoAxios} from 'indico/react/hooks';
 
 import {ExtendedAffiliation} from '../types';
 import {ContactList} from '../components/ContactListField';
+import ContactListRecipientFields from '../components/ContactListRecipientFields';
 
 import './EmailAffiliations.module.scss';
 
@@ -52,39 +53,6 @@ const getAffiliationEmails = (
       )
     )
   );
-
-function RecipientsField({contactListOptions}: {contactListOptions: string[]}) {
-  const form = useForm();
-  return (
-    <>
-      <FinalDropdown
-        name="contact_lists"
-        label={Translate.string('Recipients')}
-        placeholder={Translate.string('Send to all contact lists')}
-        options={contactListOptions?.map((name: string) => ({value: name, text: name})) ?? []}
-        disabled={!contactListOptions?.length}
-        onChange={value => {
-          if (value.length === 0) {
-            form.change('include_unnamed_lists', true);
-          }
-        }}
-        selection
-        multiple
-        fluid
-      />
-      <Field name="contact_lists" subscription={{value: true}}>
-        {({input: {value: contactLists}}) => (
-          <FinalCheckbox
-            name="include_unnamed_lists"
-            label={Translate.string('Send to contacts in unnamed lists')}
-            disabled={!contactListOptions?.length || !contactLists.length}
-            showAsToggle
-          />
-        )}
-      </Field>
-    </>
-  );
-}
 
 interface RecipientsComponentProps {
   affiliations: ExtendedAffiliation[];
@@ -407,7 +375,9 @@ export default function EmailAffiliations({
               />
             )}
           </FormSpy>
-          <RecipientsField contactListOptions={contactListOptions} />
+          {contactListOptions.length > 0 && (
+            <ContactListRecipientFields contactListOptions={contactListOptions} />
+          )}
           <FormSpy subscription={{values: true}}>
             {({values}) => (
               <RecipientsList

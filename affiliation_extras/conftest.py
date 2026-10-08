@@ -18,6 +18,7 @@ from indico.modules.users.models.affiliations import Affiliation
 
 from indico_affiliation_extras.fields import RepresentationField
 from indico_affiliation_extras.models.catalogs import AffiliationCatalog
+from indico_affiliation_extras.models.contacts import AffiliationContactList
 from indico_affiliation_extras.models.lists import AffiliationList
 from indico_affiliation_extras.settings import event_settings
 
@@ -32,6 +33,15 @@ def _plugin_manifest(mocker):
     ``make_test_client``; we do the same for plugin bundles here.
     """
     mocker.patch.object(IndicoPlugin, 'manifest')
+
+
+@pytest.fixture
+def dummy_contact_affiliation(db):
+    affiliation = Affiliation(name='CERN')
+    db.session.add(affiliation)
+    affiliation.contact_lists.append(AffiliationContactList(name='Ops', emails=['ops@example.test']))
+    db.session.flush()
+    return affiliation
 
 
 @pytest.fixture
