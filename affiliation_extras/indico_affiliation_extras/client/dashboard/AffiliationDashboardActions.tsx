@@ -13,6 +13,7 @@ import {Translate} from 'indico/react/i18n';
 import ItemManagerModal from '../components/ItemManagerModal';
 import {ExtendedAffiliation} from '../types';
 
+import {hasAffiliationEmails} from './contactEmails';
 import TagManager from './TagManager';
 import GroupManager from './GroupManager';
 import EmailAffiliations from './EmailAffiliations';
@@ -27,6 +28,8 @@ export default function AffiliationDashboardActions({
   const [modalOpen, setModalOpen] = useState<string | null>(null);
   const openModal = (modal: string) => () => setModalOpen(modal);
   const closeModal = () => setModalOpen(null);
+  const hasEmailRecipients = affiliations.some(hasAffiliationEmails);
+  const hasVisibleEmailRecipients = visibleAffiliations.some(hasAffiliationEmails);
 
   const modal = {
     groups: (
@@ -70,21 +73,21 @@ export default function AffiliationDashboardActions({
         trigger={
           <Button type="button" icon="mail" content={Translate.string('Email representatives')} />
         }
-        disabled={affiliations.length === 0}
+        disabled={!hasEmailRecipients}
         floating
       >
         <Dropdown.Menu>
           <Dropdown.Item
             text={Translate.string('All affiliations')}
             description={`(${affiliations.length})`}
-            disabled={affiliations.length === 0}
+            disabled={!hasEmailRecipients}
             onClick={openModal('email-repr-all')}
           />
           <Dropdown.Item
             text={Translate.string('Filtered affiliations')}
             description={`(${visibleAffiliations.length}/${affiliations.length})`}
             disabled={
-              visibleAffiliations.length === 0 || visibleAffiliations.length === affiliations.length
+              !hasVisibleEmailRecipients || visibleAffiliations.length === affiliations.length
             }
             onClick={openModal('email-repr-filtered')}
           />

@@ -9,6 +9,8 @@ import {Translate} from 'indico/react/i18n';
 
 import {ExtendedAffiliation, GroupInfo, TagInfo} from '../types';
 
+import {hasActiveContactEmails} from './contactEmails';
+
 const NO_ITEMS_VALUE = '__NO_ITEMS__';
 const UNNAMED_LIST_VALUE = '__UNNAMED_LIST__';
 const LIST_FILTER_PREFIX = 'contact_list:';
@@ -39,6 +41,9 @@ const buildContactsOptions = (affiliations: ExtendedAffiliation[]) => {
   let hasUnnamedList = false;
   affiliations.forEach(affiliation => {
     affiliation.contact_lists.forEach(contact => {
+      if (!hasActiveContactEmails(contact)) {
+        return;
+      }
       const normalizedName = contact.name.trim();
       if (!normalizedName) {
         hasUnnamedList = true;
@@ -151,7 +156,7 @@ const affiliationFilters = ({affiliations}: {affiliations: ExtendedAffiliation[]
         if (!selectedValues.length) {
           return true;
         }
-        const hasContactEmails = entry.affiliation.contact_lists.length > 0;
+        const hasContactEmails = entry.affiliation.contact_lists.some(hasActiveContactEmails);
         const selectedListValues = selectedValues.filter(value =>
           value.startsWith(LIST_FILTER_PREFIX)
         );
@@ -159,9 +164,9 @@ const affiliationFilters = ({affiliations}: {affiliations: ExtendedAffiliation[]
           value.startsWith(LIST_FILTER_ABSENT_PREFIX)
         );
         const listNameValues = new Set(
-          entry.affiliation.contact_lists.map(contact =>
-            getContactListFilterValue(contact.name.trim())
-          )
+          entry.affiliation.contact_lists
+            .filter(hasActiveContactEmails)
+            .map(contact => getContactListFilterValue(contact.name.trim()))
         );
         return (
           (selectedValues.includes('has_contact_emails') && hasContactEmails) ||

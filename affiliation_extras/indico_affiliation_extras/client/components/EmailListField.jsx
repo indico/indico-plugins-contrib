@@ -5,7 +5,7 @@
 // redistribute them and/or modify them under the terms of the;
 // MIT License see the LICENSE file for more details.
 
-// XXX: delete this file once EmailListField is exportable
+// XXX: To delete when https://github.com/indico/indico/pull/7638 is merged.
 
 import _ from 'lodash';
 import PropTypes from 'prop-types';
@@ -19,12 +19,12 @@ const isValid = value => /^\S+@\S+\.\S+$/.test(value);
 /**
  * A field that lets the user enter email addresses
  */
-export function EmailListField({value, disabled, onChange, onFocus, onBlur}) {
+export function EmailListField({value, disabled, onChange, onFocus, onBlur, renderLabel}) {
   const [searchQuery, setSearchQuery] = useState('');
   const options = value.filter(isValid).map(x => ({text: x, value: x}));
 
   const setValue = newValue => {
-    newValue = _.uniq(newValue.filter(isValid));
+    newValue = _.uniq(newValue.filter(isValid).map(email => email.toLowerCase()));
     onChange(newValue);
     onFocus();
     onBlur();
@@ -72,6 +72,7 @@ export function EmailListField({value, disabled, onChange, onFocus, onBlur}) {
       onChange={handleChange}
       onSearchChange={handleSearchChange}
       onBlur={handleBlur}
+      renderLabel={renderLabel}
       selectedLabel={null}
       icon=""
     />
@@ -84,10 +85,14 @@ EmailListField.propTypes = {
   onChange: PropTypes.func.isRequired,
   onFocus: PropTypes.func,
   onBlur: PropTypes.func,
+  renderLabel: PropTypes.func,
 };
 
 EmailListField.defaultProps = {
   disabled: false,
   onFocus: () => {},
   onBlur: () => {},
+  renderLabel: undefined,
 };
+
+export default React.memo(EmailListField);

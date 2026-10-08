@@ -25,6 +25,7 @@ class AffiliationContactList(db.Model):
     affiliation_id = db.Column(db.Integer, db.ForeignKey('indico.affiliations.id', ondelete='CASCADE'), nullable=False)
     name = db.Column(db.String, nullable=False, default='')
     emails = db.Column(db.ARRAY(db.String), nullable=False, default=list)
+    inactive_emails = db.Column(db.ARRAY(db.String), nullable=False, default=list)
 
     affiliation = db.relationship(
         'Affiliation',
@@ -39,3 +40,8 @@ class AffiliationContactList(db.Model):
 
     def __repr__(self):
         return format_repr(self, 'id', _text=self.name)
+
+    @property
+    def active_emails(self):
+        inactive_emails = set(self.inactive_emails)
+        return [email for email in self.emails if email not in inactive_emails]

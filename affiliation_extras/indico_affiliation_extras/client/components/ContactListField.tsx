@@ -13,15 +13,11 @@ import {FinalField, unsortedArraysEqual} from 'indico/react/forms';
 import {useIndicoAxios} from 'indico/react/hooks';
 import {Translate} from 'indico/react/i18n';
 
-import {EmailListField} from './EmailListField';
+import {ContactList} from '../types';
 
-const DEFAULT_LIST_VALUE = {id: null, name: '', emails: []};
+import ContactEmailListField from './ContactEmailListField';
 
-export interface ContactList {
-  id?: number;
-  name: string;
-  emails: string[];
-}
+const DEFAULT_LIST_VALUE = {id: null, name: '', emails: [], inactive_emails: []};
 
 interface ContactListRowBaseProps {
   value: ContactList;
@@ -45,7 +41,7 @@ interface AdvancedContactListRowProps extends ContactListRowBaseProps {
 }
 
 function ContactListRow({
-  value: {id, name, emails},
+  value: {id, name, emails, inactive_emails: inactiveEmails},
   onChange,
   onDelete,
   nameOptions,
@@ -62,9 +58,20 @@ function ContactListRow({
     }
   };
   const emailList = (
-    <EmailListField
+    <ContactEmailListField
       value={emails}
-      onChange={newEmails => onChange({id, name, emails: newEmails})}
+      inactiveEmails={inactiveEmails}
+      onChange={newEmails =>
+        onChange({
+          id,
+          name,
+          emails: newEmails,
+          inactive_emails: inactiveEmails.filter(email => newEmails.includes(email)),
+        })
+      }
+      onInactiveEmailsChange={newInactiveEmails =>
+        onChange({id, name, emails, inactive_emails: newInactiveEmails})
+      }
     />
   );
   if (simple) {
@@ -85,7 +92,9 @@ function ContactListRow({
             .sort((a, b) => a.localeCompare(b))
             .map(opt => ({value: opt, text: opt}))}
           value={name}
-          onChange={(__, {value: newName}) => onChange({id, name: newName as string, emails})}
+          onChange={(__, {value: newName}) =>
+            onChange({id, name: newName as string, emails, inactive_emails: inactiveEmails})
+          }
           loading={loadingNameOptions}
           selection
           allowAdditions

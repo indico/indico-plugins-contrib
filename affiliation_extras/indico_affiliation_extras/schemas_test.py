@@ -38,23 +38,77 @@ def test_contact_lists_empty_allowed(schemas):
 
 def test_contact_list_emails_required(schemas):
     with pytest.raises(ValidationError) as excinfo:
-        schemas.AffiliationExtraAttrsArgs().load({'contact_lists': [{'id': None, 'name': 'Ops', 'emails': []}]})
+        schemas.AffiliationExtraAttrsArgs().load({
+            'contact_lists': [{'id': None, 'name': 'Ops', 'emails': [], 'inactive_emails': []}]
+        })
     assert 'emails' in excinfo.value.messages['contact_lists'][0]
 
 
 def test_contact_list_emails_valid(schemas):
     data = schemas.AffiliationExtraAttrsArgs().load({
-        'contact_lists': [{'id': None, 'name': 'Ops', 'emails': ['ops@example.test']}]
+        'contact_lists': [{'id': None, 'name': 'Ops', 'emails': ['ops@example.test'], 'inactive_emails': []}]
     })
     assert data['contact_lists'][0]['emails'] == ['ops@example.test']
+
+
+def test_contact_list_inactive_emails_required(schemas):
+    with pytest.raises(ValidationError) as excinfo:
+        schemas.AffiliationExtraAttrsArgs().load({
+            'contact_lists': [{'id': None, 'name': 'Ops', 'emails': ['ops@example.test']}]
+        })
+    assert 'inactive_emails' in excinfo.value.messages['contact_lists'][0]
+
+
+def test_contact_list_inactive_emails_valid(schemas):
+    data = schemas.AffiliationExtraAttrsArgs().load({
+        'contact_lists': [
+            {
+                'id': None,
+                'name': 'Ops',
+                'emails': ['ops@example.test', 'off@example.test'],
+                'inactive_emails': ['OFF@example.test'],
+            }
+        ]
+    })
+    assert data['contact_lists'][0]['inactive_emails'] == ['off@example.test']
+
+
+def test_contact_list_all_emails_inactive_allowed(schemas):
+    data = schemas.AffiliationExtraAttrsArgs().load({
+        'contact_lists': [
+            {
+                'id': None,
+                'name': 'Ops',
+                'emails': ['off@example.test'],
+                'inactive_emails': ['off@example.test'],
+            }
+        ]
+    })
+    assert data['contact_lists'][0]['emails'] == ['off@example.test']
+    assert data['contact_lists'][0]['inactive_emails'] == ['off@example.test']
+
+
+def test_contact_list_inactive_emails_must_belong_to_list(schemas):
+    with pytest.raises(ValidationError) as excinfo:
+        schemas.AffiliationExtraAttrsArgs().load({
+            'contact_lists': [
+                {
+                    'id': None,
+                    'name': 'Ops',
+                    'emails': ['ops@example.test'],
+                    'inactive_emails': ['off@example.test'],
+                }
+            ]
+        })
+    assert excinfo.value.messages == {'contact_lists': ['Inactive emails must belong to the contact list']}
 
 
 def test_contact_lists_reject_duplicate_names(schemas):
     with pytest.raises(ValidationError, match='Contact list names must be unique'):
         schemas.AffiliationExtraAttrsArgs().load({
             'contact_lists': [
-                {'id': None, 'name': 'Ops', 'emails': ['a@example.test']},
-                {'id': None, 'name': 'ops', 'emails': ['b@example.test']},
+                {'id': None, 'name': 'Ops', 'emails': ['a@example.test'], 'inactive_emails': []},
+                {'id': None, 'name': 'ops', 'emails': ['b@example.test'], 'inactive_emails': []},
             ]
         })
 
