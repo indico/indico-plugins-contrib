@@ -48,27 +48,33 @@ def test_email_image_upload_returns_url(test_client, db, create_user, no_csrf_ch
 
 class TestEmailRepresentatives:
     @pytest.mark.usefixtures('no_csrf_check')
-    @pytest.mark.parametrize(('emails', 'inactive_emails', 'expected_recipients', 'skipped'), (
-        (['disabled@example.com'], ['disabled@example.com'], set(), 1),
+    @pytest.mark.parametrize(
+        ('emails', 'inactive_emails', 'expected_recipients', 'skipped'),
         (
-            ['active@example.com', 'disabled@example.com'],
-            ['disabled@example.com'],
-            {'active@example.com'},
-            0,
+            (['disabled@example.com'], ['disabled@example.com'], set(), 1),
+            (
+                ['active@example.com', 'disabled@example.com'],
+                ['disabled@example.com'],
+                {'active@example.com'},
+                0,
+            ),
         ),
-    ), ids=('all-disabled', 'mixed-active-disabled'))
+        ids=('all-disabled', 'mixed-active-disabled'),
+    )
     def test_send_excludes_disabled_addresses(
         self, test_client, db, create_user, smtp, emails, inactive_emails, expected_recipients, skipped
     ):
         admin = create_user(1, admin=True)
         _login(test_client, admin)
         affiliation = _create_affiliation(db)
-        db.session.add(AffiliationContactList(
-            affiliation=affiliation,
-            name='Representatives',
-            emails=emails,
-            inactive_emails=inactive_emails,
-        ))
+        db.session.add(
+            AffiliationContactList(
+                affiliation=affiliation,
+                name='Representatives',
+                emails=emails,
+                inactive_emails=inactive_emails,
+            )
+        )
         db.session.flush()
 
         resp = test_client.post(
@@ -89,10 +95,14 @@ class TestEmailRepresentatives:
         assert resp.json == {'count': len(expected_recipients), 'skipped': skipped}
 
     @pytest.mark.usefixtures('no_csrf_check')
-    @pytest.mark.parametrize(('contact_lists', 'expected_recipients'), (
-        ([], {'active@example.com', 'other@example.com'}),
-        (['Representatives'], {'active@example.com'}),
-    ), ids=('all-lists', 'selected-list'))
+    @pytest.mark.parametrize(
+        ('contact_lists', 'expected_recipients'),
+        (
+            ([], {'active@example.com', 'other@example.com'}),
+            (['Representatives'], {'active@example.com'}),
+        ),
+        ids=('all-lists', 'selected-list'),
+    )
     def test_send_mixed_lists_counts_recipients_and_skipped_affiliations(
         self, test_client, db, create_user, smtp, contact_lists, expected_recipients
     ):

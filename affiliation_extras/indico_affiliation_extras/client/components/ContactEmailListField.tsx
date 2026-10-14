@@ -37,7 +37,6 @@ export default function ContactEmailListField({
   };
 
   const handleToggleInactiveEmail = (event: React.MouseEvent<HTMLElement>, email: string) => {
-    event.preventDefault();
     event.stopPropagation();
     toggleInactiveEmail(email);
   };
