@@ -68,7 +68,9 @@ export default function ContactEmailListField({
                   toggle
                   active={inactive}
                   onClick={event => handleToggleInactiveEmail(event, email)}
+                  // Dropdown focus handling would move focus back to its search input.
                   onFocus={event => event.stopPropagation()}
+                  // Dropdown shortcuts would intercept Enter/Space meant to activate this button.
                   onKeyDown={event => event.stopPropagation()}
                   styleName="toggle-inactive-email"
                 />
