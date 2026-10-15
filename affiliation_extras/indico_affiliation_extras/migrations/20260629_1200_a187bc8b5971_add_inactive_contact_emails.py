@@ -23,6 +23,12 @@ def upgrade():
         sa.Column('inactive_emails', postgresql.ARRAY(sa.String()), nullable=False, server_default='{}'),
         schema='plugin_affiliation_extras',
     )
+    op.create_check_constraint(
+        'inactive_emails_subset',
+        'affiliation_contact_lists',
+        'inactive_emails <@ emails',
+        schema='plugin_affiliation_extras',
+    )
     op.alter_column(
         'affiliation_contact_lists',
         'inactive_emails',
@@ -32,4 +38,7 @@ def upgrade():
 
 
 def downgrade():
+    op.drop_constraint(
+        'inactive_emails_subset', 'affiliation_contact_lists', schema='plugin_affiliation_extras', type_='check'
+    )
     op.drop_column('affiliation_contact_lists', 'inactive_emails', schema='plugin_affiliation_extras')

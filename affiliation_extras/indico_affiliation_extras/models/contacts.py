@@ -12,6 +12,7 @@ from indico.util.string import format_repr
 class AffiliationContactList(db.Model):
     __tablename__ = 'affiliation_contact_lists'
     __table_args__ = (
+        db.CheckConstraint('inactive_emails <@ emails', 'inactive_emails_subset'),
         db.Index(
             'ix_uq_affiliation_contact_lists_affiliation_id_name_lower',
             'affiliation_id',
