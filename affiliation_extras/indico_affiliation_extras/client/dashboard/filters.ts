@@ -25,12 +25,12 @@ const getContactListAbsentFilterValue = (name: string) =>
 const BASE_REPRESENTATION_OPTIONS = [
   {
     value: 'has_contact_emails',
-    text: Translate.string('Has contact emails'),
+    text: Translate.string('Has active contact emails'),
     exclusive: true,
   },
   {
     value: 'no_contact_emails',
-    text: Translate.string('No contact emails'),
+    text: Translate.string('No active contact emails'),
     exclusive: true,
   },
 ];
@@ -66,21 +66,21 @@ const buildContactsOptions = (affiliations: ExtendedAffiliation[]) => {
     .flatMap(name => [
       {
         value: getContactListFilterValue(name),
-        text: Translate.string('Has contacts in "{name}"', {name}),
+        text: Translate.string('Has active contact emails in "{name}"', {name}),
       },
       {
         value: getContactListAbsentFilterValue(name),
-        text: Translate.string('No contacts in "{name}"', {name}),
+        text: Translate.string('No active contact emails in "{name}"', {name}),
       },
     ]);
   if (hasUnnamedList) {
     listOptions.push({
       value: getContactListFilterValue(''),
-      text: Translate.string('Has contacts in unnamed list'),
+      text: Translate.string('Has active contact emails in unnamed list'),
     });
     listOptions.push({
       value: getContactListAbsentFilterValue(''),
-      text: Translate.string('No contacts in unnamed list'),
+      text: Translate.string('No active contact emails in unnamed list'),
     });
   }
 
