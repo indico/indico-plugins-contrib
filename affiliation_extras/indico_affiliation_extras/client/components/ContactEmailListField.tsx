@@ -5,7 +5,6 @@
 // redistribute them and/or modify them under the terms of the;
 // MIT License see the LICENSE file for more details.
 
-import _ from 'lodash';
 import React from 'react';
 import {Button, DropdownProps, Label, Popup} from 'semantic-ui-react';
 
@@ -82,11 +81,5 @@ export default function ContactEmailListField({
     );
   };
 
-  return (
-    <EmailListField
-      value={value}
-      onChange={emails => onChange(_.uniq(emails.map(email => email.toLowerCase())))}
-      renderLabel={renderLabel}
-    />
-  );
+  return <EmailListField value={value} onChange={onChange} renderLabel={renderLabel} />;
 }
