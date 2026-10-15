@@ -55,15 +55,17 @@ export default function ContactEmailListField({
             <span>{item.text}</span>
             <Popup
               content={
-                inactive
-                  ? Translate.string('Enable email')
-                  : Translate.string('Disable email temporarily')
+                inactive ? Translate.string('Enable email') : Translate.string('Disable email')
               }
               trigger={
                 <Button
                   type="button"
                   icon={inactive ? 'check' : 'ban'}
-                  aria-label={Translate.string('Disable email {email}', {email})}
+                  aria-label={
+                    inactive
+                      ? Translate.string('Enable email {email}', {email})
+                      : Translate.string('Disable email {email}', {email})
+                  }
                   toggle
                   active={inactive}
                   onClick={event => handleToggleInactiveEmail(event, email)}
