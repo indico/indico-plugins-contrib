@@ -6,8 +6,14 @@
 // MIT License see the LICENSE file for more details.
 
 :global(.ui.multiple.dropdown) .inactive-email {
-  background: repeating-linear-gradient(-40deg, #fff, #fff 10px, #ececec 10px, #ececec 20px);
-  color: #555;
+  background: repeating-linear-gradient(
+    -40deg,
+    var(--background-primary),
+    var(--background-primary) 10px,
+    var(--surface-default) 10px,
+    var(--surface-default) 20px
+  );
+  color: var(--text-secondary-color);
 
   span {
     text-decoration: line-through;
@@ -16,13 +22,13 @@
   :global(.ui.form .field.error) & {
     background: repeating-linear-gradient(
       -40deg,
-      #fff6f6,
-      #fff6f6 10px,
-      #f2caca 10px,
-      #f2caca 20px
+      color-mix(in srgb, var(--background-primary), var(--text-red-color) 5%),
+      color-mix(in srgb, var(--background-primary), var(--text-red-color) 5%) 10px,
+      color-mix(in srgb, var(--background-primary), var(--text-red-color) 20%) 10px,
+      color-mix(in srgb, var(--background-primary), var(--text-red-color) 20%) 20px
     );
-    border-color: #e0b4b4;
-    color: #9f3a38;
+    border-color: var(--text-red-color);
+    color: var(--text-red-color);
   }
 }
 
