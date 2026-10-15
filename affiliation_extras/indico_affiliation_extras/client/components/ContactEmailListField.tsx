@@ -5,13 +5,12 @@
 // redistribute them and/or modify them under the terms of the;
 // MIT License see the LICENSE file for more details.
 
+import _ from 'lodash';
 import React from 'react';
 import {Button, DropdownProps, Label, Popup} from 'semantic-ui-react';
 
+import {EmailListField} from 'indico/react/components';
 import {Translate} from 'indico/react/i18n';
-
-// XXX: import from 'indico/react/components' when https://github.com/indico/indico/pull/7638 is merged.
-import {EmailListField} from './EmailListField';
 
 import './ContactEmailListField.module.scss';
 
@@ -81,5 +80,11 @@ export default function ContactEmailListField({
     );
   };
 
-  return <EmailListField value={value} onChange={onChange} renderLabel={renderLabel} />;
+  return (
+    <EmailListField
+      value={value}
+      onChange={emails => onChange(_.uniq(emails.map(email => email.toLowerCase())))}
+      renderLabel={renderLabel}
+    />
+  );
 }
