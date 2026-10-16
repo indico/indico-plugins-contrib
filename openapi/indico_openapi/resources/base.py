@@ -16,6 +16,7 @@ from indico.web.rh import RH
 
 
 PREFETCH_FACTOR = 5
+MAX_SCANNED_ROWS = 1000
 
 
 @dataclass(frozen=True)
@@ -67,27 +68,25 @@ def paginate(query, predicate, limit, offset):
 
     ``predicate`` is applied in Python because Indico's access checks walk the
     ACL and the protection chain, which cannot be expressed as a SQL filter.
+    At most ``MAX_SCANNED_ROWS`` rows are scanned per request, so a caller who
+    can see few of them gets a short page and a cursor instead of a full scan.
     """
     accepted = []
     scanned = offset
-    cutoff = None
-    while True:
-        batch = query.offset(scanned).limit((limit + 1) * PREFETCH_FACTOR).all()
-        if not batch:
-            break
+    batch_size = (limit + 1) * PREFETCH_FACTOR
+    while (remaining := offset + MAX_SCANNED_ROWS - scanned) > 0:
+        size = min(batch_size, remaining)
+        batch = query.offset(scanned).limit(size).all()
         for obj in batch:
             scanned += 1
             if not predicate(obj):
                 continue
             accepted.append(obj)
-            if len(accepted) == limit:
-                cutoff = scanned
             if len(accepted) > limit:
-                break
-        if len(accepted) > limit:
-            break
-    has_more = len(accepted) > limit
-    return accepted[:limit], (cutoff if has_more else None)
+                return accepted[:limit], scanned - 1
+        if len(batch) < size:
+            return accepted, None
+    return accepted, scanned
 
 
 def jsonify_results(schema, objects):

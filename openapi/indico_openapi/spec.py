@@ -56,7 +56,8 @@ def page_schema(schema_cls):
                     allow_none=True,
                     metadata={
                         'description': 'Value to pass as `offset` to get the next '
-                        'page, or `null` when this is the last one.'
+                        'page, or `null` when this is the last one. A page can hold '
+                        'fewer results than `limit`, even none, before the last one.'
                     },
                 ),
             },

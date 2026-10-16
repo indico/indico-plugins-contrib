@@ -118,6 +118,19 @@ def test_event_list_paginates(create_event, token_headers, test_client):
     assert listed <= {e.id for e in events}
 
 
+def test_event_list_stops_scanning_at_the_cap(db, create_event, outsider_headers, test_client, mocker):
+    mocker.patch('indico_openapi.resources.base.MAX_SCANNED_ROWS', 2)
+    for __ in range(3):
+        create_event(protection_mode=ProtectionMode.protected)
+    db.session.flush()
+    resp = test_client.get('/api/v1/events', headers=outsider_headers)
+    assert resp.json['results'] == []
+    assert resp.json['next_offset'] == 2
+    resp = test_client.get('/api/v1/events?offset=2', headers=outsider_headers)
+    assert resp.json['results'] == []
+    assert resp.json['next_offset'] is None
+
+
 def test_event_list_filters_by_category(dummy_event, create_category, create_event, token_headers, test_client):
     other = create_event(category=create_category(1))
     resp = test_client.get(f'/api/v1/events?category_id={dummy_event.category_id}', headers=token_headers)
