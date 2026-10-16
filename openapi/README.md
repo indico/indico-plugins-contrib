@@ -839,7 +839,9 @@ List endpoints take `limit` and `offset` and answer with an envelope:
 
 `next_offset` is the value to send as `offset` to get the next page, or `null`
 on the last one. It counts rows scanned rather than results returned, because
-rows the user cannot access are skipped without being listed.
+rows the user cannot access are skipped without being listed. A request scans
+a bounded number of rows, so a page can hold fewer results than `limit`, even
+none, before the last one: keep following `next_offset` until it is `null`.
 
 ## Authentication
 
