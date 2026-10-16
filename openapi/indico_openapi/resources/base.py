@@ -7,11 +7,11 @@
 
 from dataclasses import dataclass
 
-from flask import jsonify, request, session
+from flask import jsonify, session
 from marshmallow import fields, validate
 
 from indico.core.marshmallow import mm
-from indico.web.args import parser
+from indico.web.args import use_kwargs
 from indico.web.rh import RH
 
 
@@ -116,8 +116,8 @@ class RHListBase(RH):
         return self.schema(many=True)
 
     def _process_GET(self):
-        args = parser.parse(self.args_schema, request, location='query')
-        limit = args.pop('limit')
-        offset = args.pop('offset')
-        results, next_offset = paginate(self._query(**args), self._can_access, limit, offset)
+        return use_kwargs(self.args_schema, location='query')(self._list)()
+
+    def _list(self, limit, offset, **filters):
+        results, next_offset = paginate(self._query(**filters), self._can_access, limit, offset)
         return jsonify(results=self._dump_schema().dump(results), count=len(results), next_offset=next_offset)
