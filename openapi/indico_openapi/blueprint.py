@@ -17,7 +17,14 @@ from indico_openapi.resources import ENDPOINTS
 
 SWAGGER_UI_DIST = Path(flask_swagger_ui.__file__).parent / 'dist'
 
-blueprint = IndicoPluginBlueprint('openapi', __name__, url_prefix='/api/v1', static_folder=str(SWAGGER_UI_DIST))
+# a subpath keeps the plugin's own static folder reachable at the default plugin static url
+blueprint = IndicoPluginBlueprint(
+    'openapi',
+    __name__,
+    url_prefix='/api/v1',
+    static_folder=str(SWAGGER_UI_DIST),
+    static_url_path='/static/plugins/openapi/swagger-ui',
+)
 
 blueprint.add_url_rule('/openapi.json', 'spec', RHSpec)
 blueprint.add_url_rule('/docs', 'docs', RHDocs)
