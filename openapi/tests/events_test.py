@@ -118,6 +118,17 @@ def test_event_list_paginates(create_event, token_headers, test_client):
     assert listed <= {e.id for e in events}
 
 
+@pytest.mark.parametrize('query', ('limit=0', 'limit=101', 'offset=-1', 'start_after=yesterday'))
+def test_event_list_rejects_invalid_arguments(dummy_event, token_headers, test_client, query):
+    resp = test_client.get(f'/api/v1/events?{query}', headers=token_headers)
+    assert resp.status_code == 422
+
+
+def test_event_list_ignores_unknown_arguments(dummy_event, token_headers, test_client):
+    resp = test_client.get('/api/v1/events?foo=bar', headers=token_headers)
+    assert resp.json['count'] == 1
+
+
 def test_event_list_stops_scanning_at_the_cap(db, create_event, outsider_headers, test_client, mocker):
     mocker.patch('indico_openapi.resources.base.MAX_SCANNED_ROWS', 2)
     for __ in range(3):
