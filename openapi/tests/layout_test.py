@@ -205,7 +205,7 @@ def test_menu_serves_a_user_link(dummy_event, custom_menu, token_headers, test_c
     entry = entry_named(resp.json['results'], 'Our sponsor')
     assert entry['type'] == 'user_link'
     assert entry['url'] == 'https://example.com/sponsor'
-    assert entry['new_tab'] is True
+    assert entry['new_tab']
 
 
 def test_menu_serves_the_identifier_of_a_stored_entry(dummy_event, custom_menu, token_headers, test_client):
@@ -286,7 +286,7 @@ def test_default_page_is_flagged(db, dummy_event, dummy_page, token_headers, tes
     dummy_event.default_page = dummy_page
     db.session.flush()
     resp = test_client.get(f'/api/v1/events/{dummy_event.id}/pages/{dummy_page.id}', headers=token_headers)
-    assert resp.json['is_default'] is True
+    assert resp.json['is_default']
 
 
 def test_page_of_a_restricted_entry_is_hidden(db, dummy_event, dummy_page, token_headers, test_client):

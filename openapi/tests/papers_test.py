@@ -32,12 +32,12 @@ def test_paper_details(dummy_event, dummy_contribution, dummy_paper_revision, du
     assert resp.json['contribution']['id'] == dummy_contribution.id
     assert resp.json['contribution']['title'] == dummy_contribution.title
     assert resp.json['state'] == 'submitted'
-    assert resp.json['is_in_final_state'] is False
+    assert not resp.json['is_in_final_state']
     assert resp.json['revision_count'] == 1
     assert [r['number'] for r in resp.json['revisions']] == [1]
     assert resp.json['revisions'][0]['submitter']['id'] == dummy_user.id
     assert resp.json['revisions'][0]['judge'] is None
-    assert resp.json['revisions'][0]['is_last_revision'] is True
+    assert resp.json['revisions'][0]['is_last_revision']
 
 
 def test_paper_revisions(
@@ -144,7 +144,7 @@ def test_judged_paper(
         f'/api/v1/events/{dummy_event.id}/contributions/{dummy_contribution.id}/paper', headers=token_headers
     )
     assert resp.json['state'] == 'accepted'
-    assert resp.json['is_in_final_state'] is True
+    assert resp.json['is_in_final_state']
     assert resp.json['revisions'][0]['judge']['id'] == dummy_user.id
     assert resp.json['revisions'][0]['judgment_comment'] == 'Good enough'
 

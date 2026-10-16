@@ -48,30 +48,20 @@ def test_contribution_list(dummy_event, dummy_contribution, token_headers, test_
     assert [c['id'] for c in resp.json['results']] == [dummy_contribution.id]
 
 
-def test_contribution_denied_without_access(
-    dummy_event, dummy_contribution, dummy_personal_token, create_user, db, test_client
-):
-    outsider = create_user(42)
-    dummy_personal_token.user = outsider
-    dummy_personal_token.scopes = ['read:everything']
+def test_contribution_denied_without_access(dummy_event, dummy_contribution, db, outsider_headers, test_client):
     dummy_event.protection_mode = ProtectionMode.protected
     db.session.flush()
-    headers = {'Authorization': f'Bearer {dummy_personal_token._plaintext_token}'}
-    resp = test_client.get(f'/api/v1/events/{dummy_event.id}/contributions/{dummy_contribution.id}', headers=headers)
+    resp = test_client.get(
+        f'/api/v1/events/{dummy_event.id}/contributions/{dummy_contribution.id}', headers=outsider_headers
+    )
     assert resp.status_code == 403
     assert 'error' in resp.json
 
 
-def test_contribution_list_denied_while_unpublished(
-    dummy_event, dummy_contribution, dummy_personal_token, create_user, db, test_client
-):
-    outsider = create_user(42)
-    dummy_personal_token.user = outsider
-    dummy_personal_token.scopes = ['read:everything']
+def test_contribution_list_denied_while_unpublished(dummy_event, dummy_contribution, db, outsider_headers, test_client):
     contribution_settings.set(dummy_event, 'published', False)
     db.session.flush()
-    headers = {'Authorization': f'Bearer {dummy_personal_token._plaintext_token}'}
-    resp = test_client.get(f'/api/v1/events/{dummy_event.id}/contributions', headers=headers)
+    resp = test_client.get(f'/api/v1/events/{dummy_event.id}/contributions', headers=outsider_headers)
     assert resp.status_code == 404
 
 

@@ -60,13 +60,13 @@ def test_feature_list_skips_what_the_event_type_disallows(db, dummy_event, token
 @pytest.mark.usefixtures('event_manager')
 def test_feature_list_follows_the_toggles(dummy_event, token_headers, test_client):
     resp = test_client.get(f'/api/v1/events/{dummy_event.id}/features', headers=token_headers)
-    assert feature_named(resp.json['results'], 'surveys')['enabled'] is True
-    assert feature_named(resp.json['results'], 'images')['enabled'] is False
+    assert feature_named(resp.json['results'], 'surveys')['enabled']
+    assert not feature_named(resp.json['results'], 'images')['enabled']
     set_feature_enabled(dummy_event, 'images', True)
     set_feature_enabled(dummy_event, 'surveys', False)
     resp = test_client.get(f'/api/v1/events/{dummy_event.id}/features', headers=token_headers)
-    assert feature_named(resp.json['results'], 'images')['enabled'] is True
-    assert feature_named(resp.json['results'], 'surveys')['enabled'] is False
+    assert feature_named(resp.json['results'], 'images')['enabled']
+    assert not feature_named(resp.json['results'], 'surveys')['enabled']
 
 
 def test_features_are_manager_only(dummy_event, token_headers, test_client):

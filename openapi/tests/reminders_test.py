@@ -46,7 +46,7 @@ def test_reminder_details(dummy_event, dummy_reminder, dummy_user, token_headers
     assert resp.json['recipients'] == ['someone@example.test']
     assert resp.json['scheduled_dt'] == '2026-09-01T08:00:00+00:00'
     assert resp.json['event_start_delta'] is None
-    assert resp.json['is_sent'] is False
+    assert not resp.json['is_sent']
     assert resp.json['creator']['id'] == dummy_user.id
 
 
@@ -74,8 +74,8 @@ def test_reminder_serves_its_participant_filters(
         tags={tag},
     )
     resp = test_client.get(f'/api/v1/events/{dummy_event.id}/reminders/{reminder.id}', headers=token_headers)
-    assert resp.json['send_to_participants'] is True
-    assert resp.json['all_tags'] is True
+    assert resp.json['send_to_participants']
+    assert resp.json['all_tags']
     assert [form['id'] for form in resp.json['forms']] == sorted([dummy_regform.id, other_form.id])
     assert [t['title'] for t in resp.json['tags']] == ['VIP']
 

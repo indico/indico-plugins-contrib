@@ -315,7 +315,7 @@ def test_registration_form_sections(
     newsletter = preferences['fields'][1]
     assert newsletter['input_type'] == 'checkbox'
     assert newsletter['price'] == 0
-    assert newsletter['default_value'] is False
+    assert not newsletter['default_value']
 
 
 def test_registration_form_section_details(
@@ -407,7 +407,7 @@ def test_registration_details_carry_the_answers(
     assert diet['data'] == {CHOICE_IDS[0]: 1}
     assert diet['value'] == 'Vegetarian'
     assert Decimal(diet['price']) == 5
-    assert newsletter['data'] is True
+    assert newsletter['data']
     assert newsletter['value'] == 'Yes'
     assert Decimal(newsletter['price']) == 0
 

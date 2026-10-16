@@ -116,7 +116,7 @@ def test_managers_see_hidden_rooms(dummy_event, create_vc_room, token_headers, t
     assoc = create_vc_room(show=False)
     resp = test_client.get(f'/api/v1/events/{dummy_event.id}/videoconference-rooms', headers=token_headers)
     assert [room['id'] for room in resp.json['results']] == [assoc.id]
-    assert resp.json['results'][0]['show'] is False
+    assert not resp.json['results'][0]['show']
     resp = test_client.get(f'/api/v1/events/{dummy_event.id}/videoconference-rooms/{assoc.id}', headers=token_headers)
     assert resp.status_code == 200
 

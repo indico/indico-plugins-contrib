@@ -81,7 +81,7 @@ def test_payment_list_filters_by_registration(
     token_headers,
     test_client,
 ):
-    other_reg = create_registration(create_user(43), dummy_regform)
+    other_reg = create_registration(create_user(421), dummy_regform)
     db.session.add(other_reg)
     db.session.flush()
     other_payment = create_payment(registration=other_reg, timestamp=datetime(2026, 9, 2, 8, 0, tzinfo=UTC))

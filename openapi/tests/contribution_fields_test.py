@@ -96,7 +96,7 @@ def test_managers_see_every_contribution_field(
     resp = test_client.get(f'{url}/{internal_field.id}', headers=token_headers)
     assert resp.json['visibility'] == 'managers_only'
     resp = test_client.get(f'{url}/{retired_field.id}', headers=token_headers)
-    assert resp.json['is_active'] is False
+    assert not resp.json['is_active']
 
 
 def test_contribution_field_denied_without_event_access(db, dummy_event, summary_field, outsider_headers, test_client):

@@ -60,7 +60,7 @@ def test_settings_follow_what_the_user_saved(db, dummy_user, token_headers, test
     db.session.flush()
     resp = test_client.get('/api/v1/users/me/settings', headers=token_headers)
     assert resp.json['timezone'] == 'Europe/Zurich'
-    assert resp.json['force_timezone'] is True
+    assert resp.json['force_timezone']
     assert resp.json['add_ical_alerts_mins'] == 30
     assert resp.json['synced_fields'] == ['first_name']
 

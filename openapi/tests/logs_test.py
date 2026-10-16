@@ -8,7 +8,7 @@
 from datetime import UTC, datetime
 
 import pytest
-from parity import rename_keys
+from tests.parity import rename_keys
 
 from indico.modules.logs.models.entries import EventLogRealm, LogKind
 
