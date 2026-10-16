@@ -38,15 +38,16 @@ def test_docs_page_is_served(dummy_user, test_client):
     assert 'swagger-ui' in resp.text
 
 
-def test_docs_page_runs_under_csp(dummy_user, test_client, patch_indico_config):
-    patch_indico_config('CSP_ENABLED', True)
+def test_docs_page_has_no_inline_code(dummy_user, test_client):
     with test_client.session_transaction() as sess:
         sess.set_session_user(dummy_user)
     resp = test_client.get('/api/v1/docs')
-    nonce = re.search(r"'nonce-([\w-]+)'", resp.headers['Content-Security-Policy']).group(1)
-    inline_scripts = re.findall(r'<script((?:(?!\ssrc=)[^>])*)>', resp.text)
-    assert inline_scripts
-    assert all(f'nonce="{nonce}"' in attrs for attrs in inline_scripts)
+    assert not re.findall(r'<script(?:(?!\ssrc=)[^>])*>', resp.text)
+    assert '<style' not in resp.text
+    assets = re.findall(r'(?:src|href)="([^"]*/static/plugins/openapi/[^"]+)"', resp.text)
+    assert assets
+    for asset in assets:
+        assert test_client.get(asset).status_code == 200
 
 
 def test_spec_documents_every_field(dummy_user, test_client):
