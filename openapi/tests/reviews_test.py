@@ -47,7 +47,7 @@ def dummy_track(db, dummy_event):
 
 @pytest.fixture
 def reviewer(create_user):
-    return create_user(43)
+    return create_user(421)
 
 
 @pytest.fixture
@@ -257,7 +257,7 @@ def test_abstract_review_questions_are_served_to_the_abstract_managers(
     assert resp.json['results'][0]['title'] == 'Originality'
     assert resp.json['results'][0]['description'] == 'How novel the work is'
     assert resp.json['results'][0]['field_data'] == {'min': 0, 'max': 5}
-    assert resp.json['results'][0]['no_score'] is False
+    assert not resp.json['results'][0]['no_score']
 
 
 def test_abstract_review_questions_are_forbidden_without_management(
@@ -388,7 +388,7 @@ def test_paper_review_questions_are_served_to_the_paper_managers(
     assert [q['id'] for q in resp.json['results']] == [paper_question.id]
     assert resp.json['results'][0]['title'] == 'Clarity'
     assert resp.json['results'][0]['type'] == 'content'
-    assert resp.json['results'][0]['is_required'] is False
+    assert not resp.json['results'][0]['is_required']
 
 
 def test_paper_review_questions_are_forbidden_without_management(

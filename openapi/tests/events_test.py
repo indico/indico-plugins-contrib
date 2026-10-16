@@ -67,14 +67,10 @@ def test_event_without_extras(dummy_event, token_headers, test_client):
     assert resp.json['contact'] == {'title': 'Contact', 'emails': [], 'phones': []}
 
 
-def test_event_details_denied_without_access(dummy_event, dummy_personal_token, create_user, db, test_client):
-    outsider = create_user(42)
-    dummy_personal_token.user = outsider
-    dummy_personal_token.scopes = ['read:everything']
+def test_event_details_denied_without_access(dummy_event, db, outsider_headers, test_client):
     dummy_event.protection_mode = ProtectionMode.protected
     db.session.flush()
-    headers = {'Authorization': f'Bearer {dummy_personal_token._plaintext_token}'}
-    resp = test_client.get(f'/api/v1/events/{dummy_event.id}', headers=headers)
+    resp = test_client.get(f'/api/v1/events/{dummy_event.id}', headers=outsider_headers)
     assert resp.status_code == 403
     assert 'error' in resp.json
 
@@ -94,14 +90,10 @@ def test_event_list(dummy_event, token_headers, test_client):
     assert resp.json['results'][0]['id'] == dummy_event.id
 
 
-def test_event_list_hides_inaccessible_events(dummy_event, dummy_personal_token, create_user, db, test_client):
-    outsider = create_user(42)
-    dummy_personal_token.user = outsider
-    dummy_personal_token.scopes = ['read:everything']
+def test_event_list_hides_inaccessible_events(dummy_event, db, outsider_headers, test_client):
     dummy_event.protection_mode = ProtectionMode.protected
     db.session.flush()
-    headers = {'Authorization': f'Bearer {dummy_personal_token._plaintext_token}'}
-    resp = test_client.get('/api/v1/events', headers=headers)
+    resp = test_client.get('/api/v1/events', headers=outsider_headers)
     assert resp.status_code == 200
     assert resp.json['results'] == []
 

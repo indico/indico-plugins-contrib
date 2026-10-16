@@ -48,7 +48,7 @@ def test_room_photo_url(db, dummy_room, token_headers, test_client):
     dummy_room.photo = Photo(data=b'not really a picture')
     db.session.flush()
     resp = test_client.get(url, headers=token_headers)
-    assert resp.json['has_photo'] is True
+    assert resp.json['has_photo']
     assert resp.json['photo_url'] == f'/rooms/rooms/{dummy_room.id}.jpg'
 
 

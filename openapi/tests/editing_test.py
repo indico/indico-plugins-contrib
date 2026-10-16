@@ -136,7 +136,7 @@ def revision(create_revision):
 
 @pytest.fixture
 def editor(db, dummy_event, create_user):
-    user = create_user(43)
+    user = create_user(421)
     dummy_event.update_principal(user, permissions={'paper_editing'})
     db.session.flush()
     return user
@@ -244,7 +244,7 @@ def test_editor_name_is_hidden_while_the_team_is_anonymous(
         f'/api/v1/events/{dummy_event.id}/contributions/{dummy_contribution.id}/editables/paper', headers=token_headers
     )
     assert resp.json['editor'] == {'id': None, 'identifier': None, 'full_name': None, 'anonymous': True}
-    assert resp.json['revisions'][0]['user']['anonymous'] is False
+    assert not resp.json['revisions'][0]['user']['anonymous']
 
 
 def test_editor_name_is_served_to_the_editing_team(
@@ -258,7 +258,7 @@ def test_editor_name_is_served_to_the_editing_team(
         f'/api/v1/events/{dummy_event.id}/contributions/{dummy_contribution.id}/editables/paper', headers=token_headers
     )
     assert resp.json['editor']['id'] == editor.id
-    assert resp.json['editor']['anonymous'] is False
+    assert not resp.json['editor']['anonymous']
 
 
 def test_editables_are_listed_for_the_whole_event(dummy_event, editable, revision, token_headers, test_client):
@@ -349,8 +349,8 @@ def test_file_types_are_served(dummy_event, file_type, token_headers, test_clien
     served = next(item for item in resp.json['results'] if item['id'] == file_type.id)
     assert served['name'] == 'Source'
     assert served['extensions'] == ['tex']
-    assert served['required'] is True
-    assert served['publishable'] is False
+    assert served['required']
+    assert not served['publishable']
     assert served['filename_template'] == 'paper-{code}'
 
 

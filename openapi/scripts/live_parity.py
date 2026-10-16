@@ -72,7 +72,7 @@ import subcontributions_test  # noqa: E402
 import timetable_test  # noqa: E402
 import tracks_test  # noqa: E402
 import users_test  # noqa: E402
-from parity import compare, compare_list, rename_keys  # noqa: E402
+from tests.parity import compare, compare_list, rename_keys  # noqa: E402
 
 
 class Api:

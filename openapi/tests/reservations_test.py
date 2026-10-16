@@ -25,10 +25,10 @@ def test_reservation_details(dummy_reservation, dummy_room, token_headers, test_
     assert resp.json['start_dt'] == dummy_reservation.start_dt.isoformat()
     assert resp.json['end_dt'] == dummy_reservation.end_dt.isoformat()
     assert resp.json['state'] == 'accepted'
-    assert resp.json['is_accepted'] is True
-    assert resp.json['is_pending'] is False
+    assert resp.json['is_accepted']
+    assert not resp.json['is_pending']
     assert resp.json['repeat_frequency'] == 'NEVER'
-    assert resp.json['is_repeating'] is False
+    assert not resp.json['is_repeating']
 
 
 def test_reservation_occurrences(create_reservation, token_headers, test_client):

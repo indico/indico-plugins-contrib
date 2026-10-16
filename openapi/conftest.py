@@ -9,8 +9,8 @@ from datetime import datetime
 
 import pytest
 import pytz
-from parity import compare, compare_list
-from parity import rename_keys as _rename_keys
+from tests.parity import compare, compare_list
+from tests.parity import rename_keys as _rename_keys
 
 from indico.core.config import config
 from indico.modules.events.models.references import ReferenceType
@@ -70,7 +70,7 @@ def doi(db):
 
 @pytest.fixture
 def outsider(create_user):
-    return create_user(42)
+    return create_user(420)
 
 
 @pytest.fixture

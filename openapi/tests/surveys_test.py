@@ -69,9 +69,9 @@ def test_survey_details(dummy_survey, dummy_event, outsider_headers, test_client
     assert resp.json['title'] == 'Feedback'
     assert resp.json['introduction'] == 'Tell us what you think'
     assert resp.json['state'] == 'active_and_clean'
-    assert resp.json['is_active'] is True
-    assert resp.json['anonymous'] is False
-    assert resp.json['require_user'] is True
+    assert resp.json['is_active']
+    assert not resp.json['anonymous']
+    assert resp.json['require_user']
     assert resp.json['submission_limit'] is None
 
 
@@ -85,7 +85,7 @@ def test_survey_questions(dummy_survey, dummy_event, outsider_headers, test_clie
     assert question['section_position'] == 1
     assert question['position'] == 1
     assert question['field_type'] == 'text'
-    assert question['is_required'] is True
+    assert question['is_required']
     assert question['field_data'] == {}
 
 
@@ -174,7 +174,7 @@ def test_survey_submissions(dummy_survey, dummy_submission, dummy_event, survey_
     assert submission['id'] == dummy_submission.id
     assert submission['survey_id'] == dummy_survey.id
     assert submission['survey_title'] == 'Feedback'
-    assert submission['is_anonymous'] is False
+    assert not submission['is_anonymous']
     assert submission['answers'] == [
         {'question_id': next(iter(dummy_survey.questions)).id, 'question_title': 'Your name', 'answer': 'Alice'}
     ]
@@ -200,7 +200,7 @@ def test_anonymous_submission_keeps_the_respondent_hidden(
     resp = test_client.get(
         f'/api/v1/events/{dummy_event.id}/surveys/{dummy_survey.id}/submissions', headers=token_headers
     )
-    assert resp.json['results'][0]['is_anonymous'] is True
+    assert resp.json['results'][0]['is_anonymous']
     assert not {'user', 'user_id'} & set(resp.json['results'][0])
 
 

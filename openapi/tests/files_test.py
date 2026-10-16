@@ -22,7 +22,7 @@ def test_file_details(dummy_file, token_headers, test_client):
     assert resp.json['filename'] == 'dummy_file.txt'
     assert resp.json['content_type'] == 'text/plain'
     assert resp.json['size'] == dummy_file.size
-    assert resp.json['claimed'] is False
+    assert not resp.json['claimed']
 
 
 def test_file_requires_login(dummy_file, test_client):
