@@ -50,6 +50,13 @@ def test_docs_page_has_no_inline_code(dummy_user, test_client):
         assert test_client.get(asset).status_code == 200
 
 
+def test_spec_is_built_once(test_client):
+    # a module-level import loads the resources before the Indico models are configured
+    from indico_openapi.spec import build_spec
+
+    assert build_spec() is build_spec()
+
+
 def test_spec_documents_every_field(dummy_user, test_client):
     with test_client.session_transaction() as sess:
         sess.set_session_user(dummy_user)

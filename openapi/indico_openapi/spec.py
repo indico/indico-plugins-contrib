@@ -6,6 +6,7 @@
 # MIT License see the LICENSE file for more details.
 
 import re
+from functools import cache
 
 from apispec import APISpec
 from apispec.ext.marshmallow import MarshmallowPlugin, resolver
@@ -103,6 +104,7 @@ def _operation(endpoint, params):
     return {'get': {'summary': endpoint.summary, 'tags': [endpoint.tag], 'parameters': params, 'responses': responses}}
 
 
+@cache
 def build_spec():
     spec = APISpec(
         title='Indico REST API',
