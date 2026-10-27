@@ -23,6 +23,15 @@ from indico_affiliation_extras.models.lists import AffiliationList
 from indico_affiliation_extras.settings import event_settings
 
 
+@pytest.fixture
+def not_testing(app_context):
+    app_context.config['TESTING'] = False
+    try:
+        yield
+    finally:
+        app_context.config['TESTING'] = True
+
+
 @pytest.fixture(autouse=True)
 def _plugin_manifest(mocker):
     """Mock the plugin's webpack manifest.

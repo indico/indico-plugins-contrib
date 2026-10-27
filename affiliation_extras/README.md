@@ -100,6 +100,12 @@ field identifies one of their affiliations, and register people for those affili
 This access is limited to matching registrations and enabled forms. Existing event or
 registration-management permissions continue to apply independently.
 
+When emailing registrants from the registration list, **Send copy to focal points** is available on
+these forms and is off by default. When enabled, each email copies the current focal points
+for that registrant's representation affiliations, using the same field visibility and
+catalog scope as focal point access. Manually entered CC addresses are preserved. The
+option is hidden when focal point management is turned off for the form.
+
 ### Registration Invitations
 
 The registration invitation dialog supports selecting existing Indico users through
@@ -138,6 +144,7 @@ The dialog provides a preview and supports inline images embedded as CID attachm
 ### 3.3.2
 
 - Add support for Focal Points
+- Allow copying each registrant's affiliation focal points when emailing from the registration list
 - Allow disabling affiliation contacts
 - Allow inviting focal points and contacts from the event's Affiliation Catalog
 - **Access control:** Event managers and users with registration-management

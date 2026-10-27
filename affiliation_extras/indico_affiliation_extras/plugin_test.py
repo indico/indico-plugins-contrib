@@ -13,13 +13,16 @@ from flask import session
 
 from indico.core import signals
 from indico.core.errors import UserValueError
+from indico.core.notifications import make_email
 from indico.modules.events.features.util import set_feature_enabled
 from indico.modules.events.registration import REGISTRATION_PERMISSIONS
+from indico.modules.events.registration.forms import EmailRegistrantsForm
 from indico.modules.users.models.affiliations import Affiliation
 from indico.modules.users.util import get_linked_events, merge_users
 from indico.util.date_time import now_utc
 from indico.util.user import make_user_search_token
 
+from indico_affiliation_extras.fields import RepresentationField
 from indico_affiliation_extras.focal_points import get_focal_affiliation_ids, set_focal_points
 from indico_affiliation_extras.permissions import set_focal_point_management_enabled
 
@@ -105,6 +108,146 @@ def create_focal_event(
         return event
 
     return _create_focal_event
+
+
+class TestRegistrationEmailFocalPoints:
+    @pytest.mark.usefixtures('request_context', 'not_testing')
+    def test_cc_lookup_queries_are_bounded(
+        self,
+        dummy_regform,
+        setup_focal_point,
+        create_representation_registration,
+        count_queries,
+    ):
+        focal, mine, __ = setup_focal_point(dummy_regform)
+        session.set_session_user(focal)
+        field = next(field for field in dummy_regform.active_fields if field.input_type == RepresentationField.name)
+        affiliation_id = next(iter(focal.focal_point_entries)).affiliation_id
+        registrations = [mine, *(create_representation_registration(field, affiliation_id) for __ in range(99))]
+        form = EmailRegistrantsForm(
+            regform=dummy_regform,
+            recipients=[registration.email for registration in registrations],
+            registration_id=[registration.id for registration in registrations],
+        )
+        form.ext__affiliation_extras_cc_focal_points.data = True
+        with count_queries() as count:
+            for registration in registrations:
+                email = make_email(to_list=registration.email, subject='Update', body='Update')
+                signals.core.before_notification_send.send(
+                    'registration-custom-email', email=email, registration=registration, form=form
+                )
+                assert email['cc'] == {focal.email}
+        assert count() <= 10
+
+    @pytest.mark.usefixtures('request_context')
+    @pytest.mark.parametrize('state', ('enabled', 'disabled', 'no_representation'))
+    def test_checkbox_only_shown_when_management_enabled(self, dummy_regform, setup_focal_point, state):
+        focal, mine, __ = setup_focal_point(dummy_regform)
+        session.set_session_user(focal)
+        set_focal_point_management_enabled(dummy_regform, state != 'disabled')
+        if state == 'no_representation':
+            for field in dummy_regform.active_fields:
+                if field.input_type == RepresentationField.name:
+                    field.is_enabled = False
+        form = EmailRegistrantsForm(regform=dummy_regform, recipients=[mine.email])
+
+        assert ('ext__affiliation_extras_cc_focal_points' in form) is (state == 'enabled')
+        if state == 'enabled':
+            assert not form.ext__affiliation_extras_cc_focal_points.data
+
+    @pytest.mark.usefixtures('request_context')
+    def test_cc_focal_points_per_registration(self, dummy_regform, setup_focal_point):
+        focal, mine, other = setup_focal_point(dummy_regform)
+        session.set_session_user(focal)
+        form = EmailRegistrantsForm(
+            regform=dummy_regform, recipients=[mine.email, other.email], registration_id=[mine.id, other.id]
+        )
+        form.ext__affiliation_extras_cc_focal_points.data = True
+        for registration, expected in ((mine, {focal.email}), (other, set())):
+            email = make_email(to_list=registration.email, subject='Update', body='Please update your registration')
+            signals.core.before_notification_send.send(
+                'registration-custom-email', email=email, registration=registration, form=form
+            )
+            assert email['cc'] == expected
+
+    @pytest.mark.usefixtures('request_context')
+    @pytest.mark.parametrize(('enabled', 'checked'), ((True, False), (False, True)))
+    def test_no_cc_when_unchecked_or_management_disabled(self, dummy_regform, setup_focal_point, enabled, checked):
+        focal, registration, __ = setup_focal_point(dummy_regform)
+        session.set_session_user(focal)
+        form = EmailRegistrantsForm(
+            regform=dummy_regform, recipients=[registration.email], registration_id=[registration.id]
+        )
+        form.ext__affiliation_extras_cc_focal_points.data = checked
+        set_focal_point_management_enabled(dummy_regform, enabled)
+        email = make_email(to_list=registration.email, cc_list=['manual@example.test'], subject='Update', body='Update')
+
+        signals.core.before_notification_send.send(
+            'registration-custom-email', email=email, registration=registration, form=form
+        )
+
+        assert email['cc'] == {'manual@example.test'}
+
+    @pytest.mark.usefixtures('request_context')
+    def test_cc_preserves_manual_addresses_and_deduplicates(self, db, dummy_regform, setup_focal_point, create_user):
+        focal, registration, __ = setup_focal_point(dummy_regform)
+        session.set_session_user(focal)
+        affiliation = next(iter(focal.focal_point_entries)).affiliation
+        registrant = create_user(2, email=registration.email)
+        extra = create_user(3)
+        set_focal_points(affiliation, {focal, registrant, extra})
+        db.session.flush()
+        form = EmailRegistrantsForm(
+            regform=dummy_regform, recipients=[registration.email], registration_id=[registration.id]
+        )
+        form.ext__affiliation_extras_cc_focal_points.data = True
+        email = make_email(
+            to_list=registration.email.upper(),
+            cc_list=[focal.email.upper(), 'manual@example.test'],
+            subject='Update',
+            body='Update',
+        )
+
+        signals.core.before_notification_send.send(
+            'registration-custom-email', email=email, registration=registration, form=form
+        )
+
+        assert email['cc'] == {focal.email.upper(), extra.email, 'manual@example.test'}
+
+    @pytest.mark.usefixtures('no_csrf_check')
+    @pytest.mark.parametrize('checked', (True, False))
+    def test_email_action_sends_per_registration_ccs(
+        self, test_client, smtp, dummy_regform, dummy_user, setup_focal_point, checked
+    ):
+        focal, mine, other = setup_focal_point(dummy_regform)
+        set_feature_enabled(dummy_regform.event, 'registration', True)
+        dummy_regform.event.update_principal(dummy_user, full_access=True)
+        _login(test_client, dummy_user)
+        url = f'{_reglist_url(dummy_regform)}email'
+        dialog = test_client.post(url, data={'registration_id': [mine.id, other.id]})
+        assert dialog.status_code == 200
+        data = {
+            'registration_id': [mine.id, other.id],
+            'sender_address': dummy_user.email,
+            'subject': 'Registration update',
+            'body': 'Please update your registration.',
+            'cc_addresses': 'manual@example.test',
+            'submitted': '1',
+        }
+        if checked:
+            data['ext__affiliation_extras_cc_focal_points'] = 'y'
+        with test_client.session_transaction() as sess:
+            data['csrf_token'] = sess['_csrf_token']
+        response = test_client.post(url, data=data)
+
+        assert response.status_code == 200
+        assert 'html' not in response.json, response.json
+        assert len(smtp.outbox) == 2
+        ccs = {mail['To']: set(mail['Cc'].split(', ')) for mail in smtp.outbox}
+        assert ccs == {
+            mine.email: {'manual@example.test', focal.email} if checked else {'manual@example.test'},
+            other.email: {'manual@example.test'},
+        }
 
 
 class TestRegistrationCreation:

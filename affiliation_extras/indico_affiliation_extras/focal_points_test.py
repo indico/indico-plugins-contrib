@@ -15,6 +15,7 @@ from indico_affiliation_extras.focal_points import (
     focal_event_ids,
     focal_list_criterion,
     get_focal_affiliation_ids,
+    get_registrations_focal_points,
     set_focal_points,
 )
 from indico_affiliation_extras.permissions import set_focal_point_management_enabled
@@ -76,6 +77,103 @@ class TestFocalPointQueries:
         set_focal_point_management_enabled(dummy_regform, False)
         db.session.flush()
         assert focal_event_ids(focal) == set()
+
+
+class TestRegistrationFocalPoints:
+    @pytest.mark.parametrize(
+        'excluded', ('none', 'field', 'section', 'list', 'affiliation', 'user', 'registration', 'outside_catalog')
+    )
+    def test_matches_registration_access_scope(
+        self,
+        db,
+        dummy_regform,
+        create_user,
+        create_event_catalog,
+        create_representation_field,
+        create_representation_registration,
+        excluded,
+    ):
+        affiliation = Affiliation(name='CERN')
+        db.session.add(affiliation)
+        db.session.flush()
+        affiliation_list = create_event_catalog(dummy_regform.event, [affiliation])
+        field = create_representation_field(dummy_regform)
+        field.parent = RegistrationFormSection(registration_form=dummy_regform, title='Extra')
+        registration = create_representation_registration(field, affiliation.id)
+        focal = create_user(1)
+        set_focal_points(affiliation, {focal})
+        if excluded == 'field':
+            field.is_enabled = False
+        elif excluded == 'section':
+            field.parent.is_enabled = False
+        elif excluded == 'list':
+            affiliation_list.is_enabled = False
+        elif excluded == 'affiliation':
+            affiliation.is_deleted = True
+        elif excluded == 'user':
+            focal.is_deleted = True
+        elif excluded == 'registration':
+            registration.is_deleted = True
+        elif excluded == 'outside_catalog':
+            affiliation_list.affiliations.clear()
+        db.session.flush()
+
+        assert get_registrations_focal_points(dummy_regform, (registration.id,)) == (
+            {registration.id: {focal}} if excluded == 'none' else {}
+        )
+
+    def test_combines_all_representation_affiliations(
+        self,
+        db,
+        dummy_regform,
+        create_user,
+        create_catalog_affiliations,
+        create_representation_field,
+        create_representation_registration,
+    ):
+        managed, other = create_catalog_affiliations(dummy_regform.event)
+        registration = create_representation_registration(create_representation_field(dummy_regform), managed.id)
+        second = create_representation_field(dummy_regform)
+        RegistrationData(
+            registration=registration,
+            field_data=second.current_data,
+            data={'affiliation': {'id': other.id, 'text': other.name}},
+        )
+        shared, first, second_focal = (create_user(i) for i in (1, 2, 3))
+        set_focal_points(managed, {shared, first})
+        set_focal_points(other, {shared, second_focal})
+        db.session.flush()
+
+        assert get_registrations_focal_points(dummy_regform, (registration.id,)) == {
+            registration.id: {shared, first, second_focal}
+        }
+
+    @pytest.mark.parametrize('empty_selection', (False, True))
+    def test_limits_lookup_to_selected_registrations(
+        self,
+        db,
+        dummy_regform,
+        create_regform,
+        create_user,
+        create_catalog_affiliations,
+        create_representation_field,
+        create_representation_registration,
+        empty_selection,
+    ):
+        managed, __ = create_catalog_affiliations(dummy_regform.event)
+        field = create_representation_field(dummy_regform)
+        selected = create_representation_registration(field, managed.id)
+        create_representation_registration(field, managed.id)
+        other_form = create_regform(dummy_regform.event)
+        other = create_representation_registration(create_representation_field(other_form), managed.id)
+        focal = create_user(1)
+        set_focal_points(managed, {focal})
+        db.session.flush()
+        registration_ids = () if empty_selection else (selected.id, other.id)
+
+        assert get_registrations_focal_points(dummy_regform, registration_ids) == (
+            {} if empty_selection else {selected.id: {focal}}
+        )
 
 
 class TestRegistrationCriterion:
