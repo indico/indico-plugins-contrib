@@ -240,6 +240,7 @@ class RHCloneAffiliationCatalog(RHAffiliationCatalogMixin, RHAffiliationCatalogs
                 'name': lst.name,
                 'position': lst.position,
                 'is_enabled': lst.is_enabled,
+                'affiliation_mode': lst.affiliation_mode,
                 'groups': lst.groups,
                 'tags': lst.tags,
                 'affiliations': lst.affiliations,

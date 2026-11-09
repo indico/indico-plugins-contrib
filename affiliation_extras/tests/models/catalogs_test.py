@@ -5,7 +5,12 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
+from importlib import import_module
+
 import pytest
+from alembic.migration import MigrationContext
+from alembic.operations import Operations
+from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 
 from indico.modules.users.models.affiliations import Affiliation
@@ -60,6 +65,30 @@ def test_affiliation_catalog_requires_an_owner(db):
     with pytest.raises(IntegrityError):
         db.session.flush()
     db.session.rollback()
+
+
+def test_affiliation_mode_migration_preserves_existing_lists(db, dummy_event, create_event_catalog):
+    saved_list = create_event_catalog(dummy_event, set())
+    list_id = saved_list.id
+    migration = import_module(
+        'indico_affiliation_extras.migrations.20261106_1200_6c8f2b94e1a7_add_list_affiliation_mode'
+    )
+    connection = db.session.connection()
+    with Operations.context(MigrationContext.configure(connection)):
+        migration.downgrade()
+        migration.upgrade()
+        assert (
+            connection.execute(
+                text('SELECT affiliation_mode FROM plugin_affiliation_extras.affiliation_lists WHERE id = :id'),
+                {'id': list_id},
+            ).scalar_one()
+            == 1
+        )
+        migration.downgrade()
+        migration.upgrade()
+    db.session.expire_all()
+    assert saved_list.name == 'Representatives'
+    assert saved_list.affiliation_mode.name == 'predefined'
 
 
 def test_affiliation_catalog_rejects_multiple_owners(db, create_category, create_event):

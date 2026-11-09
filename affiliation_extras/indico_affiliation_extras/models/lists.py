@@ -6,7 +6,9 @@
 # MIT License see the LICENSE file for more details.
 
 from indico.core.db import db
+from indico.core.db.sqlalchemy import PyIntEnum
 from indico.modules.users.models.affiliations import Affiliation
+from indico.util.enum import IndicoIntEnum
 from indico.util.string import format_repr
 
 from indico_affiliation_extras.models.groups import AffiliationGroup
@@ -75,6 +77,11 @@ def _get_next_position(context):
     return (res or 0) + 1
 
 
+class AffiliationListMode(IndicoIntEnum):
+    predefined = 1
+    custom = 2
+
+
 class AffiliationList(db.Model):
     __tablename__ = 'affiliation_lists'
     __table_args__ = {'schema': 'plugin_affiliation_extras'}
@@ -89,6 +96,7 @@ class AffiliationList(db.Model):
     position = db.Column(db.Integer, nullable=False, default=_get_next_position)
     name = db.Column(db.String, nullable=False, default='')
     is_enabled = db.Column(db.Boolean, nullable=False, default=True)
+    affiliation_mode = db.Column(PyIntEnum(AffiliationListMode), nullable=False, default=AffiliationListMode.predefined)
 
     catalog = db.relationship(
         'AffiliationCatalog',
