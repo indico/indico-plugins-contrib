@@ -136,14 +136,10 @@ The dialog provides a preview and supports inline images embedded as CID attachm
 
 ## Changelog
 
-### 3.3
+### 3.3.3
 
-- Initial release
-
-### 3.3.1
-
-- Add Affiliation Catalogs
-- Add Representation field
+- Allow participants to enter custom affiliations for selected representation types
+- Fix the required-field override rejecting an empty Representation field when registering participants as a manager
 
 ### 3.3.2
 
@@ -156,7 +152,11 @@ The dialog provides a preview and supports inline images embedded as CID attachm
   previously restricted to admins. Event managers can include any affiliation
   in their catalogs, extending this access across affiliations.
 
-### 3.3.3
+### 3.3.1
 
-- Allow participants to enter custom affiliations for selected representation types
-- Fix the required-field override rejecting an empty Representation field when registering participants as a manager
+- Add Affiliation Catalogs
+- Add Representation field
+
+### 3.3
+
+- Initial release
