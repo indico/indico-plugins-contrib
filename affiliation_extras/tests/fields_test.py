@@ -450,6 +450,8 @@ def test_representation_keeps_custom_value_after_mode_changes(db, dummy_regform,
     'value',
     (
         {},
+        {'representationId': None},
+        {'affiliation': {'id': None, 'text': ''}},
         {'representationId': None, 'representationName': '', 'affiliation': {'id': None, 'text': ''}},
     ),
 )
@@ -464,6 +466,38 @@ def test_optional_empty_representation_is_normalized_and_displays_empty(
     stored = RegistrationData(field_data=representation_field.current_data, data=result['data'])
     assert impl.render_summary_data(stored) == ''
     assert impl.render_reglist_column(stored).text_value == ''
+
+
+@pytest.mark.parametrize(
+    ('mode', 'value', 'message'),
+    (
+        (AffiliationListMode.predefined, {}, 'Please select an affiliation from the list'),
+        (
+            AffiliationListMode.predefined,
+            {'affiliation': {'text': 'Example'}},
+            'Please select an affiliation from the list',
+        ),
+        (AffiliationListMode.custom, {}, 'Please enter an affiliation name'),
+        (AffiliationListMode.custom, {'affiliation': {'id': None}}, 'Please enter an affiliation name'),
+    ),
+)
+def test_partial_representation_validates_incomplete_affiliation(db, dummy_regform, mode, value, message):
+    field = _create_representation_field(db, dummy_regform)
+    affiliation_list = _create_affiliation_list(db, dummy_regform.event)
+    affiliation_list.affiliation_mode = mode
+    value = {'representationId': affiliation_list.id, **value}
+
+    with pytest.raises(ValidationError) as exc_info:
+        field.field_impl.create_mm_field().deserialize(value, partial=True)
+    assert ''.join(exc_info.value.messages) == message
+
+
+def test_partial_representation_rejects_affiliation_without_type(representation_field):
+    with pytest.raises(ValidationError) as exc_info:
+        representation_field.field_impl.create_mm_field().deserialize(
+            {'affiliation': {'id': None, 'text': 'Example'}}, partial=True
+        )
+    assert ''.join(exc_info.value.messages) == 'Please select a representation type'
 
 
 def test_representation_rejects_affiliation_without_type(representation_field):

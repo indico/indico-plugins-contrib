@@ -28,6 +28,7 @@ from indico_affiliation_extras.util import (
 
 REPRESENTATION_AFFILIATION_PRELOAD_LIMIT = 20
 _AFFILIATION_PRELOAD_FIELDS = ('id', 'name', 'street', 'postcode', 'city', 'country_code', 'meta')
+_EMPTY_AFFILIATION = {'id': None, 'text': ''}
 
 
 class RepresentationValueSchema(mm.Schema):
@@ -37,7 +38,7 @@ class RepresentationValueSchema(mm.Schema):
 
     @post_load
     def _normalize_empty(self, data, **kwargs):
-        if not data or (data['representation_id'] is None and data['affiliation'] == {'id': None, 'text': ''}):
+        if data.get('representation_id') is None and data.get('affiliation', _EMPTY_AFFILIATION) == _EMPTY_AFFILIATION:
             return {}
         return data
 
@@ -75,18 +76,19 @@ class RepresentationField(RegistrationFormFieldBase):
                 old_data = existing_registration.data_by_field.get(self.form_item.id)
                 if old_data is not None and value == old_data.data:
                     return
-            affiliation = value['affiliation']
-            if value['representation_id'] is None:
+            affiliation = value.get('affiliation', _EMPTY_AFFILIATION)
+            representation_id = value.get('representation_id')
+            if representation_id is None:
                 raise ValidationError(_('Please select a representation type'))
             affiliation_list = get_representation_affiliation_list(
-                self.form_item.registration_form.event, value['representation_id']
+                self.form_item.registration_form.event, representation_id
             )
             if affiliation_list is not None and affiliation_list.affiliation_mode == AffiliationListMode.custom:
-                if affiliation['id'] is not None:
+                if affiliation.get('id') is not None:
                     raise ValidationError(_('Please enter a custom affiliation'))
-                if not affiliation['text'].strip():
+                if not affiliation.get('text', '').strip():
                     raise ValidationError(_('Please enter an affiliation name'))
-            elif affiliation['id'] is None:
+            elif affiliation.get('id') is None:
                 raise ValidationError(_('Please select an affiliation from the list'))
 
         return _validate_representation
