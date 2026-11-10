@@ -5,7 +5,7 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-from marshmallow import ValidationError, fields
+from marshmallow import ValidationError, fields, post_load
 
 from indico.core import signals
 from indico.core.db import db
@@ -31,25 +31,25 @@ _AFFILIATION_PRELOAD_FIELDS = ('id', 'name', 'street', 'postcode', 'city', 'coun
 
 
 class RepresentationValueSchema(mm.Schema):
-    representation_id = fields.Integer(required=True, allow_none=True, data_key='representationId')
+    representation_id = fields.Integer(load_default=None, allow_none=True, data_key='representationId')
     representation_name = fields.String(load_default='', data_key='representationName')
-    affiliation = fields.Nested(AffiliationValueSchema, required=True)
+    affiliation = fields.Nested(AffiliationValueSchema, load_default=lambda: {'id': None, 'text': ''})
+
+    @post_load
+    def _normalize_empty(self, data, **kwargs):
+        if not data or (data['representation_id'] is None and data['affiliation'] == {'id': None, 'text': ''}):
+            return {}
+        return data
 
 
 class RepresentationField(RegistrationFormFieldBase):
     name = 'ext__representation'
     mm_field_class = fields.Nested
     mm_field_args = (RepresentationValueSchema,)
-    not_empty_if_required = False
-    _override_required = False
 
     @property
     def default_value(self):
-        return {
-            'representation_id': None,
-            'representation_name': '',
-            'affiliation': {'id': None, 'text': ''},
-        }
+        return {}
 
     @property
     def view_data(self):
@@ -67,27 +67,17 @@ class RepresentationField(RegistrationFormFieldBase):
             representation_types.append(data)
         return super().view_data | {'representation_types': representation_types}
 
-    def create_mm_field(self, registration=None, override_required=False, management=False):
-        self._override_required = override_required
-        return super().create_mm_field(
-            registration=registration, override_required=override_required, management=management
-        )
-
     def get_validators(self, existing_registration):
         def _validate_representation(value):
+            if not value:
+                return
             if existing_registration is not None:
                 old_data = existing_registration.data_by_field.get(self.form_item.id)
                 if old_data is not None and value == old_data.data:
                     return
             affiliation = value['affiliation']
             if value['representation_id'] is None:
-                if (
-                    (self.form_item.is_required and not self._override_required)
-                    or affiliation['id'] is not None
-                    or affiliation['text']
-                ):
-                    raise ValidationError(_('Please select a representation type'))
-                return
+                raise ValidationError(_('Please select a representation type'))
             affiliation_list = get_representation_affiliation_list(
                 self.form_item.registration_form.event, value['representation_id']
             )
@@ -102,6 +92,8 @@ class RepresentationField(RegistrationFormFieldBase):
         return _validate_representation
 
     def process_form_data(self, registration, value, old_data=None, billable_items_locked=False):
+        if not value:
+            return RegistrationFormFieldBase.process_form_data(self, registration, {}, old_data, billable_items_locked)
         # Skip re-validation when the stored value is unchanged: the catalog/list config
         # may have changed since submission (list disabled/removed, default catalog
         # switched), and unrelated edits to the registration must still succeed.

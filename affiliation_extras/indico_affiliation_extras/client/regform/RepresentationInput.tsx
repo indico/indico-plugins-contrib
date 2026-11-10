@@ -32,11 +32,13 @@ type StaticData = {
   regformId: number;
   management?: boolean;
 };
-type RepresentationValue = {
-  representationId: number | null;
-  representationName: string;
-  affiliation: AffiliationValue;
-};
+type RepresentationValue =
+  | {
+      representationId: number | null;
+      representationName: string;
+      affiliation: AffiliationValue;
+    }
+  | Record<string, never>;
 
 const EMPTY_AFFILIATION: AffiliationValue = {id: null, text: ''};
 const EMPTY_VALUE: RepresentationValue = {
@@ -64,7 +66,7 @@ function RepresentationInputComponent({
   representationTypes,
   getSearchAffiliationURL,
 }: RepresentationInputComponentProps) {
-  const normalizedValue = value ?? EMPTY_VALUE;
+  const normalizedValue = value?.affiliation ? value : EMPTY_VALUE;
   const representationId = normalizedValue.representationId;
   const selectedRepresentation =
     representationTypes.find(item => item.id === representationId) ?? null;
@@ -94,6 +96,10 @@ function RepresentationInputComponent({
 
   const handleRepresentationChange = (_: unknown, {value: selectedValue}: {value?: unknown}) => {
     const nextRepresentationId = typeof selectedValue === 'number' ? selectedValue : null;
+    if (nextRepresentationId === null) {
+      onChange({});
+      return;
+    }
     const selectedRepresentation = representationTypes.find(
       item => item.id === nextRepresentationId
     );
@@ -216,7 +222,7 @@ export default function RepresentationInput({
       id={htmlId}
       name={htmlName}
       component={RepresentationInputComponent}
-      undefinedValue={EMPTY_VALUE}
+      undefinedValue={{}}
       disabled={disabled}
       isRequired={isRequired}
       representationTypes={representationTypes}

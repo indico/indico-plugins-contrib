@@ -72,11 +72,13 @@ def representation_field(dummy_regform):
 
 def test_representation_field_validates_required_representation_and_affiliation(representation_field):
     representation_field.is_required = True
-    validator = representation_field.field_impl.get_validators(None)
-    with pytest.raises(ValidationError, match='Please select a representation type'):
-        validator({'representation_id': None, 'affiliation': {'id': None, 'text': ''}})
-    with pytest.raises(ValidationError, match='Please select an affiliation from the list'):
-        validator({'representation_id': 1, 'affiliation': {'id': None, 'text': ''}})
+    mm_field = representation_field.field_impl.create_mm_field()
+    with pytest.raises(ValidationError) as exc_info:
+        mm_field.deserialize({})
+    assert ''.join(exc_info.value.messages) == 'This field cannot be empty.'
+    with pytest.raises(ValidationError) as exc_info:
+        mm_field.deserialize({'representationId': 1, 'affiliation': {'id': None, 'text': ''}})
+    assert ''.join(exc_info.value.messages) == 'Please select an affiliation from the list'
 
 
 def test_representation_field_rejects_custom_affiliation(representation_field):
@@ -113,8 +115,15 @@ def test_registration_uses_default_for_omitted_required_representation(
 
 
 @pytest.mark.parametrize('override_required', (False, True))
+@pytest.mark.parametrize(
+    'empty_value',
+    (
+        {},
+        {'representationId': None, 'representationName': '', 'affiliation': {'id': None, 'text': ''}},
+    ),
+)
 def test_manager_can_submit_empty_representation_only_with_override(
-    db, request_context, dummy_regform, override_required
+    db, request_context, dummy_regform, override_required, empty_value
 ):
     field = _create_representation_field(db, dummy_regform)
     field.is_required = True
@@ -123,18 +132,14 @@ def test_manager_can_submit_empty_representation_only_with_override(
         'first_name': 'Test',
         'last_name': 'Registrant',
         'email': 'registrant@example.test',
-        field.html_field_name: {
-            'representationId': None,
-            'representationName': '',
-            'affiliation': {'id': None, 'text': ''},
-        },
+        field.html_field_name: empty_value,
     }
     schema = make_registration_schema(dummy_regform, management=True, override_required=override_required)()
 
     if not override_required:
         with pytest.raises(ValidationError) as exc_info:
             schema.load(payload)
-        assert exc_info.value.messages[field.html_field_name] == ['Please select a representation type']
+        assert set(exc_info.value.messages) == {field.html_field_name}
         return
 
     data = schema.load(payload)
@@ -439,3 +444,31 @@ def test_representation_keeps_custom_value_after_mode_changes(db, dummy_regform,
 
     field.field_impl.get_validators(dummy_reg)(dict(stored))
     assert field.field_impl.process_form_data(dummy_reg, dict(stored), old_data=old_data) == {}
+
+
+@pytest.mark.parametrize(
+    'value',
+    (
+        {},
+        {'representationId': None, 'representationName': '', 'affiliation': {'id': None, 'text': ''}},
+    ),
+)
+@pytest.mark.parametrize('partial', (False, True))
+def test_optional_empty_representation_is_normalized_and_displays_empty(
+    representation_field, dummy_reg, value, partial
+):
+    impl = representation_field.field_impl
+    assert impl.create_mm_field().deserialize(value, partial=partial) == {}
+    result = impl.process_form_data(dummy_reg, {})
+    assert result['data'] == {}
+    stored = RegistrationData(field_data=representation_field.current_data, data=result['data'])
+    assert impl.render_summary_data(stored) == ''
+    assert impl.render_reglist_column(stored).text_value == ''
+
+
+def test_representation_rejects_affiliation_without_type(representation_field):
+    with pytest.raises(ValidationError, match='Please select a representation type'):
+        representation_field.field_impl.get_validators(None)({
+            'representation_id': None,
+            'affiliation': {'id': None, 'text': 'Independent organization'},
+        })
