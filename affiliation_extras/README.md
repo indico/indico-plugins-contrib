@@ -18,7 +18,7 @@ letting focal points manage registrations for their affiliations.
 - Filter affiliations by groups, tags, and active contact emails, including specific contact lists
 - Create affiliation catalogs in categories and events, with inherited defaults and local copies
 - Define ordered catalog lists using affiliations, groups, and tags
-- Add a Representation registration field with catalog-based affiliation choices
+- Add a Representation registration field with catalog-based choices or custom affiliations
 - Show representation types and affiliations as separate registration-list columns
 - Let focal points manage and moderate registrations representing their affiliations
 - Invite existing Indico users by affiliation, group, or tag
@@ -72,14 +72,18 @@ The event's effective default catalog supplies the representation types and affi
 used by registration forms and catalog invitations. Lists can be reordered or disabled;
 disabled lists are excluded from representation choices and catalog invitation recipients.
 
+In a list's **Edit members** dialog, enable **Use custom affiliations** to let participants
+enter an affiliation name instead of selecting a predefined affiliation.
+
 ### Representation Field
 
 Add a **Representation** field to a registration form to ask participants which organization
 they represent. Participants first choose a representation type, corresponding to an enabled
-list in the event's default catalog, then select an affiliation from that list. Affiliations
-must be selected from the configured choices; free-text affiliations are not accepted.
+list in the event's default catalog. Depending on the list's configuration, they then select
+a predefined affiliation or enter a custom affiliation name.
 
-For example, a participant can select "Member organizations" and then their organization.
+For example, a participant can select "Member organizations" and then their organization,
+or select a custom "Other organizations" list and enter their organization's name.
 Configure the event's default catalog and its lists before using this field. The field can
 be required, and the registration list offers separate columns for its representation type
 and affiliation.
@@ -151,3 +155,7 @@ The dialog provides a preview and supports inline images embedded as CID attachm
   access can now invite catalog contacts and view their email addresses,
   previously restricted to admins. Event managers can include any affiliation
   in their catalogs, extending this access across affiliations.
+
+### 3.3.3
+
+- Allow participants to enter custom affiliations for selected representation types

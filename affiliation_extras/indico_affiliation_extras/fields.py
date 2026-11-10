@@ -18,6 +18,7 @@ from indico.modules.users.models.affiliations import Affiliation
 from indico.util.i18n import _
 from indico.util.signals import values_from_signal
 
+from indico_affiliation_extras.models.lists import AffiliationListMode
 from indico_affiliation_extras.util import (
     get_representation_affiliation_list,
     get_representation_affiliation_lists,
@@ -55,26 +56,37 @@ class RepresentationField(RegistrationFormFieldBase):
 
         representation_types = []
         for item in get_representation_affiliation_lists(self.form_item.registration_form.event, enabled_only=True):
-            data = {'id': item.id, 'name': item.name}
-            affiliations = get_representation_affiliations(item)
-            if len(affiliations) <= REPRESENTATION_AFFILIATION_PRELOAD_LIMIT:
-                data['affiliations'] = AffiliationSchema(many=True, only=_AFFILIATION_PRELOAD_FIELDS).dump(affiliations)
+            data = {'id': item.id, 'name': item.name, 'affiliation_mode': item.affiliation_mode.name}
+            if item.affiliation_mode == AffiliationListMode.predefined:
+                affiliations = get_representation_affiliations(item)
+                if len(affiliations) <= REPRESENTATION_AFFILIATION_PRELOAD_LIMIT:
+                    data['affiliations'] = AffiliationSchema(many=True, only=_AFFILIATION_PRELOAD_FIELDS).dump(
+                        affiliations
+                    )
             representation_types.append(data)
         return super().view_data | {'representation_types': representation_types}
 
     def get_validators(self, existing_registration):
         def _validate_representation(value):
-            representation_id = value['representation_id']
+            if existing_registration is not None:
+                old_data = existing_registration.data_by_field.get(self.form_item.id)
+                if old_data is not None and value == old_data.data:
+                    return
             affiliation = value['affiliation']
-            affiliation_text = affiliation['text']
-            affiliation_id = affiliation['id']
-            if self.form_item.is_required and representation_id is None:
-                raise ValidationError(_('Please select a representation type'))
-            if representation_id is None and affiliation_id is not None:
-                raise ValidationError(_('Please select a representation type'))
-            if affiliation_id is None:
-                if affiliation_text or representation_id is not None or self.form_item.is_required:
-                    raise ValidationError(_('Please select an affiliation from the list'))
+            if value['representation_id'] is None:
+                if self.form_item.is_required or affiliation['id'] is not None or affiliation['text']:
+                    raise ValidationError(_('Please select a representation type'))
+                return
+            affiliation_list = get_representation_affiliation_list(
+                self.form_item.registration_form.event, value['representation_id']
+            )
+            if affiliation_list is not None and affiliation_list.affiliation_mode == AffiliationListMode.custom:
+                if affiliation['id'] is not None:
+                    raise ValidationError(_('Please enter a custom affiliation'))
+                if not affiliation['text'].strip():
+                    raise ValidationError(_('Please enter an affiliation name'))
+            elif affiliation['id'] is None:
+                raise ValidationError(_('Please select an affiliation from the list'))
 
         return _validate_representation
 
@@ -113,6 +125,8 @@ class RepresentationField(RegistrationFormFieldBase):
             if not (matched_affiliation := query.one_or_none()):
                 raise ValidationError(_('Invalid affiliation'))
             affiliation['text'] = matched_affiliation.name
+        else:
+            affiliation['text'] = affiliation['text'].strip()
 
         value['representation_name'] = affiliation_list.name if affiliation_list else ''
         value['affiliation'] = affiliation

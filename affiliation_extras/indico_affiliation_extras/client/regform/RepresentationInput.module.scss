@@ -5,6 +5,7 @@
 // redistribute them and/or modify them under the terms of the;
 // MIT License see the LICENSE file for more details.
 
-.representation-field:global(.ui.dropdown) {
+.representation-field:global(.ui.dropdown),
+.representation-field:global(.ui.input) {
   max-width: var(--max-form-item-width);
 }

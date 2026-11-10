@@ -508,6 +508,8 @@ def get_representation_affiliation_list(
 
 def get_representation_affiliations(affiliation_list: AffiliationList) -> list[Affiliation]:
     """Return affiliations allowed by an affiliation list."""
+    if affiliation_list.affiliation_mode == AffiliationListMode.custom:
+        return []
     return resolve_affiliations(affiliation_list.groups, affiliation_list.tags, affiliation_list.affiliations)
 
 

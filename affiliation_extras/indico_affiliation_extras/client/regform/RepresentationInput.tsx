@@ -10,7 +10,7 @@ import searchAffiliationsManagementURL from 'indico-url:plugin_affiliation_extra
 import manageAffiliationsURL from 'indico-url:plugin_affiliation_extras.manage_affiliations';
 
 import React from 'react';
-import {Dropdown, Form, Message} from 'semantic-ui-react';
+import {Dropdown, Form, Input, Message} from 'semantic-ui-react';
 import {useSelector} from 'react-redux';
 
 import {AffiliationField} from 'indico/react/components';
@@ -23,6 +23,7 @@ import './RepresentationInput.module.scss';
 type RepresentationType = {
   id: number;
   name: string;
+  affiliationMode: 'predefined' | 'custom';
   affiliations?: Array<{id: number; name: string}>;
 };
 type AffiliationValue = {id: number | null; text: string};
@@ -131,27 +132,40 @@ function RepresentationInputComponent({
       {!!selectedRepresentation && (
         <Form.Field required={isRequired}>
           <label htmlFor={`${id}-affiliation`}>{selectedRepresentation.name}</label>
-          <AffiliationField
-            id={`${id}-affiliation`}
-            styleName="representation-field"
-            value={normalizedValue.affiliation}
-            onChange={handleAffiliationChange}
-            allowCustomAffiliations={false}
-            currentAffiliation={null}
-            includeMeta={false}
-            searchAffiliationURL={({q}) =>
-              getSearchAffiliationURL({q, affiliationListId: selectedRepresentation.id})
-            }
-            // These props intentionally pass through AffiliationField to ComboDropdown.
-            {...(usePreloadedAffiliations
-              ? {
-                  options: preloadedAffiliationOptions,
-                  search: true,
-                  onSearchChange: () => {},
-                }
-              : {})}
-            disabled={disabled}
-          />
+          {selectedRepresentation.affiliationMode === 'custom' ? (
+            <Input
+              id={`${id}-affiliation`}
+              styleName="representation-field"
+              value={normalizedValue.affiliation.text}
+              onChange={(_, {value: text}) => handleAffiliationChange({id: null, text})}
+              placeholder={Translate.string('Enter an affiliation name')}
+              disabled={disabled}
+              required={isRequired}
+              fluid
+            />
+          ) : (
+            <AffiliationField
+              id={`${id}-affiliation`}
+              styleName="representation-field"
+              value={normalizedValue.affiliation}
+              onChange={handleAffiliationChange}
+              allowCustomAffiliations={false}
+              currentAffiliation={null}
+              includeMeta={false}
+              searchAffiliationURL={({q}) =>
+                getSearchAffiliationURL({q, affiliationListId: selectedRepresentation.id})
+              }
+              // These props intentionally pass through AffiliationField to ComboDropdown.
+              {...(usePreloadedAffiliations
+                ? {
+                    options: preloadedAffiliationOptions,
+                    search: true,
+                    onSearchChange: () => {},
+                  }
+                : {})}
+              disabled={disabled}
+            />
+          )}
         </Form.Field>
       )}
     </>
