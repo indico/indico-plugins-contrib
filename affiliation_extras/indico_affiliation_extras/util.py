@@ -292,7 +292,7 @@ def _apply_catalog_lists(catalog: AffiliationCatalog, catalog_lists: list[dict])
             touched_ids.add(list_obj.id)
         list_obj.name = list_data['name'].strip()
         list_obj.is_enabled = list_data['is_enabled']
-        list_obj.affiliation_mode = list_data.get('affiliation_mode', AffiliationListMode.predefined)
+        list_obj.affiliation_mode = list_data['affiliation_mode']
         list_obj.position = list_data['position']
         list_obj.groups = list_data['groups']
         list_obj.tags = list_data['tags']

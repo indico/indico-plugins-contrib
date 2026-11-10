@@ -18,7 +18,7 @@ from indico_affiliation_extras import util
 from indico_affiliation_extras.models.catalogs import AffiliationCatalog
 from indico_affiliation_extras.models.contacts import AffiliationContactList
 from indico_affiliation_extras.models.groups import AffiliationGroup
-from indico_affiliation_extras.models.lists import AffiliationList
+from indico_affiliation_extras.models.lists import AffiliationList, AffiliationListMode
 from indico_affiliation_extras.models.tags import AffiliationTag
 from indico_affiliation_extras.settings import category_settings, event_settings
 
@@ -179,6 +179,7 @@ def _catalog_list_payload(
     name='List',
     position=1,
     is_enabled=True,
+    affiliation_mode=AffiliationListMode.predefined,
     groups=(),
     tags=(),
     affiliations=(),
@@ -188,6 +189,7 @@ def _catalog_list_payload(
         'name': name,
         'position': position,
         'is_enabled': is_enabled,
+        'affiliation_mode': affiliation_mode,
         'groups': set(groups),
         'tags': set(tags),
         'affiliations': set(affiliations),
