@@ -110,6 +110,12 @@ for that registrant's representation affiliations, using the same field visibili
 catalog scope as focal point access. Manually entered CC addresses are preserved. The
 option is hidden when focal point management is turned off for the form.
 
+Custom affiliation names are not linked to catalog affiliations and do not grant focal-point
+access or add focal points to email copies. Switching a predefined list to custom mode also
+removes its affiliations from the event's focal-point scope, unless another enabled predefined
+list includes them. This can remove focal-point access and email copies for existing registrations;
+independent event or registration-management permissions still apply.
+
 ### Registration Invitations
 
 The registration invitation dialog supports selecting existing Indico users through
