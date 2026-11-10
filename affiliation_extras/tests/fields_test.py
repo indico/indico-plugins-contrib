@@ -112,6 +112,56 @@ def test_registration_uses_default_for_omitted_required_representation(
     assert registration.data_by_field[field.id].data == field.field_impl.default_value
 
 
+@pytest.mark.parametrize('override_required', (False, True))
+def test_manager_can_submit_empty_representation_only_with_override(
+    db, request_context, dummy_regform, override_required
+):
+    field = _create_representation_field(db, dummy_regform)
+    field.is_required = True
+    db.session.flush()
+    payload = {
+        'first_name': 'Test',
+        'last_name': 'Registrant',
+        'email': 'registrant@example.test',
+        field.html_field_name: {
+            'representationId': None,
+            'representationName': '',
+            'affiliation': {'id': None, 'text': ''},
+        },
+    }
+    schema = make_registration_schema(dummy_regform, management=True, override_required=override_required)()
+
+    if not override_required:
+        with pytest.raises(ValidationError) as exc_info:
+            schema.load(payload)
+        assert exc_info.value.messages[field.html_field_name] == ['Please select a representation type']
+        return
+
+    data = schema.load(payload)
+    registration = create_registration(dummy_regform, data, management=True, notify_user=False)
+    db.session.flush()
+    assert registration.data_by_field[field.id].data == field.field_impl.default_value
+
+
+@pytest.mark.parametrize('affiliation', ({'id': None, 'text': ''}, {'id': 123, 'text': 'CERN'}))
+def test_required_override_keeps_custom_representation_validation(db, dummy_regform, affiliation):
+    field = _create_representation_field(db, dummy_regform)
+    field.is_required = True
+    affiliation_list = _create_affiliation_list(db, dummy_regform.event)
+    affiliation_list.affiliation_mode = AffiliationListMode.custom
+    db.session.flush()
+    schema = make_registration_schema(dummy_regform, management=True, override_required=True)()
+
+    with pytest.raises(ValidationError) as exc_info:
+        schema.load({
+            'first_name': 'Test',
+            'last_name': 'Registrant',
+            'email': 'registrant@example.test',
+            field.html_field_name: {'representationId': affiliation_list.id, 'affiliation': affiliation},
+        })
+    assert set(exc_info.value.messages) == {field.html_field_name}
+
+
 def test_representation_field_rejects_invalid_affiliation_list(db, representation_field, dummy_reg):
     with pytest.raises(ValidationError, match='Invalid representation type'):
         representation_field.field_impl.process_form_data(

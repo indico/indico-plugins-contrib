@@ -41,6 +41,7 @@ class RepresentationField(RegistrationFormFieldBase):
     mm_field_class = fields.Nested
     mm_field_args = (RepresentationValueSchema,)
     not_empty_if_required = False
+    _override_required = False
 
     @property
     def default_value(self):
@@ -66,6 +67,12 @@ class RepresentationField(RegistrationFormFieldBase):
             representation_types.append(data)
         return super().view_data | {'representation_types': representation_types}
 
+    def create_mm_field(self, registration=None, override_required=False, management=False):
+        self._override_required = override_required
+        return super().create_mm_field(
+            registration=registration, override_required=override_required, management=management
+        )
+
     def get_validators(self, existing_registration):
         def _validate_representation(value):
             if existing_registration is not None:
@@ -74,7 +81,11 @@ class RepresentationField(RegistrationFormFieldBase):
                     return
             affiliation = value['affiliation']
             if value['representation_id'] is None:
-                if self.form_item.is_required or affiliation['id'] is not None or affiliation['text']:
+                if (
+                    (self.form_item.is_required and not self._override_required)
+                    or affiliation['id'] is not None
+                    or affiliation['text']
+                ):
                     raise ValidationError(_('Please select a representation type'))
                 return
             affiliation_list = get_representation_affiliation_list(
