@@ -88,9 +88,8 @@ def test_representation_field_rejects_custom_affiliation(representation_field):
 
 
 @pytest.mark.parametrize(('management', 'manager_only'), ((False, True), (True, False)))
-def test_registration_uses_default_for_omitted_required_representation(
-    db, request_context, dummy_regform, management, manager_only
-):
+@pytest.mark.usefixtures('request_context')
+def test_registration_uses_default_for_omitted_required_representation(db, dummy_regform, management, manager_only):
     section = RegistrationFormSection(
         registration_form=dummy_regform, title='Representation', is_manager_only=manager_only
     )
@@ -122,9 +121,8 @@ def test_registration_uses_default_for_omitted_required_representation(
         {'representationId': None, 'representationName': '', 'affiliation': {'id': None, 'text': ''}},
     ),
 )
-def test_manager_can_submit_empty_representation_only_with_override(
-    db, request_context, dummy_regform, override_required, empty_value
-):
+@pytest.mark.usefixtures('request_context')
+def test_manager_can_submit_empty_representation_only_with_override(db, dummy_regform, override_required, empty_value):
     field = _create_representation_field(db, dummy_regform)
     field.is_required = True
     db.session.flush()
