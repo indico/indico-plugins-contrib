@@ -9,8 +9,8 @@ import _ from 'lodash';
 import PropTypes from 'prop-types';
 import React from 'react';
 import {DndProvider} from 'react-dnd';
-import {Form as FinalForm} from 'react-final-form';
 import {HTML5Backend} from 'react-dnd-html5-backend';
+import {Form as FinalForm} from 'react-final-form';
 import {Form, Segment} from 'semantic-ui-react';
 
 import {ManagementPageSubTitle} from 'indico/react/components';

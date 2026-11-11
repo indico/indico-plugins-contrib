@@ -17,10 +17,7 @@ const indicoPathFile = path.join(__dirname, '.indico_source');
 
 // If there's an .indico_source file in the same dir, let's use it
 if (fs.existsSync(indicoPathFile)) {
-  indicoBaseDir = fs
-    .readFileSync(indicoPathFile)
-    .toString()
-    .trim();
+  indicoBaseDir = fs.readFileSync(indicoPathFile).toString().trim();
 }
 
 // Otherwise, let's use Python to figure it out
@@ -50,7 +47,7 @@ const babelConfigFile = path.join(indicoBaseDir, 'babel.config.js');
 
 module.exports = _.merge(defaultConfig, {
   settings: {
-    'react': {
+    react: {
       version: react.version,
     },
     'import/resolver': {
