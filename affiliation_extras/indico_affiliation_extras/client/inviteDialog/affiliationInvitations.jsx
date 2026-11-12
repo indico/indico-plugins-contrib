@@ -5,11 +5,11 @@
 // redistribute them and/or modify them under the terms of the;
 // MIT License see the LICENSE file for more details.
 
-import affiliationGroupsURL from 'indico-url:plugin_affiliation_extras.api_reg_form_affiliation_groups';
-import searchAffiliationsURL from 'indico-url:plugin_affiliation_extras.api_reg_form_search_affiliations';
-import affiliationTagsURL from 'indico-url:plugin_affiliation_extras.api_reg_form_affiliation_tags';
 import affiliationUserCountURL from 'indico-url:plugin_affiliation_extras.api_affiliation_user_count';
 import inviteByAffiliationURL from 'indico-url:plugin_affiliation_extras.api_invite_by_affiliation';
+import affiliationGroupsURL from 'indico-url:plugin_affiliation_extras.api_reg_form_affiliation_groups';
+import affiliationTagsURL from 'indico-url:plugin_affiliation_extras.api_reg_form_affiliation_tags';
+import searchAffiliationsURL from 'indico-url:plugin_affiliation_extras.api_reg_form_search_affiliations';
 
 import React from 'react';
 
@@ -35,7 +35,7 @@ const AffiliationField = ({eventId, regformId}) => {
             <Param name="count" value={item.extraInfo} /> users
           </Plural>
         </PluralTranslate>
-        {')'}
+        )
       </>
     ) : null;
 

@@ -8,8 +8,8 @@
 import createCatalogURL from 'indico-url:plugin_affiliation_extras.api_create_catalog';
 import editCatalogURL from 'indico-url:plugin_affiliation_extras.api_edit_catalog';
 import catalogDetailURL from 'indico-url:plugin_affiliation_extras.catalog_detail';
-import catalogListURL from 'indico-url:plugin_affiliation_extras.manage_affiliations';
 import catalogNewURL from 'indico-url:plugin_affiliation_extras.create_catalog';
+import catalogListURL from 'indico-url:plugin_affiliation_extras.manage_affiliations';
 
 import PropTypes from 'prop-types';
 import React, {useEffect, useReducer} from 'react';
@@ -19,8 +19,8 @@ import {Message} from 'semantic-ui-react';
 
 import {ManagementPageBackButton} from 'indico/react/components';
 import {handleSubmitError} from 'indico/react/forms';
-import {routerPathFromFlask, useNumericParam} from 'indico/react/util/routing';
 import {Translate} from 'indico/react/i18n';
+import {routerPathFromFlask, useNumericParam} from 'indico/react/util/routing';
 import {indicoAxios} from 'indico/utils/axios';
 
 import CatalogDetailPane from './CatalogDetailPane';

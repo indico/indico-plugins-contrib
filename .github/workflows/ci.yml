@@ -148,6 +148,17 @@ jobs:
         run: |
           ruff format --check --output-format github .
 
+      - name: Run biome
+        if: success() || failure()
+        run: npx @biomejs/biome ci
+
+      - name: Run stylelint
+        if: success() || failure()
+        run: |
+          echo "::add-matcher::.github/matchers/stylelint-problem-matcher.json"
+          npx stylelint --formatter unix '*/indico_*/client/**/*.{scss,css}'
+          echo "::remove-matcher owner=stylelint::"
+
   test-plugin:
     needs: setup
     runs-on: ubuntu-22.04

@@ -9,8 +9,8 @@ import cloneCatalogURL from 'indico-url:plugin_affiliation_extras.api_clone_cata
 import deleteCatalogURL from 'indico-url:plugin_affiliation_extras.api_delete_catalog';
 import toggleDefaultCatalogURL from 'indico-url:plugin_affiliation_extras.api_toggle_default_catalog';
 import catalogDetailURL from 'indico-url:plugin_affiliation_extras.catalog_detail';
-import catalogListURL from 'indico-url:plugin_affiliation_extras.manage_affiliations';
 import catalogNewURL from 'indico-url:plugin_affiliation_extras.create_catalog';
+import catalogListURL from 'indico-url:plugin_affiliation_extras.manage_affiliations';
 
 import _ from 'lodash';
 import PropTypes from 'prop-types';
