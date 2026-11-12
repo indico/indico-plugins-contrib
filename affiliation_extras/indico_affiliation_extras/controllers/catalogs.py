@@ -28,7 +28,6 @@ from indico_affiliation_extras.controllers.base import (
     AffiliationTagsMixin,
     SearchAffiliationsExtendedMixin,
 )
-from indico_affiliation_extras.controllers.compat import CountriesListMixin
 from indico_affiliation_extras.models.catalogs import AffiliationCatalog
 from indico_affiliation_extras.models.groups import AffiliationGroup
 from indico_affiliation_extras.models.tags import AffiliationTag
@@ -113,10 +112,6 @@ class AffiliationAreaMixin:
 
 class RHAffiliationCatalogsManagementBase(RHProtected):
     DENY_FRAMES = True
-
-
-class RHAffiliationCatalogCountries(CountriesListMixin, AffiliationAreaMixin, RHAffiliationCatalogsManagementBase):
-    pass
 
 
 class RHAffiliationCatalogGroups(AffiliationGroupsMixin, AffiliationAreaMixin, RHAffiliationCatalogsManagementBase):

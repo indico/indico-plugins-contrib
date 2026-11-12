@@ -6,7 +6,6 @@
 // MIT License see the LICENSE file for more details.
 
 import affiliationGroupsURL from 'indico-url:plugin_affiliation_extras.api_reg_form_affiliation_groups';
-import affiliationCountriesURL from 'indico-url:plugin_affiliation_extras.api_reg_form_countries';
 import searchAffiliationsURL from 'indico-url:plugin_affiliation_extras.api_reg_form_search_affiliations';
 import affiliationTagsURL from 'indico-url:plugin_affiliation_extras.api_reg_form_affiliation_tags';
 import affiliationUserCountURL from 'indico-url:plugin_affiliation_extras.api_affiliation_user_count';
@@ -24,7 +23,6 @@ const AffiliationField = ({eventId, regformId}) => {
   const groupsURL = affiliationGroupsURL(regformLocator);
   const tagsURL = affiliationTagsURL(regformLocator);
   const searchURL = searchAffiliationsURL(regformLocator);
-  const countriesURL = affiliationCountriesURL(regformLocator);
   const renderItemExtra = item =>
     item.extraInfo !== undefined ? (
       <>
@@ -48,7 +46,6 @@ const AffiliationField = ({eventId, regformId}) => {
       groupsURL={groupsURL}
       tagsURL={tagsURL}
       searchURL={searchURL}
-      countriesURL={countriesURL}
       userCountURL={countURL}
       renderItemExtra={renderItemExtra}
     />
