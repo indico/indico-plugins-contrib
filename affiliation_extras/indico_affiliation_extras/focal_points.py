@@ -94,7 +94,7 @@ def focal_affiliations_for_event(user, event):
     enabled_ids = event_settings.get(event, 'focal_point_enabled_regform_ids')
     allowed_ids = set()
     for regform in event.registration_forms:
-        if regform.is_deleted or regform.id not in enabled_ids:
+        if regform.id not in enabled_ids:
             continue
         for field in regform.active_fields:
             if field.input_type == RepresentationField.name:
