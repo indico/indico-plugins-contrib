@@ -131,6 +131,7 @@ function CatalogListRow({
         <Popup
           content={Translate.string('Edit members')}
           on="hover"
+          position="top center"
           trigger={
             <Icon.Group onClick={openModal('edit')} style={{cursor: 'pointer'}}>
               <Icon name="edit" color="grey" />
@@ -139,21 +140,31 @@ function CatalogListRow({
           }
         />
         <Popup
-          content={Translate.string('See affiliations')}
+          content={
+            isCustom
+              ? Translate.string('This list uses custom affiliations')
+              : Translate.string('See affiliations')
+          }
           on="hover"
+          position="top center"
           trigger={
             <Icon
               name="list"
               color="grey"
               onClick={openModal('affiliations')}
               disabled={isCustom}
-              link
+              link={!isCustom}
             />
           }
         />
         <Popup
-          content={Translate.string('Remove list')}
+          content={
+            canDelete
+              ? Translate.string('Remove list')
+              : Translate.string('At least one list is required')
+          }
           on="hover"
+          position="top center"
           trigger={
             <Icon
               name="trash"
@@ -183,6 +194,7 @@ function CatalogListRow({
         <Popup
           content={isEnabled ? Translate.string('Disable list') : Translate.string('Enable list')}
           on="hover"
+          position="top center"
           trigger={
             <Icon
               name={isEnabled ? 'ban' : 'check'}
