@@ -43,6 +43,7 @@ from indico_affiliation_extras.focal_points import (
     get_submitted_affiliation_ids,
     merge_focal_points,
 )
+from indico_affiliation_extras.models.catalogs import AffiliationCatalog
 from indico_affiliation_extras.permissions import (
     FOCAL_POINT_PERMISSIONS,
     focal_point_management_enabled,
@@ -52,6 +53,7 @@ from indico_affiliation_extras.permissions import (
 )
 from indico_affiliation_extras.schemas import AffiliationExtraAttrsArgs, AffiliationExtraAttrsSchema
 from indico_affiliation_extras.util import (
+    get_default_catalog,
     get_extended_affiliation_filters,
     get_representation_affiliation_filters,
     populate_contacts,
@@ -199,13 +201,21 @@ class AffiliationExtrasPlugin(IndicoPlugin):
         catalog_id = field.data.get('catalog_id')
         if old_catalog_id == catalog_id:
             return
+        data = {}
+        for key, selected_id in (('Previous catalog', old_catalog_id), ('Catalog', catalog_id)):
+            if selected_id is None:
+                catalog = get_default_catalog(field.registration_form.event)
+                data[key] = f'{catalog.name} (event default)' if catalog else 'Event default (none)'
+            else:
+                catalog = AffiliationCatalog.get(selected_id)
+                data[key] = catalog.name if catalog else f'Unavailable catalog ({selected_id})'
         field.log(
             EventLogRealm.management,
             LogKind.change,
-            'Affiliation Catalogs',
-            'Representation catalog changed',
+            'Registration',
+            f'Representation catalog for field "{field.title}" in "{field.registration_form.title}" changed',
             session.user,
-            data={'Previous catalog ID': old_catalog_id, 'Catalog ID': catalog_id},
+            data=data,
         )
 
     def _category_sidemenu_items(self, sender, category, **kwargs):
