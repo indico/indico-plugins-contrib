@@ -9,7 +9,31 @@
         <div class="form-field">
             {{ switch(id='focal-point-management', name='focal_point_management', checked=enabled, disabled=disabled) }}
             <div class="form-field-description">
-                {% trans %}Let affiliation focal points manage and moderate the registrations that represent their own affiliations. Requires a representation field on the form.{% endtrans %}
+                {% trans %}Let affiliation focal points access the registrations on this form that represent their own affiliations. Requires a representation field on the form.{% endtrans %}
+            </div>
+        </div>
+    </div>
+    <div class="form-group">
+        <div class="form-label form-label-empty">
+            <label for="focal-point-editing">{% trans %}Manage registrations{% endtrans %}</label>
+        </div>
+        <div class="form-field">
+            {{ switch(id='focal-point-editing', name='focal_point_editing', checked=editing_enabled, disabled=disabled) }}
+            <input type="hidden" name="focal_point_editing_initial" value="{{ '1' if editing_enabled else '0' }}">
+            <div class="form-field-description">
+                {% trans %}Focal points can register people for their own affiliations and modify or delete these registrations. Applies to all registration forms of this event.{% endtrans %}
+            </div>
+        </div>
+    </div>
+    <div class="form-group">
+        <div class="form-label form-label-empty">
+            <label for="focal-point-moderation">{% trans %}Moderate registrations{% endtrans %}</label>
+        </div>
+        <div class="form-field">
+            {{ switch(id='focal-point-moderation', name='focal_point_moderation', checked=moderation_enabled, disabled=disabled) }}
+            <input type="hidden" name="focal_point_moderation_initial" value="{{ '1' if moderation_enabled else '0' }}">
+            <div class="form-field-description">
+                {% trans %}Focal points can approve, reject, reset and withdraw the registrations of their own affiliations. When turned off, registrations they create on moderated forms await approval. Applies to all registration forms of this event.{% endtrans %}
             </div>
         </div>
     </div>
