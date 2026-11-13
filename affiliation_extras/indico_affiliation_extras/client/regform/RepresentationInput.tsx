@@ -16,7 +16,7 @@ import {useSelector} from 'react-redux';
 import {AffiliationField} from 'indico/react/components';
 import {FinalField} from 'indico/react/forms';
 import {Param, Translate} from 'indico/react/i18n';
-import {getStaticData} from 'indico/modules/events/registration/form/selectors';
+import {getItemById, getStaticData} from 'indico/modules/events/registration/form/selectors';
 
 import './RepresentationInput.module.scss';
 
@@ -53,6 +53,7 @@ type RepresentationInputComponentProps = {
   onChange: (value: RepresentationValue) => void;
   disabled: boolean;
   isRequired: boolean;
+  showAsRequired: boolean;
   representationTypes: RepresentationType[];
   getSearchAffiliationURL: (params: {q: string; affiliationListId: number}) => string;
 };
@@ -63,6 +64,7 @@ function RepresentationInputComponent({
   onChange,
   disabled,
   isRequired,
+  showAsRequired,
   representationTypes,
   getSearchAffiliationURL,
 }: RepresentationInputComponentProps) {
@@ -119,7 +121,7 @@ function RepresentationInputComponent({
 
   return (
     <>
-      <Form.Field required={isRequired}>
+      <Form.Field>
         <Dropdown
           id={`${id}-representation-type`}
           styleName="representation-field"
@@ -136,7 +138,7 @@ function RepresentationInputComponent({
         />
       </Form.Field>
       {!!selectedRepresentation && (
-        <Form.Field required={isRequired}>
+        <Form.Field required={showAsRequired}>
           <label htmlFor={`${id}-affiliation`}>{selectedRepresentation.name}</label>
           {selectedRepresentation.affiliationMode === 'custom' ? (
             <Input
@@ -215,6 +217,7 @@ export default function RepresentationInput({
   searchContext = {},
 }: RepresentationInputProps) {
   const {eventId, regformId, management} = useSelector(getStaticData) as StaticData;
+  const showAsRequired = useSelector(state => getItemById(state, fieldId).isRequired);
   const searchURL = management ? searchAffiliationsManagementURL : searchAffiliationsURL;
 
   return (
@@ -225,6 +228,7 @@ export default function RepresentationInput({
       undefinedValue={{}}
       disabled={disabled}
       isRequired={isRequired}
+      showAsRequired={showAsRequired}
       representationTypes={representationTypes}
       getSearchAffiliationURL={({q, affiliationListId}: {q: string; affiliationListId: number}) =>
         searchURL({

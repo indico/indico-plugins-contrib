@@ -14,6 +14,7 @@ const representationField = {
   title: Translate.string('Representation'),
   icon: 'id-badge',
   inputComponent: RepresentationInput,
+  renderAsFieldset: true,
   settingsComponent: RepresentationSettings,
 };
 
