@@ -5,33 +5,37 @@
 // redistribute them and/or modify them under the terms of the;
 // MIT License see the LICENSE file for more details.
 
+import manageAffiliationsURL from 'indico-url:plugin_affiliation_extras.manage_affiliations';
 import searchAffiliationsURL from 'indico-url:plugin_affiliation_extras.search_registration_affiliation';
 import searchAffiliationsManagementURL from 'indico-url:plugin_affiliation_extras.search_registration_affiliation_management';
-import manageAffiliationsURL from 'indico-url:plugin_affiliation_extras.manage_affiliations';
 
+import {noop} from 'lodash';
 import React from 'react';
-import {Dropdown, Form, Input, Message} from 'semantic-ui-react';
 import {useSelector} from 'react-redux';
+import {Dropdown, Form, Input, Message} from 'semantic-ui-react';
 
+import {getItemById, getStaticData} from 'indico/modules/events/registration/form/selectors';
 import {AffiliationField} from 'indico/react/components';
 import {FinalField} from 'indico/react/forms';
 import {Param, Translate} from 'indico/react/i18n';
-import {getItemById, getStaticData} from 'indico/modules/events/registration/form/selectors';
 
 import './RepresentationInput.module.scss';
 
-type RepresentationType = {
+interface RepresentationType {
   id: number;
   name: string;
   affiliationMode: 'predefined' | 'custom';
-  affiliations?: Array<{id: number; name: string}>;
-};
-type AffiliationValue = {id: number | null; text: string};
-type StaticData = {
+  affiliations?: {id: number; name: string}[];
+}
+interface AffiliationValue {
+  id: number | null;
+  text: string;
+}
+interface StaticData {
   eventId: number;
   regformId: number;
   management?: boolean;
-};
+}
 type RepresentationValue =
   | {
       representationId: number | null;
@@ -47,7 +51,7 @@ const EMPTY_VALUE: RepresentationValue = {
   affiliation: EMPTY_AFFILIATION,
 };
 
-type RepresentationInputComponentProps = {
+interface RepresentationInputComponentProps {
   id: string;
   value?: RepresentationValue | null;
   onChange: (value: RepresentationValue) => void;
@@ -56,7 +60,7 @@ type RepresentationInputComponentProps = {
   showAsRequired: boolean;
   representationTypes: RepresentationType[];
   getSearchAffiliationURL: (params: {q: string; affiliationListId: number}) => string;
-};
+}
 
 function RepresentationInputComponent({
   id,
@@ -102,12 +106,10 @@ function RepresentationInputComponent({
       onChange({});
       return;
     }
-    const selectedRepresentation = representationTypes.find(
-      item => item.id === nextRepresentationId
-    );
+    const nextRepresentation = representationTypes.find(item => item.id === nextRepresentationId);
     onChange({
       representationId: nextRepresentationId,
-      representationName: selectedRepresentation?.name ?? '',
+      representationName: nextRepresentation?.name ?? '',
       affiliation: EMPTY_AFFILIATION,
     });
   };
@@ -168,7 +170,7 @@ function RepresentationInputComponent({
                 ? {
                     options: preloadedAffiliationOptions,
                     search: true,
-                    onSearchChange: () => {},
+                    onSearchChange: noop,
                   }
                 : {})}
               disabled={disabled}
@@ -180,7 +182,7 @@ function RepresentationInputComponent({
   );
 }
 
-type RepresentationInputProps = {
+interface RepresentationInputProps {
   fieldId: number;
   htmlId: string;
   htmlName: string;
@@ -188,7 +190,7 @@ type RepresentationInputProps = {
   isRequired: boolean;
   representationTypes?: RepresentationType[];
   searchContext?: Record<string, unknown>;
-};
+}
 
 export function RepresentationSettings() {
   const {eventId} = useSelector(getStaticData) as StaticData;

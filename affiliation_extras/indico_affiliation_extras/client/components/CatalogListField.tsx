@@ -6,26 +6,26 @@
 // MIT License see the LICENSE file for more details.
 
 import affiliationGroupsURL from 'indico-url:plugin_affiliation_extras.api_affiliation_catalog_groups';
-import resolveAffiliationsURL from 'indico-url:plugin_affiliation_extras.api_resolve_affiliations';
 import searchAffiliationsURL from 'indico-url:plugin_affiliation_extras.api_affiliation_catalog_search';
 import affiliationTagsURL from 'indico-url:plugin_affiliation_extras.api_affiliation_catalog_tags';
+import resolveAffiliationsURL from 'indico-url:plugin_affiliation_extras.api_resolve_affiliations';
 
 import _ from 'lodash';
 import React, {useMemo, useState} from 'react';
 import {Field} from 'react-final-form';
 import {Button, Confirm, Icon, Input, Modal, Popup} from 'semantic-ui-react';
 
+import {Affiliation} from 'indico/modules/users/affiliations/types';
 import {FinalCheckbox, FinalField} from 'indico/react/forms';
 import {FinalModalForm} from 'indico/react/forms/final-form';
 import {Translate} from 'indico/react/i18n';
 import {SortableWrapper, useSortableItem} from 'indico/react/sortable';
-import {Affiliation} from 'indico/modules/users/affiliations/types';
 
 import {GroupInfo, TagInfo} from '../types';
 
-import {MembersDisplay} from './GroupsTagsDisplay';
-import FinalAffiliationList from './AffiliationListField';
 import {AffiliationList} from './AffiliationList';
+import FinalAffiliationList from './AffiliationListField';
+import {MembersDisplay} from './GroupsTagsDisplay';
 
 import './CatalogListField.module.scss';
 
@@ -111,7 +111,7 @@ function CatalogListRow({
           size="small"
           placeholder={Translate.string('List name')}
           value={value.name}
-          onChange={(_, {value: name}) => onChange({...value, name})}
+          onChange={(__, {value: name}) => onChange({...value, name})}
         />
       </td>
       <td>
@@ -293,7 +293,7 @@ function CatalogListField({
     }));
   const normalizedValues = normalizePositions(values);
 
-  const handleChange = (newValue: CatalogItem[], touch: boolean = true) => {
+  const handleChange = (newValue: CatalogItem[], touch = true) => {
     onChange(normalizePositions(newValue));
     if (touch) {
       onFocus();
@@ -345,7 +345,7 @@ function CatalogListField({
                   onChange={newValue =>
                     handleChange(normalizedValues.map((v, i) => (i === idx ? newValue : v)))
                   }
-                  onDelete={() => handleChange(normalizedValues.filter((_, i) => i !== idx))}
+                  onDelete={() => handleChange(normalizedValues.filter((__, i) => i !== idx))}
                   onMove={handleMove}
                 />
               ))}
