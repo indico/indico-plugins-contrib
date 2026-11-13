@@ -34,7 +34,7 @@ _EMPTY_AFFILIATION = {'id': None, 'text': ''}
 class RepresentationValueSchema(mm.Schema):
     representation_id = fields.Integer(load_default=None, allow_none=True, data_key='representationId')
     representation_name = fields.String(load_default='', data_key='representationName')
-    affiliation = fields.Nested(AffiliationValueSchema, load_default=lambda: {'id': None, 'text': ''})
+    affiliation = fields.Nested(AffiliationValueSchema, load_default=lambda: dict(_EMPTY_AFFILIATION))
 
     @post_load
     def _normalize_empty(self, data, **kwargs):
