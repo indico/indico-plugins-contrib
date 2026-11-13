@@ -173,5 +173,5 @@ def test_catalog_serialization_includes_usage(
     db.session.flush()
 
     schema = AffiliationCatalogSchema()
-    assert schema.dump(selected.catalog)['is_used_by_regform'] is (state == 'active')
-    assert schema.dump(unused.catalog)['is_used_by_regform'] is False
+    assert schema.dump(selected.catalog)['is_used_by_regform'] == (state == 'active')
+    assert not schema.dump(unused.catalog)['is_used_by_regform']
