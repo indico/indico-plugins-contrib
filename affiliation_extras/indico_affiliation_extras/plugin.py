@@ -16,12 +16,13 @@ from indico.core.plugins import IndicoPlugin, render_plugin_template, url_for_pl
 from indico.modules.events.models.events import Event
 from indico.modules.events.registration.fields.base import RegistrationFormFieldBase
 from indico.modules.events.registration.forms import EmailRegistrantsForm
+from indico.modules.events.registration.models.registrations import RegistrationState
 from indico.modules.events.registration.views import (
     WPDisplayRegistrationFormConference,
     WPDisplayRegistrationFormSimpleEvent,
     WPManageRegistration,
 )
-from indico.modules.logs import AppLogRealm, LogKind
+from indico.modules.logs import AppLogRealm, EventLogRealm, LogKind
 from indico.modules.logs.util import make_diff_log
 from indico.modules.users.schemas import AffiliationArgs, AffiliationSchema
 from indico.modules.users.views import WPAffiliationsDashboard
@@ -43,9 +44,11 @@ from indico_affiliation_extras.focal_points import (
 from indico_affiliation_extras.permissions import (
     FOCAL_POINT_PERMISSIONS,
     focal_point_management_enabled,
+    get_focal_point_permissions,
     is_scoped_focal_point,
     regform_has_representation_field,
     set_focal_point_management_enabled,
+    set_focal_point_permissions,
 )
 from indico_affiliation_extras.schemas import AffiliationExtraAttrsArgs, AffiliationExtraAttrsSchema
 from indico_affiliation_extras.util import (
@@ -62,6 +65,12 @@ AFFILIATION_EXTRA_FIELDS = {
     'groups': {'title': 'Groups', 'type': 'list'},
     'tags': {'title': 'Tags', 'type': 'list'},
 }
+
+# (form field suffix, permission, log title) of the event-wide focal-point switches
+FOCAL_POINT_SWITCHES = (
+    ('editing', 'registration_edit', 'Focal points can manage registrations'),
+    ('moderation', 'registration_moderation', 'Focal points can moderate registrations'),
+)
 
 
 class AffiliationExtrasPlugin(IndicoPlugin):
@@ -88,6 +97,7 @@ class AffiliationExtrasPlugin(IndicoPlugin):
         self.connect(signals.event.registrant_list_items, self._get_registrant_list_items)
         self.connect(signals.event.filter_registration_list, self._filter_registration_list)
         self.connect(signals.event.registration_pre_create, self._check_registration_pre_create)
+        self.connect(signals.event.registration_created, self._hold_focal_point_registration_for_moderation)
         self.connect(signals.event.registration_form_edited, self._persist_focal_point_setting)
         self.connect(signals.core.add_form_fields, self._add_registration_email_fields, sender=EmailRegistrantsForm)
         self.connect(
@@ -174,15 +184,42 @@ class AffiliationExtrasPlugin(IndicoPlugin):
     def _render_regform_focal_point_setting(self, regform=None, **kwargs):
         if regform is None or regform.is_deleted:
             return ''
+        permissions = get_focal_point_permissions(regform.event)
         return render_plugin_template(
             'regform_focal_point_setting.html',
             enabled=focal_point_management_enabled(regform),
+            editing_enabled='registration_edit' in permissions,
+            moderation_enabled='registration_moderation' in permissions,
             disabled=not regform_has_representation_field(regform),
         )
 
     def _persist_focal_point_setting(self, regform, **kwargs):
-        if regform_has_representation_field(regform):
-            set_focal_point_management_enabled(regform, 'focal_point_management' in request.form)
+        if not regform_has_representation_field(regform):
+            return
+        set_focal_point_management_enabled(regform, 'focal_point_management' in request.form)
+        # The switches are event-wide but saved with each form: only write the ones changed on this page, so
+        # saving a form opened earlier does not revert a change made since then from another form.
+        event = regform.event
+        current = get_focal_point_permissions(event)
+        updates = {}
+        for name, permission, __ in FOCAL_POINT_SWITCHES:
+            enabled = f'focal_point_{name}' in request.form
+            unchanged_on_page = enabled == (request.form.get(f'focal_point_{name}_initial') == '1')
+            if not unchanged_on_page and enabled != (permission in current):
+                updates[name] = enabled
+        if not updates:
+            return
+        set_focal_point_permissions(event, **updates)
+        changes = {name: (not enabled, enabled) for name, enabled in updates.items()}
+        titles = {name: title for name, __, title in FOCAL_POINT_SWITCHES}
+        event.log(
+            EventLogRealm.management,
+            LogKind.change,
+            'Registration',
+            'Focal point permissions changed',
+            session.user,
+            data={'Changes': make_diff_log(changes, titles)},
+        )
 
     def _category_sidemenu_items(self, sender, category, **kwargs):
         if category.can_manage(session.user):
@@ -208,7 +245,11 @@ class AffiliationExtrasPlugin(IndicoPlugin):
         if not event_ids:
             return None
         events = Event.query.filter(Event.id.in_(event_ids)).all()
-        return {event.id: {'conference_manager'} for event in events if is_scoped_focal_point(event, user)}
+        return {
+            event.id: {'conference_manager'}
+            for event in events
+            if get_focal_point_permissions(event) and is_scoped_focal_point(event, user)
+        }
 
     def _merge_users(self, target, source, **kwargs):
         merge_focal_points(target, source)
@@ -235,9 +276,38 @@ class AffiliationExtrasPlugin(IndicoPlugin):
         if not (get_submitted_affiliation_ids(regform, data) & focal_affiliations_for_event(user, regform.event)):
             raise UserValueError(_('As a focal point you may only register people for your own affiliations.'))
 
+    def _hold_focal_point_registration_for_moderation(self, registration, management, **kwargs):
+        # Core approves registrations created from management; without moderation a focal point must not.
+        regform = registration.registration_form
+        if not management or not regform.moderation_enabled or registration.state == RegistrationState.pending:
+            return
+        if not focal_point_management_enabled(regform):
+            return
+        if registration.invitation and registration.invitation.skip_moderation:
+            return
+        if 'registration_moderation' in get_focal_point_permissions(regform.event):
+            return
+        if not is_scoped_focal_point(regform.event, registration.created_by):
+            return
+        previous_state = registration.state
+        registration.state = RegistrationState.pending
+        signals.event.registration_state_updated.send(registration, previous_state=previous_state, silent=True)
+        registration.log(
+            EventLogRealm.management,
+            LogKind.change,
+            'Registration',
+            f'Registration for "{registration.full_name}" awaits approval',
+            registration.created_by,
+            data={'Reason': 'Created by a focal point who cannot moderate registrations'},
+        )
+
     def _grant_focal_point_registration_permissions(self, sender, obj, user=None, permission=None, **kwargs):
         # Never return False, which would deny a genuine manager; the blacklist signals do the bounding.
-        if permission in FOCAL_POINT_PERMISSIONS and is_scoped_focal_point(obj, user):
+        if (
+            permission in FOCAL_POINT_PERMISSIONS
+            and permission in get_focal_point_permissions(obj)
+            and is_scoped_focal_point(obj, user)
+        ):
             return True
 
     def _filter_user_search_results(self, sender, user, results, **kwargs):

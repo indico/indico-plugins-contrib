@@ -21,5 +21,7 @@ event_settings = EventSettingsProxy(
     {
         'default_catalog_id': None,
         'focal_point_enabled_regform_ids': [],
+        'focal_point_editing_disabled': False,
+        'focal_point_moderation_disabled': False,
     },
 )
