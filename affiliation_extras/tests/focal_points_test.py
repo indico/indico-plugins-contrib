@@ -14,6 +14,7 @@ from indico.modules.users.models.affiliations import Affiliation
 from indico_affiliation_extras.focal_points import (
     focal_event_ids,
     focal_list_criterion,
+    get_field_catalog_affiliation_ids,
     get_focal_affiliation_ids,
     get_registrations_focal_points,
     set_focal_points,
@@ -320,3 +321,32 @@ class TestRegistrationCriterion:
         db.session.flush()
 
         assert _focal_query(dummy_regform, admin) == []
+
+
+@pytest.mark.usefixtures('request_context', 'not_testing')
+def test_catalog_affiliation_cache_preserves_each_focal_points_scope(
+    db,
+    dummy_regform,
+    create_user,
+    create_catalog_affiliations,
+    create_representation_field,
+    create_representation_registration,
+    count_queries,
+):
+    first_affiliation, second_affiliation = create_catalog_affiliations(dummy_regform.event)
+    field = create_representation_field(dummy_regform)
+    first_registration = create_representation_registration(field, first_affiliation.id)
+    second_registration = create_representation_registration(field, second_affiliation.id)
+    first_focal, second_focal = create_user(1), create_user(2)
+    set_focal_points(first_affiliation, {first_focal})
+    set_focal_points(second_affiliation, {second_focal})
+    db.session.flush()
+
+    expected = {first_affiliation.id, second_affiliation.id}
+    assert get_field_catalog_affiliation_ids(field) == expected
+    with count_queries() as count:
+        assert get_field_catalog_affiliation_ids(field) == expected
+    assert count() == 0
+    assert _focal_query(dummy_regform, first_focal) == [first_registration]
+    assert _focal_query(dummy_regform, second_focal) == [second_registration]
+    assert get_field_catalog_affiliation_ids(field) == expected

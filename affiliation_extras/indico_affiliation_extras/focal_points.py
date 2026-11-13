@@ -102,6 +102,7 @@ def focal_affiliations_for_event(user, event):
     return focal_ids & allowed_ids
 
 
+@memoize_request
 def get_field_catalog_affiliation_ids(field):
     return get_catalog_affiliation_ids(get_representation_catalog(field))
 
@@ -114,7 +115,7 @@ def _field_affiliation_criterion(fields, affiliation_ids=None):
             continue
         allowed_ids = get_field_catalog_affiliation_ids(field)
         if affiliation_ids is not None:
-            allowed_ids &= affiliation_ids
+            allowed_ids = allowed_ids.intersection(affiliation_ids)
         if allowed_ids:
             criteria.append(db.and_(RegistrationFormField.id == field.id, affiliation_id.in_(allowed_ids)))
     return db.or_(*criteria) if criteria else db.false()
