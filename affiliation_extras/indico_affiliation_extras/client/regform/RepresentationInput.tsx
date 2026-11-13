@@ -5,37 +5,44 @@
 // redistribute them and/or modify them under the terms of the;
 // MIT License see the LICENSE file for more details.
 
+import manageAffiliationsURL from 'indico-url:plugin_affiliation_extras.manage_affiliations';
 import searchAffiliationsURL from 'indico-url:plugin_affiliation_extras.search_registration_affiliation';
 import searchAffiliationsManagementURL from 'indico-url:plugin_affiliation_extras.search_registration_affiliation_management';
-import manageAffiliationsURL from 'indico-url:plugin_affiliation_extras.manage_affiliations';
 
+import {noop} from 'lodash';
 import React from 'react';
-import {Dropdown, Form, Message} from 'semantic-ui-react';
 import {useSelector} from 'react-redux';
+import {Dropdown, Form, Input, Message} from 'semantic-ui-react';
 
+import {getItemById, getStaticData} from 'indico/modules/events/registration/form/selectors';
 import {AffiliationField} from 'indico/react/components';
 import {FinalField} from 'indico/react/forms';
 import {Param, Translate} from 'indico/react/i18n';
-import {getStaticData} from 'indico/modules/events/registration/form/selectors';
 
 import './RepresentationInput.module.scss';
 
-type RepresentationType = {
+interface RepresentationType {
   id: number;
   name: string;
-  affiliations?: Array<{id: number; name: string}>;
-};
-type AffiliationValue = {id: number | null; text: string};
-type StaticData = {
+  affiliationMode: 'predefined' | 'custom';
+  affiliations?: {id: number; name: string}[];
+}
+interface AffiliationValue {
+  id: number | null;
+  text: string;
+}
+interface StaticData {
   eventId: number;
   regformId: number;
   management?: boolean;
-};
-type RepresentationValue = {
-  representationId: number | null;
-  representationName: string;
-  affiliation: AffiliationValue;
-};
+}
+type RepresentationValue =
+  | {
+      representationId: number | null;
+      representationName: string;
+      affiliation: AffiliationValue;
+    }
+  | Record<string, never>;
 
 const EMPTY_AFFILIATION: AffiliationValue = {id: null, text: ''};
 const EMPTY_VALUE: RepresentationValue = {
@@ -44,15 +51,16 @@ const EMPTY_VALUE: RepresentationValue = {
   affiliation: EMPTY_AFFILIATION,
 };
 
-type RepresentationInputComponentProps = {
+interface RepresentationInputComponentProps {
   id: string;
   value?: RepresentationValue | null;
   onChange: (value: RepresentationValue) => void;
   disabled: boolean;
   isRequired: boolean;
+  showAsRequired: boolean;
   representationTypes: RepresentationType[];
   getSearchAffiliationURL: (params: {q: string; affiliationListId: number}) => string;
-};
+}
 
 function RepresentationInputComponent({
   id,
@@ -60,10 +68,11 @@ function RepresentationInputComponent({
   onChange,
   disabled,
   isRequired,
+  showAsRequired,
   representationTypes,
   getSearchAffiliationURL,
 }: RepresentationInputComponentProps) {
-  const normalizedValue = value ?? EMPTY_VALUE;
+  const normalizedValue = value?.affiliation ? value : EMPTY_VALUE;
   const representationId = normalizedValue.representationId;
   const selectedRepresentation =
     representationTypes.find(item => item.id === representationId) ?? null;
@@ -93,12 +102,14 @@ function RepresentationInputComponent({
 
   const handleRepresentationChange = (_: unknown, {value: selectedValue}: {value?: unknown}) => {
     const nextRepresentationId = typeof selectedValue === 'number' ? selectedValue : null;
-    const selectedRepresentation = representationTypes.find(
-      item => item.id === nextRepresentationId
-    );
+    if (nextRepresentationId === null) {
+      onChange({});
+      return;
+    }
+    const nextRepresentation = representationTypes.find(item => item.id === nextRepresentationId);
     onChange({
       representationId: nextRepresentationId,
-      representationName: selectedRepresentation?.name ?? '',
+      representationName: nextRepresentation?.name ?? '',
       affiliation: EMPTY_AFFILIATION,
     });
   };
@@ -112,7 +123,7 @@ function RepresentationInputComponent({
 
   return (
     <>
-      <Form.Field required={isRequired}>
+      <Form.Field>
         <Dropdown
           id={`${id}-representation-type`}
           styleName="representation-field"
@@ -129,36 +140,49 @@ function RepresentationInputComponent({
         />
       </Form.Field>
       {!!selectedRepresentation && (
-        <Form.Field required={isRequired}>
+        <Form.Field required={showAsRequired}>
           <label htmlFor={`${id}-affiliation`}>{selectedRepresentation.name}</label>
-          <AffiliationField
-            id={`${id}-affiliation`}
-            styleName="representation-field"
-            value={normalizedValue.affiliation}
-            onChange={handleAffiliationChange}
-            allowCustomAffiliations={false}
-            currentAffiliation={null}
-            includeMeta={false}
-            searchAffiliationURL={({q}) =>
-              getSearchAffiliationURL({q, affiliationListId: selectedRepresentation.id})
-            }
-            // These props intentionally pass through AffiliationField to ComboDropdown.
-            {...(usePreloadedAffiliations
-              ? {
-                  options: preloadedAffiliationOptions,
-                  search: true,
-                  onSearchChange: () => {},
-                }
-              : {})}
-            disabled={disabled}
-          />
+          {selectedRepresentation.affiliationMode === 'custom' ? (
+            <Input
+              id={`${id}-affiliation`}
+              styleName="representation-field"
+              value={normalizedValue.affiliation.text}
+              onChange={(_, {value: text}) => handleAffiliationChange({id: null, text})}
+              placeholder={Translate.string('Enter an affiliation name')}
+              disabled={disabled}
+              required={isRequired}
+              fluid
+            />
+          ) : (
+            <AffiliationField
+              id={`${id}-affiliation`}
+              styleName="representation-field"
+              value={normalizedValue.affiliation}
+              onChange={handleAffiliationChange}
+              allowCustomAffiliations={false}
+              currentAffiliation={null}
+              includeMeta={false}
+              searchAffiliationURL={({q}) =>
+                getSearchAffiliationURL({q, affiliationListId: selectedRepresentation.id})
+              }
+              // These props intentionally pass through AffiliationField to ComboDropdown.
+              {...(usePreloadedAffiliations
+                ? {
+                    options: preloadedAffiliationOptions,
+                    search: true,
+                    onSearchChange: noop,
+                  }
+                : {})}
+              disabled={disabled}
+            />
+          )}
         </Form.Field>
       )}
     </>
   );
 }
 
-type RepresentationInputProps = {
+interface RepresentationInputProps {
   fieldId: number;
   htmlId: string;
   htmlName: string;
@@ -166,7 +190,7 @@ type RepresentationInputProps = {
   isRequired: boolean;
   representationTypes?: RepresentationType[];
   searchContext?: Record<string, unknown>;
-};
+}
 
 export function RepresentationSettings() {
   const {eventId} = useSelector(getStaticData) as StaticData;
@@ -195,6 +219,7 @@ export default function RepresentationInput({
   searchContext = {},
 }: RepresentationInputProps) {
   const {eventId, regformId, management} = useSelector(getStaticData) as StaticData;
+  const showAsRequired = useSelector(state => getItemById(state, fieldId).isRequired);
   const searchURL = management ? searchAffiliationsManagementURL : searchAffiliationsURL;
 
   return (
@@ -202,9 +227,10 @@ export default function RepresentationInput({
       id={htmlId}
       name={htmlName}
       component={RepresentationInputComponent}
-      undefinedValue={EMPTY_VALUE}
+      undefinedValue={{}}
       disabled={disabled}
       isRequired={isRequired}
+      showAsRequired={showAsRequired}
       representationTypes={representationTypes}
       getSearchAffiliationURL={({q, affiliationListId}: {q: string; affiliationListId: number}) =>
         searchURL({

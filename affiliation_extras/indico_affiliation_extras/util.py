@@ -31,7 +31,7 @@ from indico.util.signing import secure_serializer
 from indico_affiliation_extras.models.catalogs import AffiliationCatalog
 from indico_affiliation_extras.models.contacts import AffiliationContactList
 from indico_affiliation_extras.models.groups import AffiliationGroup
-from indico_affiliation_extras.models.lists import AffiliationList
+from indico_affiliation_extras.models.lists import AffiliationList, AffiliationListMode
 from indico_affiliation_extras.models.tags import AffiliationTag
 from indico_affiliation_extras.settings import category_settings, event_settings
 
@@ -242,6 +242,7 @@ def serialize_catalog_lists(catalog_lists: list[AffiliationList]) -> dict[int, d
         item.id: {
             'name': item.name or '(unnamed list)',
             'is_enabled': item.is_enabled,
+            'affiliation_mode': item.affiliation_mode.name,
             'position': item.position,
             'groups': sorted(g.code for g in item.groups),
             'tags': sorted(t.code for t in item.tags),
@@ -254,6 +255,7 @@ def serialize_catalog_lists(catalog_lists: list[AffiliationList]) -> dict[int, d
 _CATALOG_LIST_LOG_FIELDS = (
     ('name', 'Name', 'string'),
     ('is_enabled', 'Enabled', 'bool'),
+    ('affiliation_mode', 'Affiliation mode', 'string'),
     ('position', 'Position', 'number'),
     ('groups', 'Groups', 'list'),
     ('tags', 'Tags', 'list'),
@@ -290,6 +292,7 @@ def _apply_catalog_lists(catalog: AffiliationCatalog, catalog_lists: list[dict])
             touched_ids.add(list_obj.id)
         list_obj.name = list_data['name'].strip()
         list_obj.is_enabled = list_data['is_enabled']
+        list_obj.affiliation_mode = list_data['affiliation_mode']
         list_obj.position = list_data['position']
         list_obj.groups = list_data['groups']
         list_obj.tags = list_data['tags']
@@ -505,6 +508,8 @@ def get_representation_affiliation_list(
 
 def get_representation_affiliations(affiliation_list: AffiliationList) -> list[Affiliation]:
     """Return affiliations allowed by an affiliation list."""
+    if affiliation_list.affiliation_mode == AffiliationListMode.custom:
+        return []
     return resolve_affiliations(affiliation_list.groups, affiliation_list.tags, affiliation_list.affiliations)
 
 

@@ -21,7 +21,7 @@ from indico.web.forms.colors import get_sui_colors
 from indico_affiliation_extras.models.catalogs import AffiliationCatalog
 from indico_affiliation_extras.models.contacts import AffiliationContactList
 from indico_affiliation_extras.models.groups import AffiliationGroup
-from indico_affiliation_extras.models.lists import AffiliationList
+from indico_affiliation_extras.models.lists import AffiliationList, AffiliationListMode
 from indico_affiliation_extras.models.tags import AffiliationTag
 
 
@@ -147,8 +147,9 @@ class AffiliationExtraAttrsArgs(mm.Schema):
 class AffiliationListSchema(mm.SQLAlchemyAutoSchema):
     class Meta:
         model = AffiliationList
-        fields = ('id', 'name', 'position', 'is_enabled', 'groups', 'tags', 'affiliations')
+        fields = ('id', 'name', 'position', 'is_enabled', 'affiliation_mode', 'groups', 'tags', 'affiliations')
 
+    affiliation_mode = fields.Enum(AffiliationListMode)
     groups = SortedList(fields.Nested(AffiliationGroupSchema(only=('id', 'name', 'code'))), sort_key=attrgetter('code'))
     tags = SortedList(fields.Nested(AffiliationTagSchema), sort_key=attrgetter('code'))
     affiliations = SortedList(
@@ -164,12 +165,15 @@ class AffiliationCatalogListArgs(mm.Schema):
     name = fields.String(required=True, validate=not_empty)
     position = fields.Integer(required=True)
     is_enabled = fields.Boolean(load_default=True)
+    affiliation_mode = fields.Enum(AffiliationListMode, load_default=AffiliationListMode.predefined)
     groups = ModelList(AffiliationGroup, collection_class=set, filter_deleted=True, load_default=set)
     tags = ModelList(AffiliationTag, collection_class=set, load_default=set)
     affiliations = ModelList(Affiliation, collection_class=set, filter_deleted=True, load_default=set)
 
     @validates_schema
     def _validate_members(self, data, **kwargs):
+        if data['affiliation_mode'] == AffiliationListMode.custom:
+            return
         if not data.get('groups') and not data.get('tags') and not data.get('affiliations'):
             raise ValidationError(_('Each list must contain at least one group, tag, or affiliation.'))
 

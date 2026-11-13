@@ -18,7 +18,7 @@ from indico_affiliation_extras import util
 from indico_affiliation_extras.models.catalogs import AffiliationCatalog
 from indico_affiliation_extras.models.contacts import AffiliationContactList
 from indico_affiliation_extras.models.groups import AffiliationGroup
-from indico_affiliation_extras.models.lists import AffiliationList
+from indico_affiliation_extras.models.lists import AffiliationList, AffiliationListMode
 from indico_affiliation_extras.models.tags import AffiliationTag
 from indico_affiliation_extras.settings import category_settings, event_settings
 
@@ -179,6 +179,7 @@ def _catalog_list_payload(
     name='List',
     position=1,
     is_enabled=True,
+    affiliation_mode=AffiliationListMode.predefined,
     groups=(),
     tags=(),
     affiliations=(),
@@ -188,6 +189,7 @@ def _catalog_list_payload(
         'name': name,
         'position': position,
         'is_enabled': is_enabled,
+        'affiliation_mode': affiliation_mode,
         'groups': set(groups),
         'tags': set(tags),
         'affiliations': set(affiliations),
@@ -197,6 +199,7 @@ def _catalog_list_payload(
 _CATALOG_LIST_LOG_FIELD_META = {
     'name': ('Name', 'string'),
     'is_enabled': ('Enabled', 'bool'),
+    'affiliation_mode': ('Affiliation mode', 'string'),
     'position': ('Position', 'number'),
     'groups': ('Groups', 'list'),
     'tags': ('Tags', 'list'),
@@ -723,13 +726,22 @@ def test_populate_catalog_lists_adds_new_list_and_logs_details(db):
         'lists': ([], ['Representatives']),
         _catalog_list_key(list_id, 'name'): ('', 'Representatives'),
         _catalog_list_key(list_id, 'is_enabled'): (None, True),
+        _catalog_list_key(list_id, 'affiliation_mode'): (None, 'predefined'),
         _catalog_list_key(list_id, 'position'): (None, 2),
         _catalog_list_key(list_id, 'groups'): ([], ['group-a']),
         _catalog_list_key(list_id, 'tags'): ([], ['tag-a']),
         _catalog_list_key(list_id, 'affiliations'): ([], ['CERN']),
     }
     assert log_fields == _catalog_list_log_fields(
-        list_id, 'Representatives', 'name', 'is_enabled', 'position', 'groups', 'tags', 'affiliations'
+        list_id,
+        'Representatives',
+        'name',
+        'is_enabled',
+        'affiliation_mode',
+        'position',
+        'groups',
+        'tags',
+        'affiliations',
     )
 
 
@@ -828,11 +840,12 @@ def test_populate_catalog_lists_deletes_omitted_list(db):
         'lists': (['Representatives'], []),
         _catalog_list_key(list_obj.id, 'name'): ('Representatives', ''),
         _catalog_list_key(list_obj.id, 'is_enabled'): (True, None),
+        _catalog_list_key(list_obj.id, 'affiliation_mode'): ('predefined', None),
         _catalog_list_key(list_obj.id, 'position'): (1, None),
         _catalog_list_key(list_obj.id, 'affiliations'): (['CERN'], []),
     }
     assert log_fields == _catalog_list_log_fields(
-        list_obj.id, 'Representatives', 'name', 'is_enabled', 'position', 'affiliations'
+        list_obj.id, 'Representatives', 'name', 'is_enabled', 'affiliation_mode', 'position', 'affiliations'
     )
 
 

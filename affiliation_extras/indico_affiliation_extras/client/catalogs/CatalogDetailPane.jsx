@@ -25,15 +25,18 @@ export default function CatalogDetailPane({catalog, targetLocator, isNew, onSubm
   const isCreate = isNew === true;
   const initialValues = {
     name: catalog?.name || '',
-    lists: _.sortBy(catalog?.lists || [], 'position').map(list => ({
-      id: list.id,
-      name: list.name,
-      position: list.position,
-      is_enabled: list.is_enabled,
-      groups: list.groups,
-      tags: list.tags,
-      affiliations: list.affiliations,
-    })),
+    lists: _.sortBy(catalog?.lists || [], 'position').map(list =>
+      _.pick(list, [
+        'id',
+        'name',
+        'position',
+        'is_enabled',
+        'affiliation_mode',
+        'groups',
+        'tags',
+        'affiliations',
+      ])
+    ),
   };
 
   if (!catalog && !isCreate) {
@@ -52,6 +55,7 @@ export default function CatalogDetailPane({catalog, targetLocator, isNew, onSubm
         name: list.name.trim(),
         position: list.position,
         is_enabled: list.is_enabled,
+        affiliation_mode: list.affiliation_mode,
         groups: list.groups.map(group => group.id),
         tags: list.tags.map(tag => tag.id),
         affiliations: list.affiliations.map(affiliation => affiliation.id),

@@ -9,7 +9,9 @@ import pytest
 from marshmallow import ValidationError
 
 from indico.modules.events.registration.models.form_fields import RegistrationFormField
+from indico.modules.events.registration.models.items import RegistrationFormSection
 from indico.modules.events.registration.models.registrations import RegistrationData
+from indico.modules.events.registration.util import create_registration, make_registration_schema
 from indico.modules.users.models.affiliations import Affiliation
 
 from indico_affiliation_extras.fields import (
@@ -18,7 +20,7 @@ from indico_affiliation_extras.fields import (
     iter_representation_reglist_items,
 )
 from indico_affiliation_extras.models.catalogs import AffiliationCatalog
-from indico_affiliation_extras.models.lists import AffiliationList
+from indico_affiliation_extras.models.lists import AffiliationList, AffiliationListMode
 from indico_affiliation_extras.settings import event_settings
 
 
@@ -70,17 +72,97 @@ def representation_field(dummy_regform):
 
 def test_representation_field_validates_required_representation_and_affiliation(representation_field):
     representation_field.is_required = True
-    validator = representation_field.field_impl.get_validators(None)
-    with pytest.raises(ValidationError, match='Please select a representation type'):
-        validator({'representation_id': None, 'affiliation': {'id': None, 'text': ''}})
-    with pytest.raises(ValidationError, match='Please select an affiliation from the list'):
-        validator({'representation_id': 1, 'affiliation': {'id': None, 'text': ''}})
+    mm_field = representation_field.field_impl.create_mm_field()
+    with pytest.raises(ValidationError) as exc_info:
+        mm_field.deserialize({})
+    assert ''.join(exc_info.value.messages) == 'This field cannot be empty.'
+    with pytest.raises(ValidationError) as exc_info:
+        mm_field.deserialize({'representationId': 1, 'affiliation': {'id': None, 'text': ''}})
+    assert ''.join(exc_info.value.messages) == 'Please select an affiliation from the list'
 
 
 def test_representation_field_rejects_custom_affiliation(representation_field):
     validator = representation_field.field_impl.get_validators(None)
     with pytest.raises(ValidationError, match='Please select an affiliation from the list'):
         validator({'representation_id': 1, 'affiliation': {'id': None, 'text': 'CERN'}})
+
+
+@pytest.mark.parametrize(('management', 'manager_only'), ((False, True), (True, False)))
+@pytest.mark.usefixtures('request_context')
+def test_registration_uses_default_for_omitted_required_representation(db, dummy_regform, management, manager_only):
+    section = RegistrationFormSection(
+        registration_form=dummy_regform, title='Representation', is_manager_only=manager_only
+    )
+    field = _create_representation_field(db, dummy_regform)
+    field.parent = section
+    field.is_required = True
+    db.session.flush()
+    payload = {'first_name': 'Test', 'last_name': 'Registrant', 'email': 'registrant@example.test'}
+
+    if management:
+        with pytest.raises(ValidationError) as exc_info:
+            make_registration_schema(dummy_regform, management=True)().load(payload)
+        assert exc_info.value.messages[field.html_field_name] == ['Missing data for required field.']
+
+    schema = make_registration_schema(dummy_regform, management=management, override_required=management)
+    data = schema().load(payload)
+    registration = create_registration(dummy_regform, data, management=management, notify_user=False)
+    db.session.flush()
+
+    assert registration.id is not None
+    assert registration.data_by_field[field.id].data == field.field_impl.default_value
+
+
+@pytest.mark.parametrize('override_required', (False, True))
+@pytest.mark.parametrize(
+    'empty_value',
+    (
+        {},
+        {'representationId': None, 'representationName': '', 'affiliation': {'id': None, 'text': ''}},
+    ),
+)
+@pytest.mark.usefixtures('request_context')
+def test_manager_can_submit_empty_representation_only_with_override(db, dummy_regform, override_required, empty_value):
+    field = _create_representation_field(db, dummy_regform)
+    field.is_required = True
+    db.session.flush()
+    payload = {
+        'first_name': 'Test',
+        'last_name': 'Registrant',
+        'email': 'registrant@example.test',
+        field.html_field_name: empty_value,
+    }
+    schema = make_registration_schema(dummy_regform, management=True, override_required=override_required)()
+
+    if not override_required:
+        with pytest.raises(ValidationError) as exc_info:
+            schema.load(payload)
+        assert set(exc_info.value.messages) == {field.html_field_name}
+        return
+
+    data = schema.load(payload)
+    registration = create_registration(dummy_regform, data, management=True, notify_user=False)
+    db.session.flush()
+    assert registration.data_by_field[field.id].data == field.field_impl.default_value
+
+
+@pytest.mark.parametrize('affiliation', ({'id': None, 'text': ''}, {'id': 123, 'text': 'CERN'}))
+def test_required_override_keeps_custom_representation_validation(db, dummy_regform, affiliation):
+    field = _create_representation_field(db, dummy_regform)
+    field.is_required = True
+    affiliation_list = _create_affiliation_list(db, dummy_regform.event)
+    affiliation_list.affiliation_mode = AffiliationListMode.custom
+    db.session.flush()
+    schema = make_registration_schema(dummy_regform, management=True, override_required=True)()
+
+    with pytest.raises(ValidationError) as exc_info:
+        schema.load({
+            'first_name': 'Test',
+            'last_name': 'Registrant',
+            'email': 'registrant@example.test',
+            field.html_field_name: {'representationId': affiliation_list.id, 'affiliation': affiliation},
+        })
+    assert set(exc_info.value.messages) == {field.html_field_name}
 
 
 def test_representation_field_rejects_invalid_affiliation_list(db, representation_field, dummy_reg):
@@ -178,7 +260,8 @@ def test_representation_field_renders_summary_and_reglist_data(representation_fi
     assert reglist_column.text_value == 'Delegates - CERN'
 
 
-def test_representation_field_adds_split_reglist_columns(db, dummy_regform, dummy_reg):
+@pytest.mark.parametrize('affiliation_id', (None, 2))
+def test_representation_field_adds_split_reglist_columns(db, dummy_regform, dummy_reg, affiliation_id):
     field = _create_representation_field(db, dummy_regform)
     other_field = _create_representation_field(db, dummy_regform, title='Alternate representation')
     dummy_reg.data.append(
@@ -187,7 +270,7 @@ def test_representation_field_adds_split_reglist_columns(db, dummy_regform, dumm
             data={
                 'representation_id': 1,
                 'representation_name': 'Delegates',
-                'affiliation': {'id': 2, 'text': 'CERN'},
+                'affiliation': {'id': affiliation_id, 'text': 'CERN'},
             },
         )
     )
@@ -219,6 +302,7 @@ def test_representation_field_view_data_preloads_small_affiliation_list(db, dumm
     _create_affiliation_list(db, dummy_regform.event, affiliations=affiliations)
 
     [representation_type] = field.view_data['representationTypes']
+    assert representation_type['affiliationMode'] == 'predefined'
     assert [item['name'] for item in representation_type['affiliations']] == [
         f'Affiliation {i:02d}' for i in range(REPRESENTATION_AFFILIATION_PRELOAD_LIMIT)
     ]
@@ -279,3 +363,144 @@ def test_management_search_allows_private_regform_for_managers(test_client, db, 
     )
 
     assert resp.status_code == 200
+
+
+@pytest.mark.parametrize('is_required', (False, True))
+def test_representation_field_accepts_and_displays_custom_affiliation(db, representation_field, dummy_reg, is_required):
+    affiliation_list = _create_affiliation_list(db, representation_field.registration_form.event, name='Other')
+    affiliation_list.affiliation_mode = AffiliationListMode.custom
+    representation_field.is_required = is_required
+    value = {
+        'representation_id': affiliation_list.id,
+        'representation_name': 'Untrusted name',
+        'affiliation': {'id': None, 'text': '  Independent organization  '},
+    }
+
+    representation_field.field_impl.get_validators(None)(value)
+    result = representation_field.field_impl.process_form_data(dummy_reg, value)
+
+    assert result['data'] == {
+        'representation_id': affiliation_list.id,
+        'representation_name': 'Other',
+        'affiliation': {'id': None, 'text': 'Independent organization'},
+    }
+    stored = RegistrationData(field_data=representation_field.current_data, data=result['data'])
+    assert representation_field.field_impl.render_summary_data(stored) == 'Other - Independent organization'
+    assert (
+        representation_field.field_impl.render_reglist_column(stored).text_value == 'Other - Independent organization'
+    )
+
+
+@pytest.mark.parametrize(
+    'affiliation',
+    (
+        {'id': None, 'text': ''},
+        {'id': None, 'text': '   '},
+        {'id': 123, 'text': 'Predefined organization'},
+    ),
+)
+def test_custom_representation_requires_nonempty_custom_text(db, representation_field, affiliation):
+    affiliation_list = _create_affiliation_list(db, representation_field.registration_form.event)
+    affiliation_list.affiliation_mode = AffiliationListMode.custom
+
+    with pytest.raises(ValidationError, match='Please enter'):
+        representation_field.field_impl.get_validators(None)({
+            'representation_id': affiliation_list.id,
+            'affiliation': affiliation,
+        })
+
+
+def test_representation_view_and_search_ignore_preserved_members_in_custom_lists(db, test_client, dummy_regform):
+    field = _create_representation_field(db, dummy_regform)
+    affiliation = Affiliation(name='Preserved affiliation')
+    db.session.add(affiliation)
+    db.session.flush()
+    affiliation_list = _create_affiliation_list(db, dummy_regform.event, affiliations={affiliation})
+    affiliation_list.affiliation_mode = AffiliationListMode.custom
+
+    [representation_type] = field.view_data['representationTypes']
+    assert representation_type['affiliationMode'] == 'custom'
+    assert 'affiliations' not in representation_type
+    response = test_client.get(
+        f'/event/{dummy_regform.event.id}/affiliation-extras/registration/{dummy_regform.id}/'
+        f'affiliations/{field.id}/list/{affiliation_list.id}?q=Preserved'
+    )
+    assert response.status_code == 200
+    assert response.json == []
+
+
+def test_representation_keeps_custom_value_after_mode_changes(db, dummy_regform, dummy_reg):
+    field = _create_representation_field(db, dummy_regform)
+    affiliation_list = _create_affiliation_list(db, dummy_regform.event)
+    stored = {
+        'representation_id': affiliation_list.id,
+        'representation_name': 'Representatives',
+        'affiliation': {'id': None, 'text': 'Independent organization'},
+    }
+    old_data = RegistrationData(registration=dummy_reg, field_data=field.current_data, data=stored)
+    db.session.flush()
+
+    field.field_impl.get_validators(dummy_reg)(dict(stored))
+    assert field.field_impl.process_form_data(dummy_reg, dict(stored), old_data=old_data) == {}
+
+
+@pytest.mark.parametrize(
+    'value',
+    (
+        {},
+        {'representationId': None},
+        {'affiliation': {'id': None, 'text': ''}},
+        {'representationId': None, 'representationName': '', 'affiliation': {'id': None, 'text': ''}},
+    ),
+)
+@pytest.mark.parametrize('partial', (False, True))
+def test_optional_empty_representation_is_normalized_and_displays_empty(
+    representation_field, dummy_reg, value, partial
+):
+    impl = representation_field.field_impl
+    assert impl.create_mm_field().deserialize(value, partial=partial) == {}
+    result = impl.process_form_data(dummy_reg, {})
+    assert result['data'] == {}
+    stored = RegistrationData(field_data=representation_field.current_data, data=result['data'])
+    assert impl.render_summary_data(stored) == ''
+    assert impl.render_reglist_column(stored).text_value == ''
+
+
+@pytest.mark.parametrize(
+    ('mode', 'value', 'message'),
+    (
+        (AffiliationListMode.predefined, {}, 'Please select an affiliation from the list'),
+        (
+            AffiliationListMode.predefined,
+            {'affiliation': {'text': 'Example'}},
+            'Please select an affiliation from the list',
+        ),
+        (AffiliationListMode.custom, {}, 'Please enter an affiliation name'),
+        (AffiliationListMode.custom, {'affiliation': {'id': None}}, 'Please enter an affiliation name'),
+    ),
+)
+def test_partial_representation_validates_incomplete_affiliation(db, dummy_regform, mode, value, message):
+    field = _create_representation_field(db, dummy_regform)
+    affiliation_list = _create_affiliation_list(db, dummy_regform.event)
+    affiliation_list.affiliation_mode = mode
+    value = {'representationId': affiliation_list.id, **value}
+
+    with pytest.raises(ValidationError) as exc_info:
+        field.field_impl.create_mm_field().deserialize(value, partial=True)
+    assert ''.join(exc_info.value.messages) == message
+
+
+def test_partial_representation_rejects_affiliation_without_type(representation_field):
+    with pytest.raises(ValidationError) as exc_info:
+        representation_field.field_impl.create_mm_field().deserialize(
+            {'affiliation': {'id': None, 'text': 'Example'}}, partial=True
+        )
+    assert ''.join(exc_info.value.messages) == 'Please select a representation type'
+
+
+def test_representation_rejects_affiliation_without_type(representation_field):
+    with pytest.raises(ValidationError, match='Please select a representation type'):
+        representation_field.field_impl.get_validators(None)({
+            'representation_id': None,
+            'affiliation': {'id': None, 'text': 'Independent organization'},
+        })
