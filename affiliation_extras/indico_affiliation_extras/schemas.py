@@ -201,10 +201,18 @@ class OwnerDataSchema(mm.Schema):
 class AffiliationCatalogSchema(mm.SQLAlchemyAutoSchema):
     class Meta:
         model = AffiliationCatalog
-        fields = ('id', 'name', 'owner', 'lists')
+        fields = ('id', 'name', 'owner', 'lists', 'is_used_by_regform')
 
+    is_used_by_regform = fields.Boolean(dump_only=True)
     owner = fields.Nested(OwnerDataSchema)
     lists = fields.List(fields.Nested(AffiliationListSchema))
+
+
+class AffiliationCatalogOptionSchema(AffiliationCatalogSchema):
+    class Meta(AffiliationCatalogSchema.Meta):
+        fields = ('id', 'name', 'parent')
+
+    parent = fields.String(attribute='category.title', dump_only=True)
 
 
 class AffiliationWithUsersSchema(mm.Schema):

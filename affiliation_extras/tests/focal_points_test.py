@@ -44,7 +44,44 @@ def _set_affiliation(db, registration, field, affiliation_id):
 
 
 def _focal_query(regform, user):
-    return Registration.query.with_parent(regform).filter(focal_list_criterion(user, regform.event)).all()
+    return Registration.query.with_parent(regform).filter(focal_list_criterion(user, regform)).all()
+
+
+@pytest.mark.parametrize('excluded', ('none', 'wrong_field', 'disabled', 'deleted_catalog'))
+def test_focal_points_use_each_fields_catalog(
+    db,
+    dummy_regform,
+    create_user,
+    create_event_catalog,
+    create_representation_field,
+    create_representation_registration,
+    get_scoped_list,
+    excluded,
+):
+    affiliation = Affiliation(name='Funding member')
+    db.session.add(affiliation)
+    funding = create_event_catalog(dummy_regform.event, [affiliation])
+    create_event_catalog(dummy_regform.event, [])
+    field = create_representation_field(dummy_regform)
+    field.data = {'catalog_id': funding.catalog_id}
+    other_field = create_representation_field(dummy_regform)
+    registration = create_representation_registration(
+        other_field if excluded == 'wrong_field' else field, affiliation.id
+    )
+    funding.is_enabled = excluded != 'disabled'
+    funding.catalog.is_deleted = excluded == 'deleted_catalog'
+    focal = create_user(1)
+    set_focal_points(affiliation, {focal})
+    set_focal_point_management_enabled(dummy_regform, True)
+    db.session.flush()
+
+    expected = excluded == 'none'
+    assert get_registrations_focal_points(dummy_regform, (registration.id,)) == (
+        {registration.id: {focal}} if expected else {}
+    )
+    assert _focal_query(dummy_regform, focal) == ([registration] if expected else [])
+    if expected:
+        assert get_scoped_list(dummy_regform, focal) == [registration]
 
 
 class TestFocalPointQueries:

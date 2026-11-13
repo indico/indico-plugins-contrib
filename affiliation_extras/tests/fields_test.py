@@ -8,6 +8,7 @@
 import pytest
 from marshmallow import ValidationError
 
+from indico.modules.events.features.util import set_feature_enabled
 from indico.modules.events.registration.models.form_fields import RegistrationFormField
 from indico.modules.events.registration.models.items import RegistrationFormSection
 from indico.modules.events.registration.models.registrations import RegistrationData
@@ -504,3 +505,147 @@ def test_representation_rejects_affiliation_without_type(representation_field):
             'representation_id': None,
             'affiliation': {'id': None, 'text': 'Independent organization'},
         })
+
+
+class TestRepresentationCatalog:
+    @pytest.mark.usefixtures('no_csrf_check')
+    def test_setting_selection_is_saved_and_logged(
+        self, test_client, db, dummy_user, dummy_regform, create_event_catalog, create_representation_field
+    ):
+        dummy_regform.event.update_principal(dummy_user, full_access=True)
+        set_feature_enabled(dummy_regform.event, 'registration', True)
+        _login(test_client, dummy_user)
+        selected = create_event_catalog(dummy_regform.event, [])
+        field = create_representation_field(dummy_regform)
+        url = (
+            f'/event/{dummy_regform.event.id}/manage/registration/{dummy_regform.id}/'
+            f'form/sections/{field.parent_id}/fields/{field.id}'
+        )
+
+        response = test_client.patch(url, json={'fieldData': {'title': field.title, 'catalogId': selected.catalog_id}})
+
+        assert response.status_code == 200
+        assert field.data['catalog_id'] == selected.catalog_id
+        log = dummy_regform.event.log_entries.filter_by(summary='Representation catalog changed').one()
+        assert log.data['Previous catalog ID'] is None
+        assert log.data['Catalog ID'] == selected.catalog_id
+
+    def test_field_uses_explicit_catalog(self, db, dummy_regform, create_event_catalog, create_representation_field):
+        selected = create_event_catalog(dummy_regform.event, [])
+        field = create_representation_field(dummy_regform)
+        field.data = {'catalog_id': selected.catalog_id}
+        create_event_catalog(dummy_regform.event, [])
+
+        assert [item['id'] for item in field.view_data['representationTypes']] == [selected.id]
+
+    @pytest.mark.parametrize('unavailable', ('deleted', 'unrelated', 'missing'))
+    def test_unavailable_override_does_not_fall_back(
+        self, db, dummy_regform, create_event, create_event_catalog, create_representation_field, unavailable
+    ):
+        create_event_catalog(dummy_regform.event, [])
+        selected = create_event_catalog(create_event() if unavailable == 'unrelated' else dummy_regform.event, [])
+        field = create_representation_field(dummy_regform)
+        field.data = {'catalog_id': selected.catalog_id if unavailable != 'missing' else 999999}
+        selected.catalog.is_deleted = unavailable == 'deleted'
+
+        assert field.view_data['representationTypes'] == []
+
+    @pytest.mark.parametrize('inherited', (False, True))
+    def test_setup_accepts_available_catalog(
+        self, dummy_regform, db, create_event_catalog, create_representation_field, inherited
+    ):
+        selected = create_event_catalog(dummy_regform.event, [])
+        if inherited:
+            selected.catalog.event = None
+            selected.catalog.category = dummy_regform.event.category
+            db.session.flush()
+        field = create_representation_field(dummy_regform)
+        schema = field.field_impl.create_setup_schema(context={'regform': dummy_regform, 'field': field})
+
+        assert schema.load({'catalog_id': selected.catalog_id}) == {'catalog_id': selected.catalog_id}
+
+    def test_setup_rejects_unrelated_catalog(
+        self, dummy_regform, create_event, create_event_catalog, create_representation_field
+    ):
+        selected = create_event_catalog(create_event(), [])
+        field = create_representation_field(dummy_regform)
+        schema = field.field_impl.create_setup_schema(context={'regform': dummy_regform, 'field': field})
+
+        with pytest.raises(ValidationError, match='unavailable for this event'):
+            schema.load({'catalog_id': selected.catalog_id})
+
+    @pytest.mark.parametrize('use_selected', (False, True))
+    def test_submission_validates_against_field_catalog(
+        self, db, dummy_regform, dummy_reg, create_event_catalog, create_representation_field, use_selected
+    ):
+        affiliation = Affiliation(name='CERN')
+        db.session.add(affiliation)
+        selected = create_event_catalog(dummy_regform.event, [affiliation])
+        default = create_event_catalog(dummy_regform.event, [affiliation])
+        field = create_representation_field(dummy_regform)
+        field.data = {'catalog_id': selected.catalog_id}
+        value = {
+            'representation_id': selected.id if use_selected else default.id,
+            'representation_name': '',
+            'affiliation': {'id': affiliation.id, 'text': affiliation.name},
+        }
+
+        if use_selected:
+            result = field.field_impl.process_form_data(dummy_reg, value)
+            assert result['data']['representation_id'] == selected.id
+        else:
+            with pytest.raises(ValidationError, match='Invalid representation type'):
+                field.field_impl.process_form_data(dummy_reg, value)
+
+    @pytest.mark.parametrize('management', (False, True))
+    def test_search_is_scoped_to_field_catalog(
+        self, test_client, db, dummy_user, dummy_regform, create_event_catalog, create_representation_field, management
+    ):
+        affiliation = Affiliation(name='CERN')
+        db.session.add(affiliation)
+        selected = create_event_catalog(dummy_regform.event, [affiliation])
+        default = create_event_catalog(dummy_regform.event, [affiliation])
+        field = create_representation_field(dummy_regform)
+        field.data = {'catalog_id': selected.catalog_id}
+        if management:
+            dummy_regform.event.update_principal(dummy_user, full_access=True)
+            _login(test_client, dummy_user)
+        prefix = 'manage/' if management else ''
+        url = (
+            f'/event/{dummy_regform.event.id}/{prefix}affiliation-extras/registration/{dummy_regform.id}/'
+            f'affiliations/{field.id}/list/'
+        )
+
+        response = test_client.get(f'{url}{selected.id}?q=CERN')
+        assert response.status_code == 200
+        assert [item['id'] for item in response.json] == [affiliation.id]
+        assert test_client.get(f'{url}{default.id}?q=CERN').status_code == 404
+
+
+@pytest.mark.parametrize('custom', (False, True))
+def test_explicit_catalog_affiliation_mode_is_used_for_validation(
+    db, dummy_regform, dummy_reg, create_event_catalog, create_representation_field, custom
+):
+    affiliation = Affiliation(name='Predefined organization')
+    db.session.add(affiliation)
+    selected = create_event_catalog(dummy_regform.event, [affiliation])
+    selected.affiliation_mode = AffiliationListMode.custom if custom else AffiliationListMode.predefined
+    create_event_catalog(dummy_regform.event, [])
+    field = create_representation_field(dummy_regform)
+    field.data = {'catalog_id': selected.catalog_id}
+    value = {
+        'representation_id': selected.id,
+        'representation_name': '',
+        'affiliation': {'id': None, 'text': 'Independent organization'},
+    }
+
+    if custom:
+        field.field_impl.get_validators(dummy_reg)(value)
+        result = field.field_impl.process_form_data(dummy_reg, value)
+        assert result['data']['affiliation'] == {'id': None, 'text': 'Independent organization'}
+        [representation_type] = field.view_data['representationTypes']
+        assert representation_type['affiliationMode'] == 'custom'
+        assert 'affiliations' not in representation_type
+    else:
+        with pytest.raises(ValidationError, match='Please select an affiliation from the list'):
+            field.field_impl.get_validators(dummy_reg)(value)

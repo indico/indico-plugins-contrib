@@ -6,6 +6,7 @@
 # MIT License see the LICENSE file for more details.
 
 from flask import g, has_request_context, request, session
+from sqlalchemy import inspect
 from wtforms.fields import BooleanField
 
 from indico.core import signals
@@ -22,6 +23,7 @@ from indico.modules.events.registration.views import (
     WPManageRegistration,
 )
 from indico.modules.logs import AppLogRealm, LogKind
+from indico.modules.logs.models.entries import EventLogRealm
 from indico.modules.logs.util import make_diff_log
 from indico.modules.users.schemas import AffiliationArgs, AffiliationSchema
 from indico.modules.users.views import WPAffiliationsDashboard
@@ -30,6 +32,7 @@ from indico.web.menu import SideMenuItem
 
 from indico_affiliation_extras import _
 from indico_affiliation_extras.blueprint import blueprint
+from indico_affiliation_extras.cloning import RepresentationCatalogCloner
 from indico_affiliation_extras.fields import RepresentationField, iter_representation_reglist_items
 from indico_affiliation_extras.focal_points import (
     focal_affiliations_for_event,
@@ -86,9 +89,11 @@ class AffiliationExtrasPlugin(IndicoPlugin):
         self.connect(signals.affiliations.affiliation_updated, self._set_affiliation_extra_attrs)
         self.connect(signals.affiliations.get_affiliation_filters, self._get_affiliation_filters)
         self.connect(signals.event.registrant_list_items, self._get_registrant_list_items)
+        self.connect(signals.event_management.get_cloners, self._get_cloners)
         self.connect(signals.event.filter_registration_list, self._filter_registration_list)
         self.connect(signals.event.registration_pre_create, self._check_registration_pre_create)
         self.connect(signals.event.registration_form_edited, self._persist_focal_point_setting)
+        self.connect(signals.event.registration_form_field_changed, self._log_representation_catalog_change)
         self.connect(signals.core.add_form_fields, self._add_registration_email_fields, sender=EmailRegistrantsForm)
         self.connect(
             signals.core.before_notification_send,
@@ -184,6 +189,25 @@ class AffiliationExtrasPlugin(IndicoPlugin):
         if regform_has_representation_field(regform):
             set_focal_point_management_enabled(regform, 'focal_point_management' in request.form)
 
+    def _log_representation_catalog_change(self, field, **kwargs):
+        if field.input_type != RepresentationField.name:
+            return
+        history = inspect(field).attrs.data.history
+        if not history.deleted:
+            return
+        old_catalog_id = (history.deleted[0] or {}).get('catalog_id')
+        catalog_id = field.data.get('catalog_id')
+        if old_catalog_id == catalog_id:
+            return
+        field.log(
+            EventLogRealm.management,
+            LogKind.change,
+            'Affiliation Catalogs',
+            'Representation catalog changed',
+            session.user,
+            data={'Previous catalog ID': old_catalog_id, 'Catalog ID': catalog_id},
+        )
+
     def _category_sidemenu_items(self, sender, category, **kwargs):
         if category.can_manage(session.user):
             return SideMenuItem(
@@ -216,6 +240,9 @@ class AffiliationExtrasPlugin(IndicoPlugin):
     def _get_fields(self, sender, **kwargs):
         yield RepresentationField
 
+    def _get_cloners(self, sender, **kwargs):
+        yield RepresentationCatalogCloner
+
     def _get_registrant_list_items(self, sender, **kwargs):
         yield from iter_representation_reglist_items(sender)
 
@@ -225,7 +252,7 @@ class AffiliationExtrasPlugin(IndicoPlugin):
             return None
         if not focal_point_management_enabled(regform):
             return db.false()
-        return focal_list_criterion(user, regform.event)
+        return focal_list_criterion(user, regform)
 
     def _check_registration_pre_create(self, regform, user, data, management, **kwargs):
         if not management or not is_scoped_focal_point(regform.event, user):

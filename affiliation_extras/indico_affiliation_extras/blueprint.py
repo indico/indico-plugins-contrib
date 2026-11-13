@@ -42,6 +42,7 @@ from indico_affiliation_extras.controllers.regform import (
     RHInviteAffiliationCatalog,
     RHInviteByAffiliation,
     RHManageSearchRepresentationAffiliation,
+    RHRegFormAffiliationCatalogs,
     RHRegFormAffiliationGroups,
     RHRegFormAffiliations,
     RHRegFormAffiliationTags,
@@ -112,6 +113,12 @@ blueprint.add_url_rule(
 )
 blueprint.add_url_rule(f'{_admin_prefix}/contact-lists/names', 'api_contact_list_names', RHContactListNames)
 _regform_prefix = f'{_admin_prefix}/events/<int:event_id>/regforms/<int:reg_form_id>'
+
+blueprint.add_url_rule(
+    f'{_regform_prefix}/affiliation-catalogs',
+    'api_reg_form_affiliation_catalogs',
+    RHRegFormAffiliationCatalogs,
+)
 
 blueprint.add_url_rule(
     f'{_regform_prefix}/affiliations',

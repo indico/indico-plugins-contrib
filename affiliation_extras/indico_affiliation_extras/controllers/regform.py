@@ -48,9 +48,16 @@ from indico_affiliation_extras.models.groups import AffiliationGroup
 from indico_affiliation_extras.models.lists import AffiliationList
 from indico_affiliation_extras.models.tags import AffiliationTag
 from indico_affiliation_extras.schemas import (
+    AffiliationCatalogOptionSchema,
     AffiliationWithUsersSchema,
 )
-from indico_affiliation_extras.util import get_default_catalog, get_users_by_affiliation, resolve_affiliations
+from indico_affiliation_extras.util import (
+    get_all_catalogs,
+    get_default_catalog,
+    get_representation_catalog,
+    get_users_by_affiliation,
+    resolve_affiliations,
+)
 
 
 class SearchRepresentationAffiliationsMixin(SearchAffiliationsMixin):
@@ -71,7 +78,7 @@ class SearchRepresentationAffiliationsMixin(SearchAffiliationsMixin):
     def _process_args(self, affiliation_list):
         super()._process_args()
         self.affiliation_list = affiliation_list
-        catalog = get_default_catalog(self.event)
+        catalog = get_representation_catalog(self.field)
         if not catalog or self.affiliation_list.catalog_id != catalog.id or not self.affiliation_list.is_enabled:
             raise NotFound
 
@@ -93,6 +100,17 @@ class RHManageSearchRepresentationAffiliation(
     SearchRepresentationAffiliationsMixin, RHManageRegistrationFieldActionBase
 ):
     """Management representation affiliation search for registration managers."""
+
+
+class RHRegFormAffiliationCatalogs(RHManageRegFormBase):
+    def _process(self):
+        catalog = get_default_catalog(self.event)
+        return jsonify(
+            catalogs=AffiliationCatalogOptionSchema(many=True).dump(
+                sorted(get_all_catalogs(self.event), key=lambda item: (item.name.lower(), item.id))
+            ),
+            default_catalog_id=catalog.id if catalog else None,
+        )
 
 
 class RHRegFormSearchAffiliationsExtended(SearchAffiliationsExtendedMixin, RHManageRegFormBase):

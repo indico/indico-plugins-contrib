@@ -58,3 +58,25 @@ class AffiliationCatalog(db.Model):
     @property
     def log_realm(self):
         return EventLogRealm.management if self.event else CategoryLogRealm.category
+
+    @property
+    def is_used_by_regform(self):
+        from indico.modules.events.models.events import Event
+        from indico.modules.events.registration.models.form_fields import RegistrationFormField
+        from indico.modules.events.registration.models.forms import RegistrationForm
+
+        from indico_affiliation_extras.fields import RepresentationField
+
+        return (
+            RegistrationFormField.query
+            .join(RegistrationFormField.registration_form)
+            .join(RegistrationForm.event)
+            .filter(
+                RegistrationFormField.input_type == RepresentationField.name,
+                RegistrationFormField.is_visible,
+                RegistrationFormField.data['catalog_id'].astext == str(self.id),
+                ~RegistrationForm.is_deleted,
+                ~Event.is_deleted,
+            )
+            .has_rows()
+        )

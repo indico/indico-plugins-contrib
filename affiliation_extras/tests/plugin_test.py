@@ -252,6 +252,30 @@ class TestRegistrationEmailFocalPoints:
 
 class TestRegistrationCreation:
     @pytest.mark.usefixtures('request_context')
+    @pytest.mark.parametrize('matching_field', (False, True))
+    def test_pre_create_uses_the_submitted_fields_catalog(
+        self, db, dummy_regform, create_user, create_event_catalog, create_representation_field, matching_field
+    ):
+        affiliation = Affiliation(name='Funding member')
+        db.session.add(affiliation)
+        funding = create_event_catalog(dummy_regform.event, [affiliation])
+        create_event_catalog(dummy_regform.event, [])
+        funding_field = create_representation_field(dummy_regform)
+        funding_field.data = {'catalog_id': funding.catalog_id}
+        default_field = create_representation_field(dummy_regform)
+        focal = create_user(1)
+        set_focal_points(affiliation, {focal})
+        set_focal_point_management_enabled(dummy_regform, True)
+        db.session.flush()
+        data = _registration_data(funding_field if matching_field else default_field, affiliation.id)
+
+        if matching_field:
+            _guardrail(dummy_regform, focal, data, True)
+        else:
+            with pytest.raises(UserValueError, match='your own affiliations'):
+                _guardrail(dummy_regform, focal, data, True)
+
+    @pytest.mark.usefixtures('request_context')
     def test_pre_create_allows_focal_with_managed_affiliation(
         self, db, dummy_regform, create_user, create_catalog_affiliations, create_representation_field
     ):

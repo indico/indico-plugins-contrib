@@ -68,9 +68,9 @@ default catalog locally or inherit the default from the nearest category that de
 Inherited catalogs are edited in their owning category; clone one to create a local copy
 that can be customized independently.
 
-The event's effective default catalog supplies the representation types and affiliations
-used by registration forms and catalog invitations. Lists can be reordered or disabled;
-disabled lists are excluded from representation choices and catalog invitation recipients.
+The event's effective default catalog is used by catalog invitations and, unless overridden,
+Representation fields. Lists can be reordered or disabled; disabled lists are excluded
+from representation choices and catalog invitation recipients.
 
 In a list's **Edit members** dialog, enable **Use custom affiliations** to let participants
 enter an affiliation name instead of selecting a predefined affiliation.
@@ -79,12 +79,12 @@ enter an affiliation name instead of selecting a predefined affiliation.
 
 Add a **Representation** field to a registration form to ask participants which organization
 they represent. Participants first choose a representation type, corresponding to an enabled
-list in the event's default catalog. Depending on the list's configuration, they then select
+list in the field's catalog. Depending on the list's configuration, they then select
 a predefined affiliation or enter a custom affiliation name.
 
 For example, a participant can select "Member organizations" and then their organization,
 or select a custom "Other organizations" list and enter their organization's name.
-Configure the event's default catalog and its lists before using this field. The field can
+Each field uses the event default or a catalog selected in its settings. The field can
 be required, and the registration list offers separate columns for its representation type
 and affiliation.
 
@@ -97,7 +97,7 @@ existing Indico accounts to affiliations and can grant registration-management a
 
 To let focal points manage registrations, add a Representation field to the registration
 form and enable **Focal point management** in the form's settings. The focal point's
-affiliation must belong to an enabled list in the event's default catalog.
+affiliation must belong to an enabled list in the matching Representation field's catalog.
 
 On enabled forms, focal points can manage and moderate registrations whose Representation
 field identifies one of their affiliations, and register people for those affiliations.
@@ -146,6 +146,7 @@ The dialog provides a preview and supports inline images embedded as CID attachm
 
 - Allow participants to enter custom affiliations for selected representation types
 - Fix the required-field override rejecting an empty Representation field when registering participants as a manager
+- Allow Representation fields to select an affiliation catalog
 
 ### 3.3.2
 
