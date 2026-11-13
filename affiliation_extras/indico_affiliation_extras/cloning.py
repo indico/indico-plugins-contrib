@@ -42,10 +42,14 @@ class RepresentationCatalogCloner(EventCloner):
                 catalog, list_map = catalogs[catalog_id]
                 field.data = {**field.data, 'catalog_id': catalog.id}
                 field_lists[field.id] = list_map
-            for registration in new_form.registrations:
-                for value in registration.data:
-                    list_map = field_lists.get(value.field_data.field_id, {})
-                    if isinstance(value.data, dict) and (list_id := value.data.get('representation_id')) in list_map:
-                        value.data = {**value.data, 'representation_id': list_map[list_id]}
+            if field_lists:
+                for registration in new_form.registrations:
+                    for value in registration.data:
+                        list_map = field_lists.get(value.field_data.field_id, {})
+                        if (
+                            isinstance(value.data, dict)
+                            and (list_id := value.data.get('representation_id')) in list_map
+                        ):
+                            value.data = {**value.data, 'representation_id': list_map[list_id]}
             if focal_point_management_enabled(old_form):
                 set_focal_point_management_enabled(new_form, True)

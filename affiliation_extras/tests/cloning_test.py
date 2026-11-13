@@ -6,11 +6,13 @@
 # MIT License see the LICENSE file for more details.
 
 import pytest
+from sqlalchemy import inspect
 
 from indico.modules.events.cloning import EventCloner
 from indico.modules.events.features.util import set_feature_enabled
 from indico.modules.events.registration.util import clone_registration_form
 
+from indico_affiliation_extras.cloning import RepresentationCatalogCloner
 from indico_affiliation_extras.fields import RepresentationField
 from indico_affiliation_extras.models.lists import AffiliationListMode
 from indico_affiliation_extras.permissions import focal_point_management_enabled, set_focal_point_management_enabled
@@ -125,3 +127,18 @@ def test_event_clone_preserves_custom_affiliation_mode(
     )
     [cloned_list] = get_representation_catalog(cloned_field).lists
     assert cloned_list.affiliation_mode == AffiliationListMode.custom
+
+
+def test_catalog_cloner_does_not_load_registrations_without_remapped_fields(
+    db, dummy_regform, create_event, create_regform, create_representation_field
+):
+    target = create_event()
+    cloned_form = create_regform(target)
+    create_representation_field(cloned_form)
+    db.session.expire(cloned_form, ['registrations'])
+
+    RepresentationCatalogCloner(dummy_regform.event).run(
+        target, set(), {'registration_forms': {'form_map': {dummy_regform: cloned_form}}}
+    )
+
+    assert 'registrations' in inspect(cloned_form).unloaded
