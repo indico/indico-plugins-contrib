@@ -5,6 +5,7 @@
 // redistribute them and/or modify them under the terms of the;
 // MIT License see the LICENSE file for more details.
 
+import affiliationCatalogsURL from 'indico-url:plugin_affiliation_extras.api_reg_form_affiliation_catalogs';
 import manageAffiliationsURL from 'indico-url:plugin_affiliation_extras.manage_affiliations';
 import searchAffiliationsURL from 'indico-url:plugin_affiliation_extras.search_registration_affiliation';
 import searchAffiliationsManagementURL from 'indico-url:plugin_affiliation_extras.search_registration_affiliation_management';
@@ -14,10 +15,13 @@ import React from 'react';
 import {useSelector} from 'react-redux';
 import {Dropdown, Form, Input, Message} from 'semantic-ui-react';
 
+import ChoiceLabel from 'indico/modules/events/registration/form/fields/ChoiceLabel';
 import {getItemById, getStaticData} from 'indico/modules/events/registration/form/selectors';
 import {AffiliationField} from 'indico/react/components';
 import {FinalField} from 'indico/react/forms';
 import {Param, Translate} from 'indico/react/i18n';
+
+import FinalAffiliationCatalogField from '../components/AffiliationCatalogField';
 
 import './RepresentationInput.module.scss';
 
@@ -76,10 +80,19 @@ function RepresentationInputComponent({
   const representationId = normalizedValue.representationId;
   const selectedRepresentation =
     representationTypes.find(item => item.id === representationId) ?? null;
-  const representationOptions = representationTypes.map(item => ({
-    value: item.id,
-    text: item.name,
-  }));
+  const representationOptions: {value: number; text: string; disabled?: boolean}[] =
+    representationTypes.map(item => ({
+      value: item.id,
+      text: item.name,
+    }));
+  const historicalValue = representationId !== null && !selectedRepresentation;
+  if (historicalValue) {
+    representationOptions.push({
+      value: representationId,
+      text: normalizedValue.representationName,
+      disabled: true,
+    });
+  }
   const preloadedAffiliationOptions = (selectedRepresentation?.affiliations || []).map(
     affiliation => ({
       key: affiliation.id,
@@ -139,17 +152,27 @@ function RepresentationInputComponent({
           onChange={handleRepresentationChange}
         />
       </Form.Field>
-      {!!selectedRepresentation && (
+      {representationId !== null && (
         <Form.Field required={showAsRequired}>
-          <label htmlFor={`${id}-affiliation`}>{selectedRepresentation.name}</label>
-          {selectedRepresentation.affiliationMode === 'custom' ? (
+          <label htmlFor={`${id}-affiliation`}>
+            <ChoiceLabel
+              choice={{
+                caption: selectedRepresentation?.name ?? normalizedValue.representationName,
+                _deleted: historicalValue,
+              }}
+              management={false}
+              paid={false}
+            />
+          </label>
+          {selectedRepresentation?.affiliationMode === 'custom' ||
+          (historicalValue && normalizedValue.affiliation.id === null) ? (
             <Input
               id={`${id}-affiliation`}
               styleName="representation-field"
               value={normalizedValue.affiliation.text}
               onChange={(_, {value: text}) => handleAffiliationChange({id: null, text})}
               placeholder={Translate.string('Enter an affiliation name')}
-              disabled={disabled}
+              disabled={disabled || historicalValue}
               required={isRequired}
               fluid
             />
@@ -163,7 +186,7 @@ function RepresentationInputComponent({
               currentAffiliation={null}
               includeMeta={false}
               searchAffiliationURL={({q}) =>
-                getSearchAffiliationURL({q, affiliationListId: selectedRepresentation.id})
+                getSearchAffiliationURL({q, affiliationListId: representationId})
               }
               // These props intentionally pass through AffiliationField to ComboDropdown.
               {...(usePreloadedAffiliations
@@ -173,7 +196,7 @@ function RepresentationInputComponent({
                     onSearchChange: noop,
                   }
                 : {})}
-              disabled={disabled}
+              disabled={disabled || historicalValue}
             />
           )}
         </Form.Field>
@@ -193,19 +216,23 @@ interface RepresentationInputProps {
 }
 
 export function RepresentationSettings() {
-  const {eventId} = useSelector(getStaticData) as StaticData;
+  const {eventId, regformId} = useSelector(getStaticData) as StaticData;
   const catalogsURL = manageAffiliationsURL({event_id: eventId});
 
   return (
-    <Message info>
-      <Translate>
+    <>
+      <FinalAffiliationCatalogField
+        catalogsURL={affiliationCatalogsURL({event_id: eventId, reg_form_id: regformId})}
+        name="catalogId"
+      />
+      <Translate as={Message} info>
         Representation types are configured in the{' '}
         <Param name="url" wrapper={<a href={catalogsURL} />}>
           affiliation catalogs settings
         </Param>
         .
       </Translate>
-    </Message>
+    </>
   );
 }
 

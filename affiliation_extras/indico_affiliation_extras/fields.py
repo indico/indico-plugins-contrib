@@ -5,24 +5,26 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-from marshmallow import ValidationError, fields, post_load
+from marshmallow import ValidationError, fields, post_load, validates
 
 from indico.core import signals
 from indico.core.db import db
 from indico.core.marshmallow import mm
 from indico.modules.events.registration.custom import CustomRegistrationListItem, RegistrationListColumn
 from indico.modules.events.registration.fields.affiliation import AffiliationValueSchema
-from indico.modules.events.registration.fields.base import RegistrationFormFieldBase
+from indico.modules.events.registration.fields.base import FieldSetupSchemaBase, RegistrationFormFieldBase
 from indico.modules.events.registration.models.registrations import RegistrationData
 from indico.modules.users.models.affiliations import Affiliation
-from indico.util.i18n import _
 from indico.util.signals import values_from_signal
 
+from indico_affiliation_extras import _
 from indico_affiliation_extras.models.lists import AffiliationListMode
 from indico_affiliation_extras.util import (
-    get_representation_affiliation_list,
-    get_representation_affiliation_lists,
+    get_available_catalog,
+    get_catalog_affiliation_list,
+    get_catalog_affiliation_lists,
     get_representation_affiliations,
+    get_representation_catalog,
 )
 
 
@@ -43,10 +45,24 @@ class RepresentationValueSchema(mm.Schema):
         return data
 
 
+class RepresentationFieldDataSchema(FieldSetupSchemaBase):
+    catalog_id = fields.Integer(load_default=None, allow_none=True)
+
+    @validates('catalog_id')
+    def _validate_catalog(self, catalog_id, **kwargs):
+        if catalog_id is not None and get_available_catalog(self.context['regform'].event, catalog_id) is None:
+            raise ValidationError(_('The selected affiliation catalog is unavailable for this event.'))
+
+
 class RepresentationField(RegistrationFormFieldBase):
     name = 'ext__representation'
+    setup_schema_base_cls = RepresentationFieldDataSchema
     mm_field_class = fields.Nested
     mm_field_args = (RepresentationValueSchema,)
+
+    @property
+    def catalog(self):
+        return get_representation_catalog(self.form_item)
 
     @property
     def default_value(self):
@@ -57,7 +73,7 @@ class RepresentationField(RegistrationFormFieldBase):
         from indico.modules.users.schemas import AffiliationSchema
 
         representation_types = []
-        for item in get_representation_affiliation_lists(self.form_item.registration_form.event, enabled_only=True):
+        for item in get_catalog_affiliation_lists(self.catalog):
             data = {'id': item.id, 'name': item.name, 'affiliation_mode': item.affiliation_mode.name}
             if item.affiliation_mode == AffiliationListMode.predefined:
                 affiliations = get_representation_affiliations(item)
@@ -80,9 +96,7 @@ class RepresentationField(RegistrationFormFieldBase):
             representation_id = value.get('representation_id')
             if representation_id is None:
                 raise ValidationError(_('Please select a representation type'))
-            affiliation_list = get_representation_affiliation_list(
-                self.form_item.registration_form.event, representation_id
-            )
+            affiliation_list = get_catalog_affiliation_list(self.catalog, representation_id)
             if affiliation_list is not None and affiliation_list.affiliation_mode == AffiliationListMode.custom:
                 if affiliation.get('id') is not None:
                     raise ValidationError(_('Please enter a custom affiliation'))
@@ -106,7 +120,7 @@ class RepresentationField(RegistrationFormFieldBase):
 
         event = self.form_item.registration_form.event
         representation_id = value['representation_id']
-        affiliation_list = get_representation_affiliation_list(event, representation_id)
+        affiliation_list = get_catalog_affiliation_list(self.catalog, representation_id)
         if representation_id is not None and affiliation_list is None:
             raise ValidationError(_('Invalid representation type'))
 

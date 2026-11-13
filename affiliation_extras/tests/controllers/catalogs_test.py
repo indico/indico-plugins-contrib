@@ -8,6 +8,9 @@
 import pytest
 
 
+pytest_plugins = 'indico.modules.events.registration.testing.fixtures'
+
+
 def _login(test_client, user):
     with test_client.session_transaction() as sess:
         sess.set_session_user(user)
@@ -126,3 +129,49 @@ class TestCatalogSave:
         assert list(catalog.lists) == [saved_list]
         assert saved_list.name == 'Representatives'
         assert saved_list.affiliations == {affiliation}
+
+
+@pytest.mark.usefixtures('no_csrf_check')
+@pytest.mark.parametrize('active', (False, True))
+def test_catalog_deletion_checks_explicit_field_usage(
+    test_client, db, dummy_regform, dummy_user, create_event_catalog, create_representation_field, active
+):
+    dummy_regform.event.update_principal(dummy_user, full_access=True)
+    _login(test_client, dummy_user)
+    selected = create_event_catalog(dummy_regform.event, [])
+    field = create_representation_field(dummy_regform)
+    field.data = {'catalog_id': selected.catalog_id}
+    field.is_enabled = active
+    db.session.flush()
+
+    response = test_client.delete(
+        f'/event/{dummy_regform.event.id}/manage/affiliations/api/affiliations/catalogs/{selected.catalog_id}'
+    )
+
+    assert response.status_code == (400 if active else 204)
+    assert selected.catalog.is_deleted is not active
+
+
+@pytest.mark.parametrize('state', ('active', 'disabled', 'deleted-field', 'deleted-form', 'deleted-event'))
+def test_catalog_serialization_includes_usage(
+    db, dummy_regform, create_event_catalog, create_representation_field, state
+):
+    from indico_affiliation_extras.schemas import AffiliationCatalogSchema
+
+    selected = create_event_catalog(dummy_regform.event, [])
+    unused = create_event_catalog(dummy_regform.event, [])
+    field = create_representation_field(dummy_regform)
+    field.data = {'catalog_id': selected.catalog_id}
+    if state == 'disabled':
+        field.is_enabled = False
+    elif state == 'deleted-field':
+        field.is_deleted = True
+    elif state == 'deleted-form':
+        dummy_regform.is_deleted = True
+    elif state == 'deleted-event':
+        dummy_regform.event.is_deleted = True
+    db.session.flush()
+
+    schema = AffiliationCatalogSchema()
+    assert schema.dump(selected.catalog)['is_used_by_regform'] is (state == 'active')
+    assert schema.dump(unused.catalog)['is_used_by_regform'] is False

@@ -20,7 +20,11 @@ from indico.util.caching import memoize_request
 from indico_affiliation_extras.fields import RepresentationField
 from indico_affiliation_extras.models.focal_points import FocalPoint
 from indico_affiliation_extras.settings import event_settings
-from indico_affiliation_extras.util import get_representation_affiliation_lists, get_representation_affiliations
+from indico_affiliation_extras.util import (
+    get_catalog_affiliation_ids,
+    get_default_catalog,
+    get_representation_catalog,
+)
 
 
 def get_submitted_affiliation_ids(regform, data):
@@ -32,7 +36,7 @@ def get_submitted_affiliation_ids(regform, data):
         if field.input_type != RepresentationField.name:
             continue
         affiliation_id = (value.get('affiliation') or {}).get('id')
-        if affiliation_id is not None:
+        if affiliation_id in get_field_catalog_affiliation_ids(field):
             ids.add(affiliation_id)
     return ids
 
@@ -65,10 +69,7 @@ def get_focal_affiliation_ids(user):
 
 
 def get_event_catalog_affiliation_ids(event):
-    ids = set()
-    for affiliation_list in get_representation_affiliation_lists(event):
-        ids.update(affiliation.id for affiliation in get_representation_affiliations(affiliation_list))
-    return ids
+    return get_catalog_affiliation_ids(get_default_catalog(event))
 
 
 def get_event_catalog_focal_points(event, affiliation_ids=None):
@@ -90,7 +91,33 @@ def focal_affiliations_for_event(user, event):
     focal_ids = get_focal_affiliation_ids(user)
     if not focal_ids:
         return set()
-    return focal_ids & get_event_catalog_affiliation_ids(event)
+    enabled_ids = event_settings.get(event, 'focal_point_enabled_regform_ids')
+    allowed_ids = set()
+    for regform in event.registration_forms:
+        if regform.is_deleted or regform.id not in enabled_ids:
+            continue
+        for field in regform.active_fields:
+            if field.input_type == RepresentationField.name:
+                allowed_ids.update(get_field_catalog_affiliation_ids(field))
+    return focal_ids & allowed_ids
+
+
+def get_field_catalog_affiliation_ids(field):
+    return get_catalog_affiliation_ids(get_representation_catalog(field))
+
+
+def _field_affiliation_criterion(fields, affiliation_ids=None):
+    affiliation_id = db.cast(RegistrationData.data['affiliation']['id'].astext, db.Integer)
+    criteria = []
+    for field in fields:
+        if field.input_type != RepresentationField.name:
+            continue
+        allowed_ids = get_field_catalog_affiliation_ids(field)
+        if affiliation_ids is not None:
+            allowed_ids &= affiliation_ids
+        if allowed_ids:
+            criteria.append(db.and_(RegistrationFormField.id == field.id, affiliation_id.in_(allowed_ids)))
+    return db.or_(*criteria) if criteria else db.false()
 
 
 def _representation_data_query():
@@ -107,8 +134,7 @@ def _representation_data_query():
 
 @memoize_request
 def get_registrations_focal_points(regform, registration_ids):
-    affiliation_ids = get_event_catalog_affiliation_ids(regform.event)
-    if not affiliation_ids:
+    if not registration_ids:
         return {}
     representation_id = db.cast(RegistrationData.data['affiliation']['id'].astext, db.Integer)
     query = (
@@ -122,7 +148,7 @@ def get_registrations_focal_points(regform, registration_ids):
             Registration.registration_form_id == regform.id,
             Registration.id.in_(registration_ids),
             ~Registration.is_deleted,
-            Affiliation.id.in_(affiliation_ids),
+            _field_affiliation_criterion(regform.active_fields),
             ~Affiliation.is_deleted,
             ~User.is_deleted,
         )
@@ -148,8 +174,16 @@ def _focal_match_criterion(focal_ids):
     )
 
 
-def focal_list_criterion(user, event):
-    return _focal_match_criterion(focal_affiliations_for_event(user, event))
+def focal_list_criterion(user, regform):
+    focal_ids = get_focal_affiliation_ids(user)
+    return (
+        _representation_data_query()
+        .filter(
+            RegistrationData.registration_id == Registration.id,
+            _field_affiliation_criterion(regform.active_fields, focal_ids),
+        )
+        .exists()
+    )
 
 
 def focal_event_ids(user, dt=None):

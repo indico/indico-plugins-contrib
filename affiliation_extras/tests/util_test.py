@@ -912,33 +912,16 @@ def test_get_default_catalog_on_event_only_inherited_ignores_event_default(db, c
     assert util.get_default_catalog(event, only_inherited=True).id == category_default.id
 
 
-def test_get_representation_affiliation_lists_uses_effective_default_catalog(db, create_category, create_event):
-    category = create_category(title='Category')
-    event = create_event(category=category)
-    category_catalog = _create_catalog(db, category=category, name='Category default')
-    event_catalog = _create_catalog(db, event=event, name='Event default')
-    event_settings.set(event, 'default_catalog_id', event_catalog.id)
-    category_settings.set(category, 'default_catalog_id', category_catalog.id)
-    _create_catalog_list(db, event_catalog, name='Enabled event list', position=2, is_enabled=True)
-    _create_catalog_list(db, event_catalog, name='Disabled event list', position=1, is_enabled=False)
-    _create_catalog_list(db, category_catalog, name='Category list', position=1, is_enabled=True)
+@pytest.mark.parametrize('enabled_only', (False, True))
+def test_get_catalog_affiliation_lists_filters_and_orders_lists(db, enabled_only):
+    catalog = _create_catalog(db, name='Catalog')
+    second = _create_catalog_list(db, catalog, name='Second', position=2, is_enabled=True)
+    first = _create_catalog_list(db, catalog, name='First', position=1, is_enabled=True)
+    disabled = _create_catalog_list(db, catalog, name='Disabled', position=0, is_enabled=False)
 
-    affiliation_lists = util.get_representation_affiliation_lists(event, enabled_only=True)
-
-    assert [item.name for item in affiliation_lists] == ['Enabled event list']
-
-
-def test_get_representation_affiliation_list_rejects_disabled_or_missing(db, create_category, create_event):
-    category = create_category(title='Category')
-    event = create_event(category=category)
-    catalog = _create_catalog(db, category=category, name='Default')
-    category_settings.set(category, 'default_catalog_id', catalog.id)
-    enabled_list = _create_catalog_list(db, catalog, name='Enabled', is_enabled=True)
-    disabled_list = _create_catalog_list(db, catalog, name='Disabled', is_enabled=False)
-
-    assert util.get_representation_affiliation_list(event, enabled_list.id).id == enabled_list.id
-    assert util.get_representation_affiliation_list(event, disabled_list.id) is None
-    assert util.get_representation_affiliation_list(event, 999999) is None
+    assert util.get_catalog_affiliation_lists(catalog, enabled_only=enabled_only) == (
+        [first, second] if enabled_only else [disabled, first, second]
+    )
 
 
 def test_get_representation_affiliations_resolves_groups_tags_and_direct_members(db):
