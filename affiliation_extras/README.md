@@ -95,20 +95,29 @@ assign multiple focal points to an affiliation, and a user can be a focal point 
 affiliations. Contact lists store email recipients, while focal-point assignments link
 existing Indico accounts to affiliations and can grant registration-management access.
 
-To let focal points manage registrations, add a Representation field to the registration
+To give focal points access to registrations, add a Representation field to the registration
 form and enable **Focal point management** in the form's settings. The focal point's
 affiliation must belong to an enabled list in the matching Representation field's catalog.
 
-On enabled forms, focal points can manage and moderate registrations whose Representation
-field identifies one of their affiliations, and register people for those affiliations.
-This access is limited to matching registrations and enabled forms. Existing event or
-registration-management permissions continue to apply independently.
+On enabled forms, focal points work on the registrations whose Representation field identifies
+one of their affiliations. Two more switches in the same section choose what they can do, for all
+forms of the event, and both are on by default:
+
+- **Manage registrations**: register people for their affiliations, and modify or delete
+  their registrations
+- **Moderate registrations**: approve, reject, reset and withdraw their registrations
+
+When moderation is off, registrations that focal points create on forms with moderation await
+approval instead of being approved right away, unless the registration matches an invitation
+that skips moderation. This access is limited to matching registrations and enabled forms.
+Existing event or registration-management permissions continue to apply independently.
 
 When emailing registrants from the registration list, **Send copy to focal points** is available on
 these forms and is off by default. When enabled, each email copies the current focal points
 for that registrant's representation affiliations, using the same field visibility and
 catalog scope as focal point access. Manually entered CC addresses are preserved. The
-option is hidden when focal point management is turned off for the form.
+option is hidden when focal point management is turned off for the form. Focal points receive
+these copies even when both switches above are off.
 
 Custom affiliation names are not linked to catalog affiliations and do not grant focal-point
 access or add focal points to email copies. Switching a predefined list to custom mode also
@@ -150,6 +159,8 @@ The dialog provides a preview and supports inline images embedded as CID attachm
 - Preserve focal point management settings when cloning events
 - Allow setting a new affiliation catalog as the default when creating it
 - Ask for confirmation before changing the default affiliation catalog when focal points may be affected
+- Allow choosing separately whether focal points can manage and moderate registrations; when they cannot
+  moderate, the registrations they create await approval
 
 ### 3.3.2
 
