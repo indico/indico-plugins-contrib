@@ -32,6 +32,7 @@ from indico_affiliation_extras.controllers.base import (
 from indico_affiliation_extras.models.catalogs import AffiliationCatalog
 from indico_affiliation_extras.models.groups import AffiliationGroup
 from indico_affiliation_extras.models.tags import AffiliationTag
+from indico_affiliation_extras.permissions import event_has_focal_managed_regform
 from indico_affiliation_extras.schemas import (
     AffiliationCatalogArgs,
     AffiliationCatalogSchema,
@@ -65,6 +66,7 @@ class AffiliationCatalogListMixin:
         )
         default_catalog = get_default_catalog(self.target)
         explicit_default = get_explicit_default_catalog(self.target)
+        inherited_default = get_default_catalog(self.target, only_inherited=True)
         view_class = WPEventAffiliations if isinstance(self.target, Event) else WPCategoryAffiliations
         return view_class.render_template(
             'manage_affiliations.html',
@@ -74,6 +76,10 @@ class AffiliationCatalogListMixin:
             inherited_catalogs=inherited_catalogs,
             default_catalog_id=default_catalog.id if default_catalog else None,
             explicit_default_catalog_id=explicit_default.id if explicit_default else None,
+            should_confirm_default_change=(
+                isinstance(self.target, Category) or event_has_focal_managed_regform(self.target)
+            ),
+            inherited_default_catalog_id=inherited_default.id if inherited_default else None,
             target_locator=self.target.locator,
         )
 

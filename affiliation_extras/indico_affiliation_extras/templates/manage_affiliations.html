@@ -13,6 +13,8 @@
             {{ inherited_catalogs | tojson }},
             {{ default_catalog_id | tojson }},
             {{ explicit_default_catalog_id | tojson }},
+            {{ should_confirm_default_change | tojson }},
+            {{ inherited_default_catalog_id | tojson }},
             {{ target_locator | tojson }}
         );
     </script>

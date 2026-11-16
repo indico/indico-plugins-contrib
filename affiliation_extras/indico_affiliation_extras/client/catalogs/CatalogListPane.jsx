@@ -18,7 +18,7 @@ import React, {useState} from 'react';
 import {Link} from 'react-router-dom';
 import {Button, Icon, Popup} from 'semantic-ui-react';
 
-import {RequestConfirmDelete} from 'indico/react/components';
+import {RequestConfirm} from 'indico/react/components';
 import {Param, Translate} from 'indico/react/i18n';
 import {handleAxiosError, indicoAxios} from 'indico/utils/axios';
 
@@ -27,11 +27,13 @@ import './CatalogListPane.module.scss';
 function CatalogRow({
   catalog,
   dispatch,
-  setDeletePrompt,
+  setPrompt,
   targetLocator,
   inherited,
   defaultCatalogId,
   explicitDefaultCatalogId,
+  shouldConfirmDefaultChange,
+  inheritedDefaultCatalog,
 }) {
   const isDefault = catalog.id === defaultCatalogId;
   const isInheritedDefault = isDefault && catalog.id !== explicitDefaultCatalogId;
@@ -41,7 +43,6 @@ function CatalogRow({
       dispatch({type: 'DELETE_CATALOG', id: catalog.id});
     } catch (err) {
       handleAxiosError(err);
-      return true;
     }
   };
 
@@ -68,11 +69,65 @@ function CatalogRow({
       });
     } catch (err) {
       handleAxiosError(err);
+      return true;
     }
   };
 
   const openDeletePrompt = () => {
-    setDeletePrompt({name: catalog.name, func: deleteCatalog});
+    setPrompt({
+      header: Translate.string('Confirm deletion'),
+      content: (
+        <Translate>
+          Are you sure you want to delete the catalog{' '}
+          <Param name="name" value={catalog.name} wrapper={<strong />} />?
+        </Translate>
+      ),
+      confirmText: Translate.string('Delete'),
+      negative: true,
+      func: deleteCatalog,
+    });
+  };
+
+  const handleDefaultClick = () => {
+    const isEvent = 'event_id' in targetLocator;
+    // clearing a pin that matches the parent category's default does not change anything,
+    // and pinning the first default of an event does not replace an existing one
+    if (
+      !shouldConfirmDefaultChange ||
+      (isDefault && catalog.id === inheritedDefaultCatalog?.id) ||
+      (isEvent && defaultCatalogId === null)
+    ) {
+      toggleDefaultCatalog();
+      return;
+    }
+    setPrompt({
+      header: isDefault
+        ? Translate.string('Clear default catalog')
+        : Translate.string('Change default catalog'),
+      content: isDefault ? (
+        inheritedDefaultCatalog ? (
+          <Translate>
+            The default catalog will go back to{' '}
+            <Param name="inherited" value={inheritedDefaultCatalog.name} wrapper={<strong />} />.
+            This may change which registrations the focal points can manage.
+          </Translate>
+        ) : (
+          <Translate>
+            There will be no default catalog. Focal points may lose access to some registrations.
+          </Translate>
+        )
+      ) : (
+        <Translate>
+          <Param name="name" value={catalog.name} wrapper={<strong />} /> will become the default
+          catalog. This may change which registrations the focal points can manage.
+        </Translate>
+      ),
+      confirmText: isDefault
+        ? Translate.string('Clear default')
+        : Translate.string('Change default'),
+      negative: false,
+      func: toggleDefaultCatalog,
+    });
   };
 
   const defaultTitle = isInheritedDefault
@@ -127,7 +182,7 @@ function CatalogRow({
                 name="pin"
                 color={isDefault ? 'yellow' : undefined}
                 disabled={isInheritedDefault}
-                onClick={toggleDefaultCatalog}
+                onClick={handleDefaultClick}
               />
             }
           />
@@ -176,18 +231,21 @@ function CatalogRow({
 CatalogRow.propTypes = {
   catalog: PropTypes.object.isRequired,
   dispatch: PropTypes.func.isRequired,
-  setDeletePrompt: PropTypes.func,
+  setPrompt: PropTypes.func.isRequired,
   targetLocator: PropTypes.object.isRequired,
   inherited: PropTypes.bool,
   defaultCatalogId: PropTypes.number,
   explicitDefaultCatalogId: PropTypes.number,
+  shouldConfirmDefaultChange: PropTypes.bool,
+  inheritedDefaultCatalog: PropTypes.object,
 };
 
 CatalogRow.defaultProps = {
   inherited: false,
-  setDeletePrompt: null,
   defaultCatalogId: null,
   explicitDefaultCatalogId: null,
+  shouldConfirmDefaultChange: false,
+  inheritedDefaultCatalog: null,
 };
 
 export default function CatalogListPane({
@@ -197,21 +255,26 @@ export default function CatalogListPane({
   dispatch,
   defaultCatalogId,
   explicitDefaultCatalogId,
+  shouldConfirmDefaultChange,
+  inheritedDefaultCatalogId,
 }) {
-  const [deletePrompt, setDeletePrompt] = useState(null);
+  const [prompt, setPrompt] = useState(null);
+  const inheritedDefaultCatalog = inheritedCatalogs.find(
+    catalog => catalog.id === inheritedDefaultCatalogId
+  );
 
   return (
     <div styleName="catalog-list">
-      <RequestConfirmDelete
-        onClose={() => setDeletePrompt(null)}
-        requestFunc={deletePrompt?.func || (() => null)}
-        open={deletePrompt !== null}
+      <RequestConfirm
+        header={prompt?.header ?? ''}
+        confirmText={prompt?.confirmText}
+        negative={prompt?.negative}
+        onClose={() => setPrompt(null)}
+        requestFunc={prompt?.func || (() => null)}
+        open={prompt !== null}
       >
-        <Translate>
-          Are you sure you want to delete the catalog{' '}
-          <Param name="name" value={deletePrompt?.name} wrapper={<strong />} />?
-        </Translate>
-      </RequestConfirmDelete>
+        {prompt?.content}
+      </RequestConfirm>
 
       {!!inheritedCatalogs.length && (
         <section>
@@ -225,10 +288,13 @@ export default function CatalogListPane({
                   key={catalog.id}
                   catalog={catalog}
                   dispatch={dispatch}
+                  setPrompt={setPrompt}
                   targetLocator={targetLocator}
                   inherited
                   defaultCatalogId={defaultCatalogId}
                   explicitDefaultCatalogId={explicitDefaultCatalogId}
+                  shouldConfirmDefaultChange={shouldConfirmDefaultChange}
+                  inheritedDefaultCatalog={inheritedDefaultCatalog}
                 />
               ))}
             </tbody>
@@ -257,10 +323,12 @@ export default function CatalogListPane({
                   key={catalog.id}
                   catalog={catalog}
                   dispatch={dispatch}
-                  setDeletePrompt={setDeletePrompt}
+                  setPrompt={setPrompt}
                   targetLocator={targetLocator}
                   defaultCatalogId={defaultCatalogId}
                   explicitDefaultCatalogId={explicitDefaultCatalogId}
+                  shouldConfirmDefaultChange={shouldConfirmDefaultChange}
+                  inheritedDefaultCatalog={inheritedDefaultCatalog}
                 />
               ))}
             </tbody>
@@ -282,4 +350,6 @@ CatalogListPane.propTypes = {
   dispatch: PropTypes.func.isRequired,
   defaultCatalogId: PropTypes.number,
   explicitDefaultCatalogId: PropTypes.number,
+  shouldConfirmDefaultChange: PropTypes.bool,
+  inheritedDefaultCatalogId: PropTypes.number,
 };
