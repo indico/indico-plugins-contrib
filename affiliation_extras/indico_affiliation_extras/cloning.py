@@ -6,8 +6,8 @@
 # MIT License see the LICENSE file for more details.
 
 from indico.modules.events.cloning import EventCloner
-from indico.util.i18n import _
 
+from indico_affiliation_extras import _
 from indico_affiliation_extras.fields import RepresentationField
 from indico_affiliation_extras.permissions import focal_point_management_enabled, set_focal_point_management_enabled
 from indico_affiliation_extras.util import clone_affiliation_catalog, get_available_catalog
