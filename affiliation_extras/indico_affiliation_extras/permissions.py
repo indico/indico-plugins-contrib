@@ -5,10 +5,11 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-# Focal points get the enabled `FOCAL_POINT_PERMISSIONS` dynamically via `acl.can_manage` (no ACL entry),
-# bounded by the blacklist signals; any genuine registration grant prevails. The permissions are toggled
-# per event because core grants and bounds them event-wide: the bounding filter is not permission-aware,
-# so a per-form toggle of one permission would leak the other onto that form.
+# Focal points get the enabled registration permissions (`registration_edit`, `registration_moderation`)
+# dynamically via `acl.can_manage` (no ACL entry), bounded by the blacklist signals; any genuine registration
+# grant prevails. The permissions are toggled per event because core grants and bounds them event-wide: the
+# bounding filter is not permission-aware, so a per-form toggle of one permission would leak the other onto
+# that form.
 
 from indico.modules.events.registration import REGISTRATION_PERMISSIONS
 from indico.util.user import iter_acl
@@ -16,9 +17,6 @@ from indico.util.user import iter_acl
 from indico_affiliation_extras.fields import RepresentationField
 from indico_affiliation_extras.focal_points import focal_affiliations_for_event
 from indico_affiliation_extras.settings import event_settings
-
-
-FOCAL_POINT_PERMISSIONS = ('registration_edit', 'registration_moderation')
 
 
 def focal_point_management_enabled(regform):

@@ -20,7 +20,6 @@ from indico.modules.events.registration import REGISTRATION_PERMISSIONS
 from indico.modules.events.registration.forms import EmailRegistrantsForm
 from indico.modules.events.registration.models.invitations import RegistrationInvitation
 from indico.modules.events.registration.models.registrations import RegistrationState
-from indico.modules.events.registration.util import create_registration
 from indico.modules.logs import LogKind
 from indico.modules.users.models.affiliations import Affiliation
 from indico.modules.users.util import get_linked_events, merge_users
@@ -45,6 +44,14 @@ def _login(test_client, user):
         sess.set_session_user(user)
 
 
+def _csrf_token(test_client):
+    # `no_csrf_check` only skips the request-level check; WTForms forms still compare against the session token.
+    token = 'focal-point-csrf-token'
+    with test_client.session_transaction() as sess:
+        sess['_csrf_token'] = token
+    return token
+
+
 def _create_url(regform):
     return f'/event/{regform.event.id}/manage/registration/{regform.id}/registrations/create'
 
@@ -63,6 +70,19 @@ def _registration_data(field, affiliation_id, email='new@example.test'):
         'last_name': 'Person',
         field.html_field_name: {'affiliation': {'id': affiliation_id, 'text': 'CERN'}},
     }
+
+
+def _post_create(test_client, regform, affiliation_id, *, notify_user=False):
+    field = next(field for field in regform.active_fields if field.input_type == RepresentationField.name)
+    (affiliation_list,) = get_representation_affiliation_lists(regform.event)
+    payload = _registration_data(field, affiliation_id)
+    payload[field.html_field_name]['representationId'] = affiliation_list.id
+    payload['notify_user'] = notify_user
+    return test_client.post(_create_url(regform), json=payload)
+
+
+def _representation_data(registration):
+    return next(data.data for data in registration.data if data.field_data.field.input_type == RepresentationField.name)
 
 
 SWITCHES = pytest.mark.parametrize(
@@ -129,10 +149,10 @@ def create_focal_event(
 
 @pytest.fixture
 def focal_point_client(test_client, db, dummy_regform, setup_focal_point):
-    def _focal_point_client(*, manage, moderate, full_manager=False):
+    def _focal_point_client(*, manage, moderate):
         set_feature_enabled(dummy_regform.event, 'registration', True)
         dummy_regform.moderation_enabled = True
-        user, in_range, out_range = setup_focal_point(dummy_regform, full_manager=full_manager)
+        user, in_range, out_range = setup_focal_point(dummy_regform)
         in_range.state = out_range.state = RegistrationState.pending
         set_focal_point_permissions(dummy_regform.event, editing=manage, moderation=moderate)
         db.session.flush()
@@ -490,27 +510,35 @@ class TestRegistrationFormSettings:
             AffiliationExtrasPlugin.instance._persist_focal_point_setting(dummy_regform)
         assert focal_point_management_enabled(dummy_regform) is False
 
+    @SWITCHES
     @pytest.mark.parametrize(
-        ('form_data', 'manage', 'moderate'),
-        (
-            ({'focal_point_editing': '1', 'focal_point_moderation': '1'}, True, True),
-            ({'focal_point_editing': '1'}, True, False),
-            ({'focal_point_moderation': '1'}, False, True),
-            ({}, False, False),
-        ),
+        ('initially_manage', 'initially_moderate'),
+        ((True, True), (True, False), (False, True), (False, False)),
+        ids=('initially-both', 'initially-manage-only', 'initially-moderate-only', 'initially-neither'),
     )
     def test_settings_save_persists_event_wide_switches(
-        self, dummy_regform, app, create_representation_field, form_data, manage, moderate
+        self,
+        dummy_regform,
+        app,
+        create_representation_field,
+        manage,
+        moderate,
+        initially_manage,
+        initially_moderate,
     ):
         from indico_affiliation_extras.plugin import AffiliationExtrasPlugin
 
         create_representation_field(dummy_regform)
+        set_focal_point_permissions(dummy_regform.event, editing=initially_manage, moderation=initially_moderate)
         data = {
             'focal_point_management': '1',
-            'focal_point_editing_initial': '1',
-            'focal_point_moderation_initial': '1',
-            **form_data,
+            'focal_point_editing_initial': '1' if initially_manage else '0',
+            'focal_point_moderation_initial': '1' if initially_moderate else '0',
         }
+        if manage:
+            data['focal_point_editing'] = '1'
+        if moderate:
+            data['focal_point_moderation'] = '1'
         with app.test_request_context(method='POST', data=data):
             AffiliationExtrasPlugin.instance._persist_focal_point_setting(dummy_regform)
 
@@ -570,7 +598,9 @@ class TestRegistrationFormSettings:
     def test_settings_save_keeps_event_wide_switches_without_representation_field(self, dummy_regform, app):
         from indico_affiliation_extras.plugin import AffiliationExtrasPlugin
 
-        with app.test_request_context(method='POST', data={}):
+        # The switches are disabled without a representation field, so only the hidden initial values are sent.
+        data = {'focal_point_editing_initial': '1', 'focal_point_moderation_initial': '1'}
+        with app.test_request_context(method='POST', data=data):
             AffiliationExtrasPlugin.instance._persist_focal_point_setting(dummy_regform)
 
         assert get_focal_point_permissions(dummy_regform.event) == {'registration_edit', 'registration_moderation'}
@@ -600,6 +630,24 @@ class TestRegistrationFormSettings:
         assert ' checked' not in inputs['focal_point_moderation']
         assert 'value="1"' in inputs['focal_point_editing_initial']
         assert 'value="0"' in inputs['focal_point_moderation_initial']
+
+    @pytest.mark.usefixtures('request_context')
+    @SWITCHES
+    @pytest.mark.parametrize('management', (True, False), ids=('management-on', 'management-off'))
+    def test_settings_render_hint_without_capabilities(
+        self, dummy_regform, create_representation_field, management, manage, moderate
+    ):
+        from indico_affiliation_extras.plugin import AffiliationExtrasPlugin
+
+        create_representation_field(dummy_regform)
+        set_focal_point_management_enabled(dummy_regform, management)
+        set_focal_point_permissions(dummy_regform.event, editing=manage, moderation=moderate)
+
+        plugin = AffiliationExtrasPlugin.instance
+        with plugin.plugin_context():
+            html = plugin._render_regform_focal_point_setting(regform=dummy_regform)
+
+        assert ('form-field-warning' in html) == (management and not manage and not moderate)
 
 
 class TestFocalPointPermissions:
@@ -1045,11 +1093,8 @@ class TestFocalPointSwitchActions:
             ('get', '{id}/edit', 'manage'),
             ('post', 'delete', 'manage'),
             ('post', '{id}/approve', 'moderate'),
-            ('post', '{id}/reject', 'moderate'),
             ('post', '{id}/withdraw', 'moderate'),
             ('post', 'approve', 'moderate'),
-            ('post', 'reject', 'moderate'),
-            ('post', 'reset', 'moderate'),
         ),
         ids=(
             'list',
@@ -1057,11 +1102,8 @@ class TestFocalPointSwitchActions:
             'edit',
             'delete',
             'approve',
-            'reject',
             'withdraw',
             'bulk-approve',
-            'bulk-reject',
-            'bulk-reset',
         ),
     )
     def test_actions_follow_switches(
@@ -1074,6 +1116,91 @@ class TestFocalPointSwitchActions:
         resp = getattr(test_client, method)(url, data={'registration_id': [in_range.id]})
 
         assert resp.status_code == (200 if allowed else 403)
+
+    @SWITCHES
+    @pytest.mark.parametrize('bulk', (False, True), ids=('single', 'bulk'))
+    def test_reject_follows_moderation_switch(
+        self, test_client, dummy_regform, focal_point_client, manage, moderate, bulk
+    ):
+        in_range, __ = focal_point_client(manage=manage, moderate=moderate)
+        data = {'rejection_reason': 'Duplicate', 'submitted': '1', 'csrf_token': _csrf_token(test_client)}
+        if bulk:
+            data['registration_id'] = [in_range.id]
+
+        path = 'reject' if bulk else f'{in_range.id}/reject'
+        resp = test_client.post(_reglist_url(dummy_regform) + path, data=data)
+
+        assert resp.status_code == (200 if moderate else 403)
+        assert in_range.state == (RegistrationState.rejected if moderate else RegistrationState.pending)
+
+    @SWITCHES
+    @pytest.mark.parametrize('bulk', (False, True), ids=('single', 'bulk'))
+    @pytest.mark.parametrize(
+        'state',
+        (RegistrationState.complete, RegistrationState.rejected, RegistrationState.withdrawn),
+        ids=('complete', 'rejected', 'withdrawn'),
+    )
+    def test_reset_follows_moderation_switch(
+        self, test_client, db, dummy_regform, focal_point_client, manage, moderate, bulk, state
+    ):
+        in_range, __ = focal_point_client(manage=manage, moderate=moderate)
+        in_range.state = state
+        db.session.flush()
+
+        data = {'registration_id': [in_range.id]} if bulk else {}
+        path = 'reset' if bulk else f'{in_range.id}/reset'
+        resp = test_client.post(_reglist_url(dummy_regform) + path, data=data)
+
+        assert resp.status_code == (200 if moderate else 403)
+        assert in_range.state == (RegistrationState.pending if moderate else state)
+
+    @SWITCHES
+    def test_create_follows_switches(self, test_client, dummy_regform, focal_point_client, manage, moderate):
+        in_range, __ = focal_point_client(manage=manage, moderate=moderate)
+        affiliation_id = _representation_data(in_range)['affiliation']['id']
+
+        resp = _post_create(test_client, dummy_regform, affiliation_id)
+
+        registration = dummy_regform.get_registration(email='new@example.test')
+        if not manage:
+            assert resp.status_code == 403
+            assert registration is None
+            return
+        assert resp.status_code == 200
+        (affiliation_list,) = get_representation_affiliation_lists(dummy_regform.event)
+        assert _representation_data(registration) == {
+            'representation_id': affiliation_list.id,
+            'representation_name': affiliation_list.name,
+            'affiliation': {'id': affiliation_id, 'text': 'CERN'},
+        }
+        assert registration.state == (RegistrationState.complete if moderate else RegistrationState.pending)
+
+    @SWITCHES
+    def test_edit_follows_switches(self, test_client, dummy_regform, focal_point_client, manage, moderate):
+        in_range, __ = focal_point_client(manage=manage, moderate=moderate)
+
+        resp = test_client.post(f'{_reglist_url(dummy_regform)}{in_range.id}/edit', json={'first_name': 'Renamed'})
+
+        assert resp.status_code == (200 if manage else 403)
+        assert in_range.first_name == ('Renamed' if manage else 'Guinea')
+
+    @pytest.mark.parametrize(
+        ('moderate', 'expected_state'),
+        ((True, RegistrationState.complete), (False, RegistrationState.pending)),
+        ids=('moderation-on', 'moderation-off'),
+    )
+    def test_edit_resets_approval_without_moderation(
+        self, test_client, db, dummy_regform, focal_point_client, moderate, expected_state
+    ):
+        in_range, __ = focal_point_client(manage=True, moderate=moderate)
+        dummy_regform.reset_approval_on_modification = True
+        in_range.state = RegistrationState.complete
+        db.session.flush()
+
+        resp = test_client.post(f'{_reglist_url(dummy_regform)}{in_range.id}/edit', json={'first_name': 'Renamed'})
+
+        assert resp.status_code == 200
+        assert in_range.state == expected_state
 
     @pytest.mark.parametrize('action', ('approve', 'reject', 'withdraw', 'edit'))
     def test_other_affiliation_registration_forbidden(self, test_client, dummy_regform, focal_point_client, action):
@@ -1108,19 +1235,17 @@ class TestFocalPointSwitchActions:
         assert not out_range.is_deleted
 
 
+@pytest.mark.usefixtures('no_csrf_check', 'smtp')
 class TestFocalPointCreatedRegistrationState:
     @pytest.fixture
-    def create_as(self, dummy_regform):
-        def _create_as(user, *, regform=dummy_regform, notify_user=False, skip_moderation=None):
-            field = next(field for field in regform.active_fields if field.input_type == RepresentationField.name)
-            (affiliation_list,) = get_representation_affiliation_lists(regform.event)
+    def create_as(self, test_client, dummy_regform):
+        def _create_as(user, *, notify_user=False):
+            set_feature_enabled(dummy_regform.event, 'registration', True)
             (affiliation_id,) = get_focal_affiliation_ids(user)
-            data = _registration_data(field, affiliation_id)
-            data[field.html_field_name]['representation_id'] = affiliation_list.id
-            session.set_session_user(user)
-            return create_registration(
-                regform, data, management=True, notify_user=notify_user, skip_moderation=skip_moderation
-            )
+            _login(test_client, user)
+            resp = _post_create(test_client, dummy_regform, affiliation_id, notify_user=notify_user)
+            assert resp.status_code == 200
+            return dummy_regform.get_registration(email='new@example.test')
 
         return _create_as
 
@@ -1129,8 +1254,7 @@ class TestFocalPointCreatedRegistrationState:
         calls = []
 
         def _receiver(sender, previous_state, **kwargs):
-            if previous_state is not None:
-                calls.append((sender, {'previous_state': previous_state, **kwargs}))
+            calls.append((previous_state, sender.state))
 
         with signals.event.registration_state_updated.connected_to(_receiver):
             yield calls
@@ -1142,96 +1266,28 @@ class TestFocalPointCreatedRegistrationState:
         dummy_regform.message_complete = 'Registration confirmed'
         return dummy_regform
 
-    @pytest.mark.usefixtures('request_context')
-    @pytest.mark.parametrize(
-        ('moderate', 'expected'),
-        ((True, RegistrationState.complete), (False, RegistrationState.pending)),
-        ids=('moderation-on', 'moderation-off'),
-    )
-    def test_focal_point_registration_state(self, moderated_regform, setup_focal_point, create_as, moderate, expected):
+    def test_registration_is_pending_from_the_start(
+        self, moderated_regform, setup_focal_point, create_as, state_updates
+    ):
         focal, __, __ = setup_focal_point(moderated_regform)
-        set_focal_point_permissions(moderated_regform.event, editing=True, moderation=moderate)
+        set_focal_point_permissions(moderated_regform.event, editing=True, moderation=False)
 
         registration = create_as(focal)
 
-        assert registration.state == expected
+        assert registration.state == RegistrationState.pending
+        assert state_updates == [(None, RegistrationState.pending)]
 
-    @pytest.mark.usefixtures('request_context')
     def test_creation_email_reflects_pending_state(self, smtp, moderated_regform, setup_focal_point, create_as):
         focal, __, __ = setup_focal_point(moderated_regform)
         set_focal_point_permissions(moderated_regform.event, editing=True, moderation=False)
 
         registration = create_as(focal, notify_user=True)
 
-        (mail,) = smtp.outbox
-        assert mail['To'] == registration.email
+        (mail,) = (mail for mail in smtp.outbox if mail['To'] == registration.email)
         body = ''.join(part.get_payload(decode=True).decode() for part in mail.walk() if not part.is_multipart())
         assert 'Awaiting approval' in body
         assert 'Registration confirmed' not in body
 
-    @pytest.mark.usefixtures('request_context')
-    def test_held_registration_is_logged_once(self, moderated_regform, setup_focal_point, create_as):
-        focal, __, __ = setup_focal_point(moderated_regform)
-        set_focal_point_permissions(moderated_regform.event, editing=True, moderation=False)
-
-        registration = create_as(focal)
-
-        summaries = [entry.summary for entry in moderated_regform.event.log_entries]
-        assert summaries.count(f'Registration for "{registration.full_name}" awaits approval') == 1
-        assert not any('has been changed from' in summary for summary in summaries)
-
-    @pytest.mark.usefixtures('request_context')
-    @pytest.mark.parametrize(
-        ('price', 'previous_state'),
-        ((0, RegistrationState.complete), (100, RegistrationState.unpaid)),
-        ids=('free', 'unpaid'),
-    )
-    def test_held_registration_announces_state_change(
-        self, moderated_regform, setup_focal_point, create_as, state_updates, price, previous_state
-    ):
-        focal, __, __ = setup_focal_point(moderated_regform)
-        set_focal_point_permissions(moderated_regform.event, editing=True, moderation=False)
-        set_feature_enabled(moderated_regform.event, 'payment', True)
-        moderated_regform.base_price = price
-
-        registration = create_as(focal)
-
-        assert state_updates == [(registration, {'previous_state': previous_state, 'silent': True})]
-
-    @pytest.mark.usefixtures('request_context')
-    def test_registration_already_pending_is_left_alone(
-        self, moderated_regform, setup_focal_point, create_as, state_updates
-    ):
-        focal, __, __ = setup_focal_point(moderated_regform)
-        set_focal_point_permissions(moderated_regform.event, editing=True, moderation=False)
-
-        registration = create_as(focal, skip_moderation=False)
-
-        assert registration.state == RegistrationState.pending
-        assert state_updates == []
-        assert not any('awaits approval' in entry.summary for entry in moderated_regform.event.log_entries)
-
-    @pytest.mark.usefixtures('request_context')
-    def test_form_without_focal_point_management_stays_complete(
-        self,
-        moderated_regform,
-        create_regform,
-        create_representation_field,
-        create_representation_registration,
-        setup_focal_point,
-    ):
-        focal, __, __ = setup_focal_point(moderated_regform)
-        set_focal_point_permissions(moderated_regform.event, editing=True, moderation=False)
-        other_regform = create_regform(moderated_regform.event, moderation_enabled=True)
-        (affiliation_id,) = get_focal_affiliation_ids(focal)
-        registration = create_representation_registration(create_representation_field(other_regform), affiliation_id)
-        registration.created_by = focal
-
-        signals.event.registration_created.send(registration, management=True, data={})
-
-        assert registration.state == RegistrationState.complete
-
-    @pytest.mark.usefixtures('request_context')
     def test_invitation_skipping_moderation_stays_approved(self, moderated_regform, setup_focal_point, create_as):
         focal, __, __ = setup_focal_point(moderated_regform)
         set_focal_point_permissions(moderated_regform.event, editing=True, moderation=False)
@@ -1243,26 +1299,12 @@ class TestFocalPointCreatedRegistrationState:
 
         assert create_as(focal).state == RegistrationState.complete
 
-    @pytest.mark.usefixtures('request_context')
-    def test_unpaid_registration_goes_to_pending(self, moderated_regform, setup_focal_point, create_as):
-        focal, __, __ = setup_focal_point(moderated_regform)
-        set_focal_point_permissions(moderated_regform.event, editing=True, moderation=False)
-        set_feature_enabled(moderated_regform.event, 'payment', True)
-        moderated_regform.base_price = 100
-
-        registration = create_as(focal)
-
-        assert registration.state == RegistrationState.pending
-        assert registration.price == 100
-
-    @pytest.mark.usefixtures('request_context')
     def test_genuine_manager_registration_stays_approved(self, moderated_regform, setup_focal_point, create_as):
         manager, __, __ = setup_focal_point(moderated_regform, user_id=3, full_manager=True)
         set_focal_point_permissions(moderated_regform.event, editing=True, moderation=False)
 
         assert create_as(manager).state == RegistrationState.complete
 
-    @pytest.mark.usefixtures('request_context')
     def test_unmoderated_form_registration_stays_complete(self, dummy_regform, setup_focal_point, create_as):
         focal, __, __ = setup_focal_point(dummy_regform)
         set_focal_point_permissions(dummy_regform.event, editing=True, moderation=False)
