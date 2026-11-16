@@ -142,3 +142,24 @@ def test_catalog_cloner_does_not_load_registrations_without_remapped_fields(
     )
 
     assert 'registrations' in inspect(cloned_form).unloaded
+
+
+@pytest.mark.parametrize('enabled', (False, True))
+@pytest.mark.parametrize('explicit_catalog', (False, True))
+def test_event_clone_preserves_focal_point_management_setting(
+    db, dummy_regform, create_event, create_event_catalog, create_representation_field, enabled, explicit_catalog
+):
+    selected = create_event_catalog(dummy_regform.event, [])
+    field = create_representation_field(dummy_regform)
+    if explicit_catalog:
+        field.data = {'catalog_id': selected.catalog_id}
+    set_focal_point_management_enabled(dummy_regform, enabled)
+    set_feature_enabled(dummy_regform.event, 'registration', True)
+    target = create_event()
+    db.session.flush()
+
+    EventCloner.run_cloners(dummy_regform.event, target, {'registration_forms'})
+
+    [cloned_form] = target.registration_forms
+    assert focal_point_management_enabled(cloned_form) == enabled
+    assert focal_point_management_enabled(dummy_regform) == enabled

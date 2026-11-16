@@ -147,6 +147,7 @@ The dialog provides a preview and supports inline images embedded as CID attachm
 - Allow participants to enter custom affiliations for selected representation types
 - Fix the required-field override rejecting an empty Representation field when registering participants as a manager
 - Allow Representation fields to select an affiliation catalog
+- Preserve focal point management settings when cloning events
 
 ### 3.3.2
 
