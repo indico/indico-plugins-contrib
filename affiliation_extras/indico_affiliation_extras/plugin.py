@@ -222,7 +222,7 @@ class AffiliationExtrasPlugin(IndicoPlugin):
         if category.can_manage(session.user):
             return SideMenuItem(
                 'affiliation_extras',
-                _('Affiliations'),
+                _('Affiliation Catalogs'),
                 url_for_plugin('affiliation_extras.manage_affiliations', category),
                 sui_icon='university',
                 weight=15,
@@ -232,7 +232,7 @@ class AffiliationExtrasPlugin(IndicoPlugin):
         if event.can_manage(session.user):
             return SideMenuItem(
                 'affiliation_extras',
-                _('Affiliations'),
+                _('Affiliation Catalogs'),
                 url_for_plugin('affiliation_extras.manage_affiliations', event),
                 section='customization',
             )

@@ -57,7 +57,7 @@ lists and choosing whether to include unnamed lists.
 
 ### Affiliation Catalogs
 
-Category and event managers can create catalogs from the **Affiliations** management page.
+Category and event managers can create catalogs from the **Affiliation Catalogs** management page.
 A catalog contains ordered affiliation lists, for example "Member organizations" and
 "Observers". Each list can include affiliations directly or select them through groups and
 tags. These selections are combined: a tag includes both affiliations carrying that tag

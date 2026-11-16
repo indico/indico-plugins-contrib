@@ -239,7 +239,7 @@ export default function CatalogListPane({
       <section>
         <div className="flexrow f-a-center f-j-space-between">
           <h3>
-            <Translate>Catalogs</Translate>
+            <Translate>Custom catalogs</Translate>
           </h3>
           <Button
             as={Link}
