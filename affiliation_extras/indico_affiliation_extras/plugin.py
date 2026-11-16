@@ -17,7 +17,6 @@ from indico.core.plugins import IndicoPlugin, render_plugin_template, url_for_pl
 from indico.modules.events.models.events import Event
 from indico.modules.events.registration.fields.base import RegistrationFormFieldBase
 from indico.modules.events.registration.forms import EmailRegistrantsForm
-from indico.modules.events.registration.models.registrations import RegistrationState
 from indico.modules.events.registration.views import (
     WPDisplayRegistrationFormConference,
     WPDisplayRegistrationFormSimpleEvent,
@@ -45,7 +44,6 @@ from indico_affiliation_extras.focal_points import (
 )
 from indico_affiliation_extras.models.catalogs import AffiliationCatalog
 from indico_affiliation_extras.permissions import (
-    FOCAL_POINT_PERMISSIONS,
     focal_point_management_enabled,
     get_focal_point_permissions,
     is_scoped_focal_point,
@@ -102,7 +100,6 @@ class AffiliationExtrasPlugin(IndicoPlugin):
         self.connect(signals.event_management.get_cloners, self._get_cloners)
         self.connect(signals.event.filter_registration_list, self._filter_registration_list)
         self.connect(signals.event.registration_pre_create, self._check_registration_pre_create)
-        self.connect(signals.event.registration_created, self._hold_focal_point_registration_for_moderation)
         self.connect(signals.event.registration_form_edited, self._persist_focal_point_setting)
         self.connect(signals.event.registration_form_field_changed, self._log_representation_catalog_change)
         self.connect(signals.core.add_form_fields, self._add_registration_email_fields, sender=EmailRegistrantsForm)
@@ -312,38 +309,9 @@ class AffiliationExtrasPlugin(IndicoPlugin):
         if not (get_submitted_affiliation_ids(regform, data) & focal_affiliations_for_event(user, regform.event)):
             raise UserValueError(_('As a focal point you may only register people for your own affiliations.'))
 
-    def _hold_focal_point_registration_for_moderation(self, registration, management, **kwargs):
-        # Core approves registrations created from management; without moderation a focal point must not.
-        regform = registration.registration_form
-        if not management or not regform.moderation_enabled or registration.state == RegistrationState.pending:
-            return
-        if not focal_point_management_enabled(regform):
-            return
-        if registration.invitation and registration.invitation.skip_moderation:
-            return
-        if 'registration_moderation' in get_focal_point_permissions(regform.event):
-            return
-        if not is_scoped_focal_point(regform.event, registration.created_by):
-            return
-        previous_state = registration.state
-        registration.state = RegistrationState.pending
-        signals.event.registration_state_updated.send(registration, previous_state=previous_state, silent=True)
-        registration.log(
-            EventLogRealm.management,
-            LogKind.change,
-            'Registration',
-            f'Registration for "{registration.full_name}" awaits approval',
-            registration.created_by,
-            data={'Reason': 'Created by a focal point who cannot moderate registrations'},
-        )
-
     def _grant_focal_point_registration_permissions(self, sender, obj, user=None, permission=None, **kwargs):
         # Never return False, which would deny a genuine manager; the blacklist signals do the bounding.
-        if (
-            permission in FOCAL_POINT_PERMISSIONS
-            and permission in get_focal_point_permissions(obj)
-            and is_scoped_focal_point(obj, user)
-        ):
+        if permission in get_focal_point_permissions(obj) and is_scoped_focal_point(obj, user):
             return True
 
     def _filter_user_search_results(self, sender, user, results, **kwargs):

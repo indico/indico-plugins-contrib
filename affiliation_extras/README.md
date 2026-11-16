@@ -109,7 +109,8 @@ forms of the event, and both are on by default:
 
 When moderation is off, registrations that focal points create on forms with moderation await
 approval instead of being approved right away, unless the registration matches an invitation
-that skips moderation. This access is limited to matching registrations and enabled forms.
+that skips moderation. Registrations they edit also go back to pending on forms that reset
+approval on modification. This access is limited to matching registrations and enabled forms.
 Existing event or registration-management permissions continue to apply independently.
 
 When emailing registrants from the registration list, **Send copy to focal points** is available on
@@ -160,7 +161,8 @@ The dialog provides a preview and supports inline images embedded as CID attachm
 - Allow setting a new affiliation catalog as the default when creating it
 - Ask for confirmation before changing the default affiliation catalog when focal points may be affected
 - Allow choosing separately whether focal points can manage and moderate registrations; when they cannot
-  moderate, the registrations they create await approval
+  moderate, the registrations they create on moderated forms await approval, and so do those they edit on
+  forms that reset approval on modification
 
 ### 3.3.2
 
