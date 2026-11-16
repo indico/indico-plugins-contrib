@@ -509,51 +509,87 @@ def test_representation_rejects_affiliation_without_type(representation_field):
 
 class TestRepresentationCatalog:
     @pytest.mark.usefixtures('no_csrf_check')
-    @pytest.mark.parametrize('change', ('set', 'reset', 'switch', 'unchanged'))
+    @pytest.mark.parametrize(
+        ('previous', 'selected', 'expected_log'),
+        (
+            (
+                None,
+                'Selected catalog',
+                {'Previous catalog': 'Default catalog (event default)', 'Catalog': 'Selected catalog'},
+            ),
+            (
+                'Selected catalog',
+                None,
+                {'Previous catalog': 'Selected catalog', 'Catalog': 'Default catalog (event default)'},
+            ),
+            (
+                'Selected catalog',
+                'Alternative catalog',
+                {'Previous catalog': 'Selected catalog', 'Catalog': 'Alternative catalog'},
+            ),
+        ),
+    )
     def test_setting_selection_is_saved_and_logged(
-        self, test_client, db, dummy_user, dummy_regform, create_event_catalog, create_representation_field, change
+        self,
+        test_client,
+        db,
+        dummy_user,
+        dummy_regform,
+        create_event_catalog,
+        create_representation_field,
+        previous,
+        selected,
+        expected_log,
     ):
         dummy_regform.event.update_principal(dummy_user, full_access=True)
         set_feature_enabled(dummy_regform.event, 'registration', True)
         _login(test_client, dummy_user)
-        default = create_event_catalog(dummy_regform.event, []).catalog
-        default.name = 'Default catalog'
-        selected = create_event_catalog(dummy_regform.event, []).catalog
-        selected.name = 'Selected catalog'
-        alternative = create_event_catalog(dummy_regform.event, []).catalog
-        alternative.name = 'Alternative catalog'
-        event_settings.set(dummy_regform.event, 'default_catalog_id', default.id)
+        catalog_ids = {None: None}
+        for name in ('Default catalog', 'Selected catalog', 'Alternative catalog'):
+            catalog = create_event_catalog(dummy_regform.event, []).catalog
+            catalog.name = name
+            catalog_ids[name] = catalog.id
+        event_settings.set(dummy_regform.event, 'default_catalog_id', catalog_ids['Default catalog'])
         field = create_representation_field(dummy_regform)
-        previous_id = None if change == 'set' else selected.id
-        selected_id = None if change == 'reset' else alternative.id if change == 'switch' else selected.id
-        field.data = {'catalog_id': previous_id}
+        field.data = {'catalog_id': catalog_ids[previous]}
         db.session.flush()
         url = (
             f'/event/{dummy_regform.event.id}/manage/registration/{dummy_regform.id}/'
             f'form/sections/{field.parent_id}/fields/{field.id}'
         )
 
-        response = test_client.patch(url, json={'fieldData': {'title': field.title, 'catalogId': selected_id}})
+        response = test_client.patch(
+            url, json={'fieldData': {'title': field.title, 'catalogId': catalog_ids[selected]}}
+        )
 
         assert response.status_code == 200
-        assert field.data['catalog_id'] == selected_id
+        assert field.data['catalog_id'] == catalog_ids[selected]
         summary = f'Representation catalog for field "{field.title}" in "{dummy_regform.title}" changed'
-        logs = dummy_regform.event.log_entries.filter_by(summary=summary).all()
-        if change == 'unchanged':
-            assert not logs
-        else:
-            [log] = logs
-            assert log.module == 'Registration'
-            assert {key: log.data[key] for key in ('Previous catalog', 'Catalog')} == {
-                'Previous catalog': 'Default catalog (event default)' if change == 'set' else selected.name,
-                'Catalog': (
-                    'Default catalog (event default)'
-                    if change == 'reset'
-                    else alternative.name
-                    if change == 'switch'
-                    else selected.name
-                ),
-            }
+        log = dummy_regform.event.log_entries.filter_by(summary=summary).one()
+        assert log.module == 'Registration'
+        assert {key: log.data[key] for key in ('Previous catalog', 'Catalog')} == expected_log
+
+    @pytest.mark.usefixtures('no_csrf_check')
+    def test_unchanged_catalog_selection_is_not_logged(
+        self, test_client, db, dummy_user, dummy_regform, create_event_catalog, create_representation_field
+    ):
+        dummy_regform.event.update_principal(dummy_user, full_access=True)
+        set_feature_enabled(dummy_regform.event, 'registration', True)
+        _login(test_client, dummy_user)
+        selected = create_event_catalog(dummy_regform.event, []).catalog
+        field = create_representation_field(dummy_regform)
+        field.data = {'catalog_id': selected.id}
+        db.session.flush()
+        url = (
+            f'/event/{dummy_regform.event.id}/manage/registration/{dummy_regform.id}/'
+            f'form/sections/{field.parent_id}/fields/{field.id}'
+        )
+
+        response = test_client.patch(url, json={'fieldData': {'title': field.title, 'catalogId': selected.id}})
+
+        assert response.status_code == 200
+        summary = f'Representation catalog for field "{field.title}" in "{dummy_regform.title}" changed'
+        assert not dummy_regform.event.log_entries.filter_by(summary=summary).has_rows()
 
     def test_field_uses_explicit_catalog(self, db, dummy_regform, create_event_catalog, create_representation_field):
         selected = create_event_catalog(dummy_regform.event, [])
