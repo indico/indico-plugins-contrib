@@ -9,7 +9,7 @@ import React from 'react';
 import {useForm, useFormState} from 'react-final-form';
 import {Form, Loader, Message} from 'semantic-ui-react';
 
-import Checkbox from 'indico/react/components/Checkbox';
+import {Checkbox} from 'indico/react/components';
 import {FinalDropdown} from 'indico/react/forms';
 import {useIndicoAxios} from 'indico/react/hooks';
 import {Translate} from 'indico/react/i18n';
