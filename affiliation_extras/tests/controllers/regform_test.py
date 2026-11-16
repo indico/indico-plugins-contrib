@@ -42,6 +42,111 @@ def _recipient_count_url(regform):
     return f'{_url(regform)}/recipient-count'
 
 
+@pytest.mark.parametrize('role', ('manager', 'registration_manager', 'unrelated_manager', 'user'))
+def test_catalog_choices_are_scoped_to_form_management(
+    test_client, db, dummy_user, dummy_regform, create_event, create_event_catalog, role
+):
+    if role == 'manager':
+        dummy_regform.event.update_principal(dummy_user, full_access=True)
+    elif role == 'registration_manager':
+        dummy_regform.event.update_principal(dummy_user, add_permissions={'registration'})
+    elif role == 'unrelated_manager':
+        create_event().update_principal(dummy_user, full_access=True)
+    _login(test_client, dummy_user)
+    selected = create_event_catalog(dummy_regform.event, [])
+    inherited = create_event_catalog(dummy_regform.event, [])
+    inherited.catalog.event = None
+    inherited.catalog.category = dummy_regform.event.category
+    create_event_catalog(create_event(), [])
+    db.session.flush()
+
+    response = test_client.get(
+        f'/admin/plugins/affiliation_extras/events/{dummy_regform.event.id}/'
+        f'regforms/{dummy_regform.id}/affiliation-catalogs'
+    )
+
+    if role in {'manager', 'registration_manager'}:
+        assert response.status_code == 200
+        assert {catalog['id']: catalog for catalog in response.json['catalogs']} == {
+            selected.catalog_id: {'id': selected.catalog_id, 'name': selected.catalog.name},
+            inherited.catalog_id: {
+                'id': inherited.catalog_id,
+                'name': inherited.catalog.name,
+                'parent': dummy_regform.event.category.title,
+            },
+        }
+        assert response.json['default_catalog_id'] == inherited.catalog_id
+    else:
+        assert response.status_code == 403
+
+
+def test_catalog_choices_without_a_default(test_client, dummy_user, dummy_regform):
+    dummy_regform.event.update_principal(dummy_user, full_access=True)
+    _login(test_client, dummy_user)
+
+    response = test_client.get(
+        f'/admin/plugins/affiliation_extras/events/{dummy_regform.event.id}/'
+        f'regforms/{dummy_regform.id}/affiliation-catalogs'
+    )
+
+    assert response.status_code == 200
+    assert response.json == {'catalogs': [], 'default_catalog_id': None}
+
+
+@pytest.mark.usefixtures('no_csrf_check')
+@pytest.mark.parametrize('endpoint', ('metadata', 'recipient-count', 'send'))
+def test_catalog_invitations_use_event_default_despite_field_override(
+    test_client,
+    db,
+    dummy_user,
+    dummy_regform,
+    dummy_contact_affiliation,
+    create_event_catalog,
+    create_representation_field,
+    smtp,
+    endpoint,
+):
+    dummy_regform.event.update_principal(dummy_user, full_access=True)
+    _login(test_client, dummy_user)
+    alternate_affiliation = Affiliation(name='Alternate')
+    alternate_affiliation.contact_lists.append(
+        AffiliationContactList(name='Alternate', emails=['alternate@example.test'])
+    )
+    db.session.add(alternate_affiliation)
+    alternate = create_event_catalog(dummy_regform.event, [alternate_affiliation])
+    field = create_representation_field(dummy_regform)
+    field.data = {'catalog_id': alternate.catalog_id}
+    create_event_catalog(dummy_regform.event, [dummy_contact_affiliation])
+    payload = {
+        'catalog_id': alternate.catalog_id,
+        'recipient_source': 'contacts',
+        'contact_lists': ['Ops'],
+        'include_unnamed_lists': False,
+    }
+    if endpoint == 'metadata':
+        response = test_client.get(_metadata_url(dummy_regform), query_string={'catalog_id': alternate.catalog_id})
+        assert response.status_code == 200
+        assert response.json['contact_list_options'] == ['Ops']
+    elif endpoint == 'recipient-count':
+        response = test_client.post(_recipient_count_url(dummy_regform), json=payload)
+        assert response.status_code == 200
+        assert response.json['recipient_count'] == 1
+    else:
+        response = test_client.post(
+            _url(dummy_regform),
+            json={
+                **payload,
+                'sender_address': dummy_user.email,
+                'subject': 'Invitation',
+                'body': 'Please register.',
+            },
+        )
+        assert response.status_code == 200
+        assert response.json['sent'] == 1
+        assert {inv.email for inv in dummy_regform.invitations} == {'ops@example.test'}
+        assert len(smtp.outbox) == 1
+
+
 class TestInvitations:
     @pytest.mark.usefixtures('no_csrf_check')
     @pytest.mark.parametrize('recipient_source', ('focal_points', 'contacts', 'both'))

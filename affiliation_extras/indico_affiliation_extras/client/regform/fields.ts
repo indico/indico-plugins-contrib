@@ -16,6 +16,7 @@ const representationField = {
   inputComponent: RepresentationInput,
   renderAsFieldset: true,
   settingsComponent: RepresentationSettings,
+  settingsFormInitialData: {catalogId: null},
 };
 
 export default representationField;

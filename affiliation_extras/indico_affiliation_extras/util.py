@@ -20,6 +20,7 @@ from werkzeug.exceptions import HTTPException
 
 from indico.core.config import config
 from indico.core.db import db
+from indico.core.db.sqlalchemy.util.session import no_autoflush
 from indico.core.errors import UserValueError
 from indico.modules.categories.models.categories import Category
 from indico.modules.events.models.events import Event
@@ -480,9 +481,45 @@ def get_default_catalog(target: Category | Event, *, only_inherited: bool = Fals
     raise TypeError(f'Unsupported target type: {type(target).__name__}')
 
 
-def get_representation_affiliation_lists(event: Event, *, enabled_only: bool = True) -> list[AffiliationList]:
-    """Return affiliation lists configured as representation types for the event."""
-    if not (catalog := get_default_catalog(event)):
+def get_available_catalog(event: Event, catalog_id: int | None) -> AffiliationCatalog | None:
+    """Resolve an explicit catalog within the event's available catalogs."""
+    return next((catalog for catalog in get_all_catalogs(event) if catalog.id == catalog_id), None)
+
+
+@no_autoflush
+def clone_affiliation_catalog(catalog: AffiliationCatalog, target: Event | Category, *, name=None):
+    owner = {'event': target} if isinstance(target, Event) else {'category': target}
+    cloned = AffiliationCatalog(**owner, name=name if name is not None else catalog.name)
+    db.session.add(cloned)
+    list_map = {}
+    for item in catalog.lists:
+        cloned_list = AffiliationList(
+            catalog=cloned,
+            name=item.name,
+            position=item.position,
+            is_enabled=item.is_enabled,
+            affiliation_mode=item.affiliation_mode,
+            groups=set(item.groups),
+            tags=set(item.tags),
+            affiliations=set(item.affiliations),
+        )
+        db.session.add(cloned_list)
+        list_map[item.id] = cloned_list
+    db.session.flush()
+    return cloned, {list_id: item.id for list_id, item in list_map.items()}
+
+
+def get_representation_catalog(field) -> AffiliationCatalog | None:
+    """Resolve a field's catalog, inheriting only when no override is configured."""
+    event = field.registration_form.event
+    if (catalog_id := (field.data or {}).get('catalog_id')) is not None:
+        return get_available_catalog(event, catalog_id)
+    return get_default_catalog(event)
+
+
+def get_catalog_affiliation_lists(catalog: AffiliationCatalog | None, *, enabled_only: bool = True):
+    """Return the ordered representation lists of a catalog."""
+    if catalog is None:
         return []
     lists = catalog.lists
     if enabled_only:
@@ -490,20 +527,18 @@ def get_representation_affiliation_lists(event: Event, *, enabled_only: bool = T
     return sorted(lists, key=lambda item: (item.position, item.name.lower(), item.id))
 
 
-def get_representation_affiliation_list(
-    event: Event, affiliation_list_id: int | None, *, enabled_only: bool = True
+def get_catalog_affiliation_list(
+    catalog: AffiliationCatalog | None, affiliation_list_id: int | None
 ) -> AffiliationList | None:
-    """Return a single affiliation list if it exists in the event's default catalog."""
-    if affiliation_list_id is None:
-        return None
-    return next(
-        (
-            item
-            for item in get_representation_affiliation_lists(event, enabled_only=enabled_only)
-            if item.id == affiliation_list_id
-        ),
-        None,
-    )
+    return next((item for item in get_catalog_affiliation_lists(catalog) if item.id == affiliation_list_id), None)
+
+
+def get_catalog_affiliation_ids(catalog: AffiliationCatalog | None) -> set[int]:
+    return {
+        affiliation.id
+        for affiliation_list in get_catalog_affiliation_lists(catalog)
+        for affiliation in get_representation_affiliations(affiliation_list)
+    }
 
 
 def get_representation_affiliations(affiliation_list: AffiliationList) -> list[Affiliation]:

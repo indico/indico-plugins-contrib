@@ -11,6 +11,7 @@ from flask import jsonify, request, session
 from werkzeug.exceptions import Forbidden
 
 from indico.core.db import db
+from indico.core.errors import UserValueError
 from indico.modules.categories.controllers.base import RHManageCategoryBase
 from indico.modules.categories.models.categories import Category
 from indico.modules.events.management.controllers import RHManageEventBase
@@ -38,6 +39,7 @@ from indico_affiliation_extras.schemas import (
 )
 from indico_affiliation_extras.settings import category_settings, event_settings
 from indico_affiliation_extras.util import (
+    clone_affiliation_catalog,
     get_all_catalogs,
     get_default_catalog,
     get_explicit_default_catalog,
@@ -192,6 +194,8 @@ class RHEditAffiliationCatalog(RHAffiliationCatalogMixin, RHAffiliationCatalogsM
 
 class RHDeleteAffiliationCatalog(RHAffiliationCatalogMixin, RHAffiliationCatalogsManagementBase):
     def _process(self):
+        if self.catalog.is_used_by_regform:
+            raise UserValueError('Catalog is used by a representation field')
         self.catalog.is_deleted = True
         if self.settings_proxy.get(self.target, 'default_catalog_id') == self.catalog.id:
             self.settings_proxy.set(self.target, 'default_catalog_id', None)
@@ -232,22 +236,7 @@ class RHCloneAffiliationCatalog(RHAffiliationCatalogMixin, RHAffiliationCatalogs
         if found:
             name = f'{name} ({max_index + 1})'
 
-        new_catalog = AffiliationCatalog(**self.target_dict, name=name)
-        db.session.add(new_catalog)
-        db.session.flush()
-        lists = [
-            {
-                'name': lst.name,
-                'position': lst.position,
-                'is_enabled': lst.is_enabled,
-                'affiliation_mode': lst.affiliation_mode,
-                'groups': lst.groups,
-                'tags': lst.tags,
-                'affiliations': lst.affiliations,
-            }
-            for lst in self.catalog.lists
-        ]
-        populate_catalog_lists(new_catalog, lists)
+        new_catalog, __ = clone_affiliation_catalog(self.catalog, self.target, name=name)
         new_catalog.owner.log(
             new_catalog.log_realm,
             LogKind.positive,

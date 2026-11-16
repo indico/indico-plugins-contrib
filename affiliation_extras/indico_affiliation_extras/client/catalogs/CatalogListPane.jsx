@@ -16,7 +16,7 @@ import _ from 'lodash';
 import PropTypes from 'prop-types';
 import React, {useState} from 'react';
 import {Link} from 'react-router-dom';
-import {Button, Icon} from 'semantic-ui-react';
+import {Button, Icon, Popup} from 'semantic-ui-react';
 
 import {RequestConfirmDelete} from 'indico/react/components';
 import {Param, Translate} from 'indico/react/i18n';
@@ -45,8 +45,7 @@ function CatalogRow({
     }
   };
 
-  const cloneCatalog = async evt => {
-    evt.target.dispatchEvent(new Event('indico:closeAutoTooltip'));
+  const cloneCatalog = async () => {
     try {
       const {data: clonedCatalog} = await indicoAxios.post(
         cloneCatalogURL({catalog_id: catalog.id, ...targetLocator})
@@ -57,8 +56,7 @@ function CatalogRow({
     }
   };
 
-  const toggleDefaultCatalog = async evt => {
-    evt.target.dispatchEvent(new Event('indico:closeAutoTooltip'));
+  const toggleDefaultCatalog = async () => {
     try {
       const {data} = await indicoAxios.post(
         toggleDefaultCatalogURL({catalog_id: catalog.id, ...targetLocator})
@@ -73,8 +71,7 @@ function CatalogRow({
     }
   };
 
-  const openDeletePrompt = evt => {
-    evt.target.dispatchEvent(new Event('indico:closeAutoTooltip'));
+  const openDeletePrompt = () => {
     setDeletePrompt({name: catalog.name, func: deleteCatalog});
   };
 
@@ -122,30 +119,52 @@ function CatalogRow({
       </td>
       <td styleName="catalog-actions">
         <div className="thin toolbar right">
-          <Icon
-            name="pin"
-            color={isDefault ? 'yellow' : undefined}
-            title={defaultTitle}
-            disabled={isInheritedDefault}
-            onClick={toggleDefaultCatalog}
+          <Popup
+            position="bottom center"
+            content={defaultTitle}
+            trigger={
+              <Icon
+                name="pin"
+                color={isDefault ? 'yellow' : undefined}
+                disabled={isInheritedDefault}
+                onClick={toggleDefaultCatalog}
+              />
+            }
           />
           {!inherited && (
-            <Link to={catalogDetailURL({catalog_id: catalog.id, ...targetLocator})}>
-              <Icon name="edit" color="blue" title={Translate.string('Edit catalog')} />
-            </Link>
+            <Popup
+              position="bottom center"
+              content={Translate.string('Edit catalog')}
+              trigger={
+                <Link to={catalogDetailURL({catalog_id: catalog.id, ...targetLocator})}>
+                  <Icon name="edit" color="blue" />
+                </Link>
+              }
+            />
           )}
-          <Icon
-            name="clone"
-            color="blue"
-            title={Translate.string('Clone catalog')}
-            onClick={cloneCatalog}
+          <Popup
+            position="bottom center"
+            content={Translate.string('Clone catalog')}
+            trigger={<Icon name="clone" color="blue" onClick={cloneCatalog} />}
           />
           {!inherited && (
-            <Icon
-              name="trash"
-              color="red"
-              title={Translate.string('Delete catalog')}
-              onClick={openDeletePrompt}
+            <Popup
+              position="bottom right"
+              content={
+                catalog.is_used_by_regform
+                  ? Translate.string(
+                      'This catalog is used by a representation field and cannot be deleted'
+                    )
+                  : Translate.string('Delete catalog')
+              }
+              trigger={
+                <Icon
+                  name="trash"
+                  color="red"
+                  disabled={catalog.is_used_by_regform}
+                  onClick={openDeletePrompt}
+                />
+              }
             />
           )}
         </div>
