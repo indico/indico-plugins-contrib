@@ -36,6 +36,7 @@ from indico_affiliation_extras.permissions import event_has_focal_managed_regfor
 from indico_affiliation_extras.schemas import (
     AffiliationCatalogArgs,
     AffiliationCatalogSchema,
+    CreateAffiliationCatalogArgs,
     ExtendedAffiliationSchema,
 )
 from indico_affiliation_extras.settings import category_settings, event_settings
@@ -156,13 +157,16 @@ class RHAffiliationCatalogMixin(AffiliationAreaMixin):
 
 
 class RHCreateAffiliationCatalog(AffiliationAreaMixin, RHAffiliationCatalogsManagementBase):
-    @use_args(AffiliationCatalogArgs)
+    @use_args(CreateAffiliationCatalogArgs)
     def _process(self, data):
         lists = data.pop('lists')
+        set_as_default = data.pop('set_as_default')
         catalog = AffiliationCatalog(**self.target_dict, **data)
         db.session.add(catalog)
         db.session.flush()
         populate_catalog_lists(catalog, lists)
+        if set_as_default:
+            self.settings_proxy.set(self.target, 'default_catalog_id', catalog.id)
         catalog.owner.log(
             catalog.log_realm,
             LogKind.positive,

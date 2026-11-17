@@ -10,20 +10,28 @@ import PropTypes from 'prop-types';
 import React from 'react';
 import {DndProvider} from 'react-dnd';
 import {HTML5Backend} from 'react-dnd-html5-backend';
-import {Form as FinalForm} from 'react-final-form';
-import {Form, Segment} from 'semantic-ui-react';
+import {Field, Form as FinalForm} from 'react-final-form';
+import {Form, Message, Segment} from 'semantic-ui-react';
 
 import {ManagementPageSubTitle} from 'indico/react/components';
-import {FinalInput, FinalSubmitButton} from 'indico/react/forms';
+import {FinalCheckbox, FinalInput, FinalSubmitButton} from 'indico/react/forms';
 import {Translate} from 'indico/react/i18n';
 
 import FinalCatalogList from '../components/CatalogListField';
 
 import './CatalogDetailPane.module.scss';
 
-export default function CatalogDetailPane({catalog, targetLocator, isNew, onSubmit}) {
+export default function CatalogDetailPane({
+  catalog,
+  targetLocator,
+  isNew,
+  warnOnSetDefault,
+  onSubmit,
+}) {
   const isCreate = isNew === true;
+  const isEvent = 'event_id' in targetLocator;
   const initialValues = {
+    ...(isCreate && {set_as_default: true}),
     name: catalog?.name || '',
     lists: _.sortBy(catalog?.lists || [], 'position').map(list =>
       _.pick(list, [
@@ -60,6 +68,7 @@ export default function CatalogDetailPane({catalog, targetLocator, isNew, onSubm
         tags: list.tags.map(tag => tag.id),
         affiliations: list.affiliations.map(affiliation => affiliation.id),
       })),
+      ...(isCreate && {set_as_default: formData.set_as_default}),
     });
 
   return (
@@ -96,6 +105,32 @@ export default function CatalogDetailPane({catalog, targetLocator, isNew, onSubm
                   required
                 />
               </section>
+              {isCreate && (
+                <section>
+                  <FinalCheckbox
+                    name="set_as_default"
+                    label={
+                      isEvent
+                        ? Translate.string('Set catalog as default for this event')
+                        : Translate.string('Set catalog as default for this category')
+                    }
+                    showAsToggle
+                  />
+                  {warnOnSetDefault && (
+                    <Field name="set_as_default" subscription={{value: true}}>
+                      {({input: {value}}) =>
+                        value && (
+                          <Message warning visible>
+                            <Translate>
+                              This may change which registrations the focal points can manage.
+                            </Translate>
+                          </Message>
+                        )
+                      }
+                    </Field>
+                  )}
+                </section>
+              )}
               <div styleName="form-actions">
                 <FinalSubmitButton
                   label={Translate.string('Save changes')}
@@ -115,10 +150,12 @@ CatalogDetailPane.propTypes = {
   catalog: PropTypes.object,
   targetLocator: PropTypes.object.isRequired,
   isNew: PropTypes.bool,
+  warnOnSetDefault: PropTypes.bool,
   onSubmit: PropTypes.func.isRequired,
 };
 
 CatalogDetailPane.defaultProps = {
   catalog: null,
   isNew: false,
+  warnOnSetDefault: false,
 };

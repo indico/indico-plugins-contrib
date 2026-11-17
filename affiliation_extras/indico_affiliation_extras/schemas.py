@@ -192,6 +192,10 @@ class AffiliationCatalogArgs(mm.Schema):
             raise ValidationError(_('List names must be unique.'))
 
 
+class CreateAffiliationCatalogArgs(AffiliationCatalogArgs):
+    set_as_default = fields.Boolean(load_default=False)
+
+
 class OwnerDataSchema(mm.Schema):
     id = fields.Int()
     title = fields.String()
