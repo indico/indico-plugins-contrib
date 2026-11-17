@@ -33,7 +33,7 @@ from indico_affiliation_extras.permissions import (
     set_focal_point_management_enabled,
     set_focal_point_permissions,
 )
-from indico_affiliation_extras.util import get_representation_affiliation_lists
+from indico_affiliation_extras.util import get_catalog_affiliation_lists, get_default_catalog
 
 
 pytest_plugins = 'indico.modules.events.registration.testing.fixtures'
@@ -74,7 +74,7 @@ def _registration_data(field, affiliation_id, email='new@example.test'):
 
 def _post_create(test_client, regform, affiliation_id, *, notify_user=False):
     field = next(field for field in regform.active_fields if field.input_type == RepresentationField.name)
-    (affiliation_list,) = get_representation_affiliation_lists(regform.event)
+    (affiliation_list,) = get_catalog_affiliation_lists(get_default_catalog(regform.event))
     payload = _registration_data(field, affiliation_id)
     payload[field.html_field_name]['representationId'] = affiliation_list.id
     payload['notify_user'] = notify_user
@@ -1167,7 +1167,7 @@ class TestFocalPointSwitchActions:
             assert registration is None
             return
         assert resp.status_code == 200
-        (affiliation_list,) = get_representation_affiliation_lists(dummy_regform.event)
+        (affiliation_list,) = get_catalog_affiliation_lists(get_default_catalog(dummy_regform.event))
         assert _representation_data(registration) == {
             'representation_id': affiliation_list.id,
             'representation_name': affiliation_list.name,
