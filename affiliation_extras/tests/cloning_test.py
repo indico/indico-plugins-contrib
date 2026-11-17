@@ -15,7 +15,12 @@ from indico.modules.events.registration.util import clone_registration_form
 from indico_affiliation_extras.cloning import RepresentationCatalogCloner
 from indico_affiliation_extras.fields import RepresentationField
 from indico_affiliation_extras.models.lists import AffiliationListMode
-from indico_affiliation_extras.permissions import focal_point_management_enabled, set_focal_point_management_enabled
+from indico_affiliation_extras.permissions import (
+    focal_point_management_enabled,
+    get_focal_point_permissions,
+    set_focal_point_management_enabled,
+    set_focal_point_permissions,
+)
 from indico_affiliation_extras.util import get_representation_catalog
 
 
@@ -163,3 +168,26 @@ def test_event_clone_preserves_focal_point_management_setting(
     [cloned_form] = target.registration_forms
     assert focal_point_management_enabled(cloned_form) == enabled
     assert focal_point_management_enabled(dummy_regform) == enabled
+
+
+@pytest.mark.parametrize(
+    ('editing', 'moderation', 'expected'),
+    (
+        (True, True, {'registration_edit', 'registration_moderation'}),
+        (False, True, {'registration_moderation'}),
+        (True, False, {'registration_edit'}),
+        (False, False, set()),
+    ),
+)
+def test_event_clone_preserves_focal_point_permissions(
+    db, dummy_regform, create_event, create_representation_field, editing, moderation, expected
+):
+    create_representation_field(dummy_regform)
+    set_focal_point_permissions(dummy_regform.event, editing=editing, moderation=moderation)
+    set_feature_enabled(dummy_regform.event, 'registration', True)
+    target = create_event()
+    db.session.flush()
+
+    EventCloner.run_cloners(dummy_regform.event, target, {'registration_forms'})
+
+    assert get_focal_point_permissions(target) == expected
