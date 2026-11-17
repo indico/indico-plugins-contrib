@@ -39,6 +39,13 @@ from indico_affiliation_extras.util import get_catalog_affiliation_lists, get_de
 pytest_plugins = 'indico.modules.events.registration.testing.fixtures'
 
 
+SWITCHES = pytest.mark.parametrize(
+    ('manage', 'moderate'),
+    ((True, True), (True, False), (False, True), (False, False)),
+    ids=('both', 'manage-only', 'moderate-only', 'neither'),
+)
+
+
 def _login(test_client, user):
     with test_client.session_transaction() as sess:
         sess.set_session_user(user)
@@ -83,13 +90,6 @@ def _post_create(test_client, regform, affiliation_id, *, notify_user=False):
 
 def _representation_data(registration):
     return next(data.data for data in registration.data if data.field_data.field.input_type == RepresentationField.name)
-
-
-SWITCHES = pytest.mark.parametrize(
-    ('manage', 'moderate'),
-    ((True, True), (True, False), (False, True), (False, False)),
-    ids=('both', 'manage-only', 'moderate-only', 'neither'),
-)
 
 
 def _guardrail(regform, user, data, management):
@@ -1276,6 +1276,21 @@ class TestFocalPointCreatedRegistrationState:
 
         assert registration.state == RegistrationState.pending
         assert state_updates == [(None, RegistrationState.pending)]
+
+    def test_priced_registration_is_pending_then_unpaid_on_approval(
+        self, moderated_regform, setup_focal_point, create_as
+    ):
+        focal, __, __ = setup_focal_point(moderated_regform)
+        set_focal_point_permissions(moderated_regform.event, editing=True, moderation=False)
+        set_feature_enabled(moderated_regform.event, 'payment', True)
+        moderated_regform.base_price = 100
+
+        registration = create_as(focal)
+
+        assert registration.state == RegistrationState.pending
+        assert registration.price == 100
+        registration.update_state(approved=True)
+        assert registration.state == RegistrationState.unpaid
 
     def test_creation_email_reflects_pending_state(self, smtp, moderated_regform, setup_focal_point, create_as):
         focal, __, __ = setup_focal_point(moderated_regform)
