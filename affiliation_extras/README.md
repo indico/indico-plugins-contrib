@@ -108,10 +108,10 @@ forms of the event, and both are on by default:
 - **Moderate registrations**: approve, reject, reset and withdraw their registrations
 
 When moderation is off, registrations that focal points create on forms with moderation await
-approval instead of being approved right away, unless the registration matches an invitation
-that skips moderation. Registrations they edit also go back to pending on forms that reset
-approval on modification. This access is limited to matching registrations and enabled forms.
-Existing event or registration-management permissions continue to apply independently.
+approval instead of being approved right away, and registrations they edit go back to pending on
+forms that reset approval on modification. Neither applies to registrations that match an
+invitation that skips moderation. This access is limited to matching registrations and enabled
+forms. Existing event or registration-management permissions continue to apply independently.
 
 When emailing registrants from the registration list, **Send copy to focal points** is available on
 these forms and is off by default. When enabled, each email copies the current focal points

@@ -68,11 +68,10 @@ AFFILIATION_EXTRA_FIELDS = {
     'tags': {'title': 'Tags', 'type': 'list'},
 }
 
-# (form field suffix, permission, log title) of the event-wide focal-point switches
-FOCAL_POINT_SWITCHES = (
-    ('editing', 'registration_edit', 'Focal points can manage registrations'),
-    ('moderation', 'registration_moderation', 'Focal points can moderate registrations'),
-)
+FOCAL_POINT_SWITCHES = {
+    'editing': {'permission': 'registration_edit', 'title': 'Focal points can manage registrations'},
+    'moderation': {'permission': 'registration_moderation', 'title': 'Focal points can moderate registrations'},
+}
 
 
 class AffiliationExtrasPlugin(IndicoPlugin):
@@ -205,16 +204,16 @@ class AffiliationExtrasPlugin(IndicoPlugin):
         event = regform.event
         current = get_focal_point_permissions(event)
         updates = {}
-        for name, permission, __ in FOCAL_POINT_SWITCHES:
+        for name, switch in FOCAL_POINT_SWITCHES.items():
             enabled = f'focal_point_{name}' in request.form
-            unchanged_on_page = enabled == (request.form.get(f'focal_point_{name}_initial') == '1')
-            if not unchanged_on_page and enabled != (permission in current):
+            initial = request.form.get(f'focal_point_{name}_initial') == '1'
+            if enabled != initial and enabled != (switch['permission'] in current):
                 updates[name] = enabled
         if not updates:
             return
         set_focal_point_permissions(event, **updates)
         changes = {name: (not enabled, enabled) for name, enabled in updates.items()}
-        titles = {name: title for name, __, title in FOCAL_POINT_SWITCHES}
+        titles = {name: switch['title'] for name, switch in FOCAL_POINT_SWITCHES.items()}
         event.log(
             EventLogRealm.management,
             LogKind.change,
