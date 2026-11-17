@@ -173,6 +173,7 @@ class RHCreateAffiliationCatalog(AffiliationAreaMixin, RHAffiliationCatalogsMana
             'Affiliation Catalogs',
             f'Affiliation catalog "{catalog.name}" created',
             session.user,
+            data={'Default catalog': 'Yes'} if set_as_default else None,
             meta={'affiliation_catalog_id': catalog.id},
         )
         return AffiliationCatalogSchema().jsonify(catalog), 201

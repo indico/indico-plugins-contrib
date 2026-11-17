@@ -196,3 +196,5 @@ def test_create_catalog_set_as_default(test_client, dummy_event, dummy_user, set
     assert response.status_code == 201
     expected = response.json['id'] if set_as_default else None
     assert event_settings.get(dummy_event, 'default_catalog_id') == expected
+    entry = dummy_event.log_entries.filter_by(module='Affiliation Catalogs').one()
+    assert ('Default catalog' in entry.data) == bool(set_as_default)

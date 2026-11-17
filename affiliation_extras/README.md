@@ -148,6 +148,8 @@ The dialog provides a preview and supports inline images embedded as CID attachm
 - Fix the required-field override rejecting an empty Representation field when registering participants as a manager
 - Allow Representation fields to select an affiliation catalog
 - Preserve focal point management settings when cloning events
+- Allow setting a new affiliation catalog as the default when creating it
+- Ask for confirmation before changing the default affiliation catalog when focal points may be affected
 
 ### 3.3.2
 

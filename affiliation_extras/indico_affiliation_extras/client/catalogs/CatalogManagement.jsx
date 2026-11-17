@@ -46,6 +46,10 @@ function reducer(state, action) {
       return {
         ...state,
         ownCatalogs: state.ownCatalogs.filter(catalog => catalog.id !== action.id),
+        ...(action.id === state.explicitDefaultCatalogId && {
+          defaultCatalogId: state.inheritedDefaultCatalogId,
+          explicitDefaultCatalogId: null,
+        }),
         message: Translate.string('Catalog deleted'),
       };
     case 'SET_DEFAULT_CATALOG':
@@ -95,10 +99,8 @@ function CatalogCreateRoute({
   shouldConfirmDefaultChange,
 }) {
   const history = useHistory();
-  // same rule as the pin icon in the list: pinning the first default of an event
-  // does not replace an existing one
-  const warnOnSetDefault =
-    shouldConfirmDefaultChange && !('event_id' in targetLocator && defaultCatalogId === null);
+  // same rule as the pin icon in the list: pinning the first default does not replace an existing one
+  const warnOnSetDefault = shouldConfirmDefaultChange && defaultCatalogId !== null;
 
   const createCatalog = async payload => {
     try {
@@ -127,6 +129,7 @@ function CatalogCreateRoute({
         catalog={null}
         targetLocator={targetLocator}
         isNew
+        initialSetAsDefault={defaultCatalogId === null}
         warnOnSetDefault={warnOnSetDefault}
         onSubmit={createCatalog}
       />

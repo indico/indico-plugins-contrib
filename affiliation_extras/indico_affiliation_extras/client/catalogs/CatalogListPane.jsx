@@ -43,6 +43,7 @@ function CatalogRow({
       dispatch({type: 'DELETE_CATALOG', id: catalog.id});
     } catch (err) {
       handleAxiosError(err);
+      return true;
     }
   };
 
@@ -88,14 +89,13 @@ function CatalogRow({
     });
   };
 
-  const handleDefaultClick = () => {
-    const isEvent = 'event_id' in targetLocator;
+  const toggleDefaultWithConfirmation = () => {
     // clearing a pin that matches the parent category's default does not change anything,
-    // and pinning the first default of an event does not replace an existing one
+    // and pinning the first default does not replace an existing one
     if (
       !shouldConfirmDefaultChange ||
       (isDefault && catalog.id === inheritedDefaultCatalog?.id) ||
-      (isEvent && defaultCatalogId === null)
+      defaultCatalogId === null
     ) {
       toggleDefaultCatalog();
       return;
@@ -182,7 +182,7 @@ function CatalogRow({
                 name="pin"
                 color={isDefault ? 'yellow' : undefined}
                 disabled={isInheritedDefault}
-                onClick={handleDefaultClick}
+                onClick={toggleDefaultWithConfirmation}
               />
             }
           />
