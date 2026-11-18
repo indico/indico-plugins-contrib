@@ -17,7 +17,7 @@ from indico.modules.categories.models.categories import Category
 from indico.modules.events.management.controllers import RHManageEventBase
 from indico.modules.events.models.events import Event
 from indico.modules.events.util import check_event_locked
-from indico.modules.logs.models.entries import LogKind
+from indico.modules.logs.models.entries import CategoryLogRealm, EventLogRealm, LogKind
 from indico.modules.logs.util import make_diff_log
 from indico.modules.users.models.affiliations import Affiliation
 from indico.util.marshmallow import ModelField, ModelList
@@ -271,21 +271,40 @@ class RHToggleDefaultCatalog(AffiliationAreaMixin, RHAffiliationCatalogsManageme
         if catalog.id not in {item.id for item in get_all_catalogs(self.target)}:
             raise Forbidden
 
-        explicit_default = get_explicit_default_catalog(self.target)
+        old_default = get_default_catalog(self.target)
+        old_explicit_default = get_explicit_default_catalog(self.target)
         inherited_default = get_default_catalog(self.target, only_inherited=True)
-        if explicit_default and explicit_default.id == catalog.id:
-            self.settings_proxy.set(self.target, 'default_catalog_id', None)
-        elif inherited_default and inherited_default.id == catalog.id:
-            self.settings_proxy.set(self.target, 'default_catalog_id', None)
-        else:
-            self.settings_proxy.set(self.target, 'default_catalog_id', catalog.id)
+        unpin = catalog in (old_explicit_default, inherited_default)
+        self.settings_proxy.set(self.target, 'default_catalog_id', None if unpin else catalog.id)
 
         default_catalog = get_default_catalog(self.target)
         explicit_default = get_explicit_default_catalog(self.target)
+        if default_catalog != old_default:
+            # Log on the target whose setting changed; the catalog may be inherited from a parent category
+            self.target.log(
+                EventLogRealm.management if isinstance(self.target, Event) else CategoryLogRealm.category,
+                LogKind.change,
+                'Affiliation Catalogs',
+                f'Default affiliation catalog changed to "{default_catalog.name}"'
+                if default_catalog
+                else 'Default affiliation catalog removed',
+                session.user,
+                data={
+                    'Previous default': _describe_default(old_default, old_explicit_default),
+                    'New default': _describe_default(default_catalog, explicit_default),
+                },
+                meta={'affiliation_catalog_id': (default_catalog or old_default).id},
+            )
         return jsonify({
             'default_catalog_id': default_catalog.id if default_catalog else None,
             'explicit_default_catalog_id': explicit_default.id if explicit_default else None,
         })
+
+
+def _describe_default(catalog, explicit_default):
+    if catalog is None:
+        return 'None'
+    return catalog.name if catalog == explicit_default else f'{catalog.name} (inherited)'
 
 
 class RHResolveAffiliations(AffiliationAreaMixin, RHAffiliationCatalogsManagementBase):

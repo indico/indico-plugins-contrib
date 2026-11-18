@@ -204,3 +204,55 @@ def test_create_catalog_set_as_default(
     assert settings.get(target, 'default_catalog_id') == expected
     entry = target.log_entries.filter_by(module='Affiliation Catalogs').one()
     assert ('Default catalog' in entry.data) == bool(set_as_default)
+
+
+@pytest.mark.usefixtures('no_csrf_check')
+@pytest.mark.parametrize('target_type', ('event', 'category'))
+def test_toggle_default_catalog_logs_change(test_client, dummy_event, dummy_category, dummy_user, target_type):
+    target = dummy_event if target_type == 'event' else dummy_category
+    target.update_principal(dummy_user, full_access=True)
+    _login(test_client, dummy_user)
+    url = f'/{target_type}/{target.id}/manage/affiliations/api/affiliations/catalogs'
+    response = test_client.post(
+        url, json={'name': 'Catalog', 'lists': [{'name': 'Other', 'position': 1, 'affiliation_mode': 'custom'}]}
+    )
+    catalog_id = response.json['id']
+
+    def _toggle_entries():
+        entries = target.log_entries.filter_by(module='Affiliation Catalogs').all()
+        return [entry for entry in entries if entry.summary.startswith('Default affiliation catalog')]
+
+    assert test_client.post(f'{url}/{catalog_id}/toggle-default').status_code == 200
+    assert test_client.post(f'{url}/{catalog_id}/toggle-default').status_code == 200
+
+    set_entry, unset_entry = sorted(_toggle_entries(), key=lambda entry: entry.id)
+    assert set_entry.summary == 'Default affiliation catalog changed to "Catalog"'
+    assert set_entry.data == {'Previous default': 'None', 'New default': 'Catalog'}
+    assert unset_entry.summary == 'Default affiliation catalog removed'
+    assert unset_entry.data == {'Previous default': 'Catalog', 'New default': 'None'}
+    assert {set_entry.meta['affiliation_catalog_id'], unset_entry.meta['affiliation_catalog_id']} == {catalog_id}
+
+
+@pytest.mark.usefixtures('no_csrf_check')
+def test_unpin_default_catalog_logs_inherited_fallback(test_client, db, dummy_user, create_category, create_event):
+    from indico_affiliation_extras.models.catalogs import AffiliationCatalog
+    from indico_affiliation_extras.settings import category_settings
+
+    category = create_category(title='Parent')
+    event = create_event(category=category)
+    event.update_principal(dummy_user, full_access=True)
+    inherited = AffiliationCatalog(name='Inherited', category=category)
+    own = AffiliationCatalog(name='Own', event=event)
+    db.session.add_all([inherited, own])
+    db.session.flush()
+    category_settings.set(category, 'default_catalog_id', inherited.id)
+    _login(test_client, dummy_user)
+    url = f'/event/{event.id}/manage/affiliations/api/affiliations/catalogs/{own.id}/toggle-default'
+
+    assert test_client.post(url).json['default_catalog_id'] == own.id
+    response = test_client.post(url)
+
+    assert response.json['default_catalog_id'] == inherited.id
+    entry = max(event.log_entries.filter_by(module='Affiliation Catalogs'), key=lambda entry: entry.id)
+    assert entry.summary == 'Default affiliation catalog changed to "Inherited"'
+    assert entry.data == {'Previous default': 'Own', 'New default': 'Inherited (inherited)'}

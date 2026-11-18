@@ -144,8 +144,12 @@ def test_event_catalog_api_crud_clone_and_toggle_default(test_client, db, dummy_
     delete_resp = test_client.delete(f'/event/{event.id}/manage/affiliations/api/affiliations/catalogs/{created_id}')
     assert delete_resp.status_code == 204
     event_log_entries = event.log_entries.filter_by(module='Affiliation Catalogs').all()
-    assert len(event_log_entries) == 4
-    assert {entry.meta.get('affiliation_catalog_id') for entry in event_log_entries} == {created_id, clone_id}
+    assert len(event_log_entries) == 6
+    assert {entry.meta.get('affiliation_catalog_id') for entry in event_log_entries} == {
+        created_id,
+        clone_id,
+        inherited_catalog.id,
+    }
 
 
 @pytest.mark.usefixtures('no_csrf_check')
