@@ -76,7 +76,11 @@ function CatalogRow({
   };
 
   const openDeletePrompt = () => {
-    setDeletePrompt({name: catalog.name, func: deleteCatalog});
+    setDeletePrompt({
+      name: catalog.name,
+      clearsDefault: shouldConfirmDefaultChange && catalog.id === explicitDefaultCatalogId,
+      func: deleteCatalog,
+    });
   };
 
   const toggleDefaultWithConfirmation = () => {
@@ -229,6 +233,17 @@ export default function CatalogListPane({
     catalog => catalog.id === inheritedDefaultCatalogId
   );
   const isClearingDefault = !!defaultPrompt?.clearing;
+  const clearDefaultWarning = inheritedDefaultCatalog ? (
+    <Translate>
+      The default catalog will go back to{' '}
+      <Param name="inherited" value={inheritedDefaultCatalog.name} wrapper={<strong />} />. This may
+      change which registrations the focal points can manage.
+    </Translate>
+  ) : (
+    <Translate>
+      There will be no default catalog. Focal points may lose access to some registrations.
+    </Translate>
+  );
 
   return (
     <div styleName="catalog-list">
@@ -241,6 +256,7 @@ export default function CatalogListPane({
           Are you sure you want to delete the catalog{' '}
           <Param name="name" value={deletePrompt?.name} wrapper={<strong />} />?
         </Translate>
+        {deletePrompt?.clearsDefault && <p>{clearDefaultWarning}</p>}
       </RequestConfirmDelete>
       <RequestConfirm
         header={
@@ -261,16 +277,8 @@ export default function CatalogListPane({
             become the default catalog. This may change which registrations the focal points can
             manage.
           </Translate>
-        ) : inheritedDefaultCatalog ? (
-          <Translate>
-            The default catalog will go back to{' '}
-            <Param name="inherited" value={inheritedDefaultCatalog.name} wrapper={<strong />} />.
-            This may change which registrations the focal points can manage.
-          </Translate>
         ) : (
-          <Translate>
-            There will be no default catalog. Focal points may lose access to some registrations.
-          </Translate>
+          clearDefaultWarning
         )}
       </RequestConfirm>
 
