@@ -178,11 +178,15 @@ def test_catalog_serialization_includes_usage(
 
 
 @pytest.mark.usefixtures('no_csrf_check')
+@pytest.mark.parametrize('target_type', ('event', 'category'))
 @pytest.mark.parametrize('set_as_default', (None, False, True))
-def test_create_catalog_set_as_default(test_client, dummy_event, dummy_user, set_as_default):
-    from indico_affiliation_extras.settings import event_settings
+def test_create_catalog_set_as_default(
+    test_client, dummy_event, dummy_category, dummy_user, target_type, set_as_default
+):
+    from indico_affiliation_extras.settings import category_settings, event_settings
 
-    dummy_event.update_principal(dummy_user, full_access=True)
+    target, settings = (dummy_event, event_settings) if target_type == 'event' else (dummy_category, category_settings)
+    target.update_principal(dummy_user, full_access=True)
     _login(test_client, dummy_user)
     payload = {
         'name': 'Catalog',
@@ -191,10 +195,12 @@ def test_create_catalog_set_as_default(test_client, dummy_event, dummy_user, set
     if set_as_default is not None:
         payload['set_as_default'] = set_as_default
 
-    response = test_client.post(f'/event/{dummy_event.id}/manage/affiliations/api/affiliations/catalogs', json=payload)
+    response = test_client.post(
+        f'/{target_type}/{target.id}/manage/affiliations/api/affiliations/catalogs', json=payload
+    )
 
     assert response.status_code == 201
     expected = response.json['id'] if set_as_default else None
-    assert event_settings.get(dummy_event, 'default_catalog_id') == expected
-    entry = dummy_event.log_entries.filter_by(module='Affiliation Catalogs').one()
+    assert settings.get(target, 'default_catalog_id') == expected
+    entry = target.log_entries.filter_by(module='Affiliation Catalogs').one()
     assert ('Default catalog' in entry.data) == bool(set_as_default)
