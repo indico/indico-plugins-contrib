@@ -18,7 +18,7 @@ import React, {useState} from 'react';
 import {Link} from 'react-router-dom';
 import {Button, Icon, Popup} from 'semantic-ui-react';
 
-import {RequestConfirm} from 'indico/react/components';
+import {RequestConfirm, RequestConfirmDelete} from 'indico/react/components';
 import {Param, Translate} from 'indico/react/i18n';
 import {handleAxiosError, indicoAxios} from 'indico/utils/axios';
 
@@ -27,13 +27,14 @@ import './CatalogListPane.module.scss';
 function CatalogRow({
   catalog,
   dispatch,
-  setPrompt,
+  setDeletePrompt,
+  setDefaultPrompt,
   targetLocator,
   inherited,
   defaultCatalogId,
   explicitDefaultCatalogId,
   shouldConfirmDefaultChange,
-  inheritedDefaultCatalog,
+  inheritedDefaultCatalogId,
 }) {
   const isDefault = catalog.id === defaultCatalogId;
   const isInheritedDefault = isDefault && catalog.id !== explicitDefaultCatalogId;
@@ -75,18 +76,7 @@ function CatalogRow({
   };
 
   const openDeletePrompt = () => {
-    setPrompt({
-      header: Translate.string('Confirm deletion'),
-      content: (
-        <Translate>
-          Are you sure you want to delete the catalog{' '}
-          <Param name="name" value={catalog.name} wrapper={<strong />} />?
-        </Translate>
-      ),
-      confirmText: Translate.string('Delete'),
-      negative: true,
-      func: deleteCatalog,
-    });
+    setDeletePrompt({name: catalog.name, func: deleteCatalog});
   };
 
   const toggleDefaultWithConfirmation = () => {
@@ -94,40 +84,13 @@ function CatalogRow({
     // and pinning the first default does not replace an existing one
     if (
       !shouldConfirmDefaultChange ||
-      (isDefault && catalog.id === inheritedDefaultCatalog?.id) ||
+      (isDefault && catalog.id === inheritedDefaultCatalogId) ||
       defaultCatalogId === null
     ) {
       toggleDefaultCatalog();
       return;
     }
-    setPrompt({
-      header: isDefault
-        ? Translate.string('Clear default catalog')
-        : Translate.string('Change default catalog'),
-      content: isDefault ? (
-        inheritedDefaultCatalog ? (
-          <Translate>
-            The default catalog will go back to{' '}
-            <Param name="inherited" value={inheritedDefaultCatalog.name} wrapper={<strong />} />.
-            This may change which registrations the focal points can manage.
-          </Translate>
-        ) : (
-          <Translate>
-            There will be no default catalog. Focal points may lose access to some registrations.
-          </Translate>
-        )
-      ) : (
-        <Translate>
-          <Param name="name" value={catalog.name} wrapper={<strong />} /> will become the default
-          catalog. This may change which registrations the focal points can manage.
-        </Translate>
-      ),
-      confirmText: isDefault
-        ? Translate.string('Clear default')
-        : Translate.string('Change default'),
-      negative: false,
-      func: toggleDefaultCatalog,
-    });
+    setDefaultPrompt({catalog, clearing: isDefault, func: toggleDefaultCatalog});
   };
 
   const defaultTitle = isInheritedDefault
@@ -231,21 +194,23 @@ function CatalogRow({
 CatalogRow.propTypes = {
   catalog: PropTypes.object.isRequired,
   dispatch: PropTypes.func.isRequired,
-  setPrompt: PropTypes.func.isRequired,
+  setDeletePrompt: PropTypes.func,
+  setDefaultPrompt: PropTypes.func.isRequired,
   targetLocator: PropTypes.object.isRequired,
   inherited: PropTypes.bool,
   defaultCatalogId: PropTypes.number,
   explicitDefaultCatalogId: PropTypes.number,
   shouldConfirmDefaultChange: PropTypes.bool,
-  inheritedDefaultCatalog: PropTypes.object,
+  inheritedDefaultCatalogId: PropTypes.number,
 };
 
 CatalogRow.defaultProps = {
   inherited: false,
+  setDeletePrompt: null,
   defaultCatalogId: null,
   explicitDefaultCatalogId: null,
   shouldConfirmDefaultChange: false,
-  inheritedDefaultCatalog: null,
+  inheritedDefaultCatalogId: null,
 };
 
 export default function CatalogListPane({
@@ -258,22 +223,55 @@ export default function CatalogListPane({
   shouldConfirmDefaultChange,
   inheritedDefaultCatalogId,
 }) {
-  const [prompt, setPrompt] = useState(null);
+  const [deletePrompt, setDeletePrompt] = useState(null);
+  const [defaultPrompt, setDefaultPrompt] = useState(null);
   const inheritedDefaultCatalog = inheritedCatalogs.find(
     catalog => catalog.id === inheritedDefaultCatalogId
   );
+  const isClearingDefault = !!defaultPrompt?.clearing;
 
   return (
     <div styleName="catalog-list">
-      <RequestConfirm
-        header={prompt?.header ?? ''}
-        confirmText={prompt?.confirmText}
-        negative={prompt?.negative}
-        onClose={() => setPrompt(null)}
-        requestFunc={prompt?.func || (() => null)}
-        open={prompt !== null}
+      <RequestConfirmDelete
+        onClose={() => setDeletePrompt(null)}
+        requestFunc={deletePrompt?.func || (() => null)}
+        open={deletePrompt !== null}
       >
-        {prompt?.content}
+        <Translate>
+          Are you sure you want to delete the catalog{' '}
+          <Param name="name" value={deletePrompt?.name} wrapper={<strong />} />?
+        </Translate>
+      </RequestConfirmDelete>
+      <RequestConfirm
+        header={
+          isClearingDefault
+            ? Translate.string('Clear default catalog')
+            : Translate.string('Change default catalog')
+        }
+        confirmText={
+          isClearingDefault ? Translate.string('Clear default') : Translate.string('Change default')
+        }
+        onClose={() => setDefaultPrompt(null)}
+        requestFunc={defaultPrompt?.func || (() => null)}
+        open={defaultPrompt !== null}
+      >
+        {!isClearingDefault ? (
+          <Translate>
+            <Param name="name" value={defaultPrompt?.catalog.name} wrapper={<strong />} /> will
+            become the default catalog. This may change which registrations the focal points can
+            manage.
+          </Translate>
+        ) : inheritedDefaultCatalog ? (
+          <Translate>
+            The default catalog will go back to{' '}
+            <Param name="inherited" value={inheritedDefaultCatalog.name} wrapper={<strong />} />.
+            This may change which registrations the focal points can manage.
+          </Translate>
+        ) : (
+          <Translate>
+            There will be no default catalog. Focal points may lose access to some registrations.
+          </Translate>
+        )}
       </RequestConfirm>
 
       {!!inheritedCatalogs.length && (
@@ -288,13 +286,13 @@ export default function CatalogListPane({
                   key={catalog.id}
                   catalog={catalog}
                   dispatch={dispatch}
-                  setPrompt={setPrompt}
+                  setDefaultPrompt={setDefaultPrompt}
                   targetLocator={targetLocator}
                   inherited
                   defaultCatalogId={defaultCatalogId}
                   explicitDefaultCatalogId={explicitDefaultCatalogId}
                   shouldConfirmDefaultChange={shouldConfirmDefaultChange}
-                  inheritedDefaultCatalog={inheritedDefaultCatalog}
+                  inheritedDefaultCatalogId={inheritedDefaultCatalogId}
                 />
               ))}
             </tbody>
@@ -323,12 +321,13 @@ export default function CatalogListPane({
                   key={catalog.id}
                   catalog={catalog}
                   dispatch={dispatch}
-                  setPrompt={setPrompt}
+                  setDeletePrompt={setDeletePrompt}
+                  setDefaultPrompt={setDefaultPrompt}
                   targetLocator={targetLocator}
                   defaultCatalogId={defaultCatalogId}
                   explicitDefaultCatalogId={explicitDefaultCatalogId}
                   shouldConfirmDefaultChange={shouldConfirmDefaultChange}
-                  inheritedDefaultCatalog={inheritedDefaultCatalog}
+                  inheritedDefaultCatalogId={inheritedDefaultCatalogId}
                 />
               ))}
             </tbody>
