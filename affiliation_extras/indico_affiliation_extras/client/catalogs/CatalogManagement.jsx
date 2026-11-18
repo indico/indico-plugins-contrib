@@ -202,12 +202,11 @@ CatalogCreateRoute.propTypes = {
   dispatch: PropTypes.func.isRequired,
   targetLocator: PropTypes.object.isRequired,
   defaultCatalogId: PropTypes.number,
-  shouldConfirmDefaultChange: PropTypes.bool,
+  shouldConfirmDefaultChange: PropTypes.bool.isRequired,
 };
 
 CatalogCreateRoute.defaultProps = {
   defaultCatalogId: null,
-  shouldConfirmDefaultChange: false,
 };
 
 CatalogManagement.propTypes = {

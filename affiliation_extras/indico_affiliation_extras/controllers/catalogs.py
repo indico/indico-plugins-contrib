@@ -279,7 +279,7 @@ class RHToggleDefaultCatalog(AffiliationAreaMixin, RHAffiliationCatalogsManageme
 
         default_catalog = get_default_catalog(self.target)
         explicit_default = get_explicit_default_catalog(self.target)
-        if default_catalog != old_default:
+        if default_catalog != old_default or explicit_default != old_explicit_default:
             # Log on the target whose setting changed; the catalog may be inherited from a parent category
             self.target.log(
                 EventLogRealm.management if isinstance(self.target, Event) else CategoryLogRealm.category,
