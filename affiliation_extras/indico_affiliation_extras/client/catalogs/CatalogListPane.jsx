@@ -204,7 +204,7 @@ CatalogRow.propTypes = {
   inherited: PropTypes.bool,
   defaultCatalogId: PropTypes.number,
   explicitDefaultCatalogId: PropTypes.number,
-  shouldConfirmDefaultChange: PropTypes.bool,
+  shouldConfirmDefaultChange: PropTypes.bool.isRequired,
   inheritedDefaultCatalogId: PropTypes.number,
 };
 
@@ -213,7 +213,6 @@ CatalogRow.defaultProps = {
   setDeletePrompt: null,
   defaultCatalogId: null,
   explicitDefaultCatalogId: null,
-  shouldConfirmDefaultChange: false,
   inheritedDefaultCatalogId: null,
 };
 
@@ -357,6 +356,6 @@ CatalogListPane.propTypes = {
   dispatch: PropTypes.func.isRequired,
   defaultCatalogId: PropTypes.number,
   explicitDefaultCatalogId: PropTypes.number,
-  shouldConfirmDefaultChange: PropTypes.bool,
+  shouldConfirmDefaultChange: PropTypes.bool.isRequired,
   inheritedDefaultCatalogId: PropTypes.number,
 };

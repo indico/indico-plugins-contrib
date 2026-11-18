@@ -215,7 +215,7 @@ CatalogManagement.propTypes = {
     inheritedCatalogs: PropTypes.array,
     defaultCatalogId: PropTypes.number,
     explicitDefaultCatalogId: PropTypes.number,
-    shouldConfirmDefaultChange: PropTypes.bool,
+    shouldConfirmDefaultChange: PropTypes.bool.isRequired,
     inheritedDefaultCatalogId: PropTypes.number,
   }).isRequired,
   targetLocator: PropTypes.object.isRequired,
