@@ -5,7 +5,12 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
+from operator import attrgetter
+
 import pytest
+
+from indico_affiliation_extras.models.catalogs import AffiliationCatalog
+from indico_affiliation_extras.settings import category_settings, event_settings
 
 
 pytest_plugins = 'indico.modules.events.registration.testing.fixtures'
@@ -175,3 +180,100 @@ def test_catalog_serialization_includes_usage(
     schema = AffiliationCatalogSchema()
     assert schema.dump(selected.catalog)['is_used_by_regform'] == (state == 'active')
     assert not schema.dump(unused.catalog)['is_used_by_regform']
+
+
+@pytest.mark.usefixtures('no_csrf_check')
+@pytest.mark.parametrize('target_type', ('event', 'category'))
+@pytest.mark.parametrize('set_as_default', (None, False, True))
+def test_create_catalog_set_as_default(
+    test_client, dummy_event, dummy_category, dummy_user, target_type, set_as_default
+):
+    target, settings = (dummy_event, event_settings) if target_type == 'event' else (dummy_category, category_settings)
+    target.update_principal(dummy_user, full_access=True)
+    _login(test_client, dummy_user)
+    payload = {
+        'name': 'Catalog',
+        'lists': [{'name': 'Other organizations', 'position': 1, 'affiliation_mode': 'custom'}],
+    }
+    if set_as_default is not None:
+        payload['set_as_default'] = set_as_default
+
+    response = test_client.post(
+        f'/{target_type}/{target.id}/manage/affiliations/api/affiliations/catalogs', json=payload
+    )
+
+    assert response.status_code == 201
+    expected = response.json['id'] if set_as_default else None
+    assert settings.get(target, 'default_catalog_id') == expected
+    entry = target.log_entries.filter_by(module='Affiliation Catalogs').one()
+    assert ('Default catalog' in entry.data) == bool(set_as_default)
+
+
+@pytest.mark.usefixtures('no_csrf_check')
+@pytest.mark.parametrize('target_type', ('event', 'category'))
+def test_toggle_default_catalog_logs_change(test_client, dummy_event, dummy_category, dummy_user, target_type):
+    target = dummy_event if target_type == 'event' else dummy_category
+    target.update_principal(dummy_user, full_access=True)
+    _login(test_client, dummy_user)
+    url = f'/{target_type}/{target.id}/manage/affiliations/api/affiliations/catalogs'
+    response = test_client.post(
+        url, json={'name': 'Catalog', 'lists': [{'name': 'Other', 'position': 1, 'affiliation_mode': 'custom'}]}
+    )
+    catalog_id = response.json['id']
+
+    assert test_client.post(f'{url}/{catalog_id}/toggle-default').status_code == 200
+    assert test_client.post(f'{url}/{catalog_id}/toggle-default').status_code == 200
+
+    entries = target.log_entries.filter_by(module='Affiliation Catalogs').all()
+    toggle_entries = [entry for entry in entries if entry.summary.startswith('Default affiliation catalog')]
+    set_entry, unset_entry = sorted(toggle_entries, key=attrgetter('id'))
+    assert set_entry.summary == 'Default affiliation catalog changed to "Catalog"'
+    assert set_entry.data == {'Previous default': 'None', 'New default': 'Catalog'}
+    assert unset_entry.summary == 'Default affiliation catalog removed'
+    assert unset_entry.data == {'Previous default': 'Catalog', 'New default': 'None'}
+    assert {set_entry.meta['affiliation_catalog_id'], unset_entry.meta['affiliation_catalog_id']} == {catalog_id}
+
+
+@pytest.mark.usefixtures('no_csrf_check')
+def test_unpin_default_catalog_logs_inherited_fallback(test_client, db, dummy_user, create_category, create_event):
+    category = create_category(title='Parent')
+    event = create_event(category=category)
+    event.update_principal(dummy_user, full_access=True)
+    inherited = AffiliationCatalog(name='Inherited', category=category)
+    own = AffiliationCatalog(name='Own', event=event)
+    db.session.add_all([inherited, own])
+    db.session.flush()
+    category_settings.set(category, 'default_catalog_id', inherited.id)
+    _login(test_client, dummy_user)
+    url = f'/event/{event.id}/manage/affiliations/api/affiliations/catalogs/{own.id}/toggle-default'
+
+    assert test_client.post(url).json['default_catalog_id'] == own.id
+    response = test_client.post(url)
+
+    assert response.json['default_catalog_id'] == inherited.id
+    entry = max(event.log_entries.filter_by(module='Affiliation Catalogs'), key=attrgetter('id'))
+    assert entry.summary == 'Default affiliation catalog changed to "Inherited"'
+    assert entry.data == {'Previous default': 'Own', 'New default': 'Inherited (inherited)'}
+
+
+@pytest.mark.usefixtures('no_csrf_check')
+def test_unpin_default_catalog_matching_inherited_logs_change(
+    test_client, db, dummy_user, create_category, create_event
+):
+    category = create_category(title='Parent')
+    event = create_event(category=category)
+    event.update_principal(dummy_user, full_access=True)
+    shared = AffiliationCatalog(name='Shared', category=category)
+    db.session.add(shared)
+    db.session.flush()
+    event_settings.set(event, 'default_catalog_id', shared.id)
+    category_settings.set(category, 'default_catalog_id', shared.id)
+    _login(test_client, dummy_user)
+    url = f'/event/{event.id}/manage/affiliations/api/affiliations/catalogs/{shared.id}/toggle-default'
+
+    response = test_client.post(url)
+
+    assert response.json == {'default_catalog_id': shared.id, 'explicit_default_catalog_id': None}
+    entry = event.log_entries.filter_by(module='Affiliation Catalogs').one()
+    assert entry.summary == 'Default affiliation catalog changed to "Shared"'
+    assert entry.data == {'Previous default': 'Shared', 'New default': 'Shared (inherited)'}

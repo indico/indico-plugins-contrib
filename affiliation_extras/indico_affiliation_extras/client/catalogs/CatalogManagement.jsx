@@ -46,6 +46,10 @@ function reducer(state, action) {
       return {
         ...state,
         ownCatalogs: state.ownCatalogs.filter(catalog => catalog.id !== action.id),
+        ...(action.id === state.explicitDefaultCatalogId && {
+          defaultCatalogId: state.inheritedDefaultCatalogId,
+          explicitDefaultCatalogId: null,
+        }),
         message: Translate.string('Catalog deleted'),
       };
     case 'SET_DEFAULT_CATALOG':
@@ -88,8 +92,15 @@ function CatalogEditRoute({catalogs, dispatch, targetLocator}) {
   );
 }
 
-function CatalogCreateRoute({dispatch, targetLocator}) {
+function CatalogCreateRoute({
+  dispatch,
+  targetLocator,
+  defaultCatalogId,
+  shouldConfirmDefaultChange,
+}) {
   const history = useHistory();
+  // same rule as the pin icon in the list: pinning the first default does not replace an existing one
+  const warnOnSetDefault = shouldConfirmDefaultChange && defaultCatalogId !== null;
 
   const createCatalog = async payload => {
     try {
@@ -98,6 +109,13 @@ function CatalogCreateRoute({dispatch, targetLocator}) {
         payload
       );
       dispatch({type: 'ADD_CATALOG', catalog: createdCatalog});
+      if (payload.set_as_default) {
+        dispatch({
+          type: 'SET_DEFAULT_CATALOG',
+          defaultCatalogId: createdCatalog.id,
+          explicitDefaultCatalogId: createdCatalog.id,
+        });
+      }
       history.push(catalogListURL(targetLocator));
     } catch (err) {
       return handleSubmitError(err);
@@ -111,6 +129,8 @@ function CatalogCreateRoute({dispatch, targetLocator}) {
         catalog={null}
         targetLocator={targetLocator}
         isNew
+        initialSetAsDefault={defaultCatalogId === null}
+        warnOnSetDefault={warnOnSetDefault}
         onSubmit={createCatalog}
       />
     </>
@@ -139,7 +159,14 @@ export default function CatalogManagement({initialState, targetLocator}) {
           <Route
             exact
             path={routerPathFromFlask(catalogNewURL, targetIdParams)}
-            render={() => <CatalogCreateRoute dispatch={dispatch} targetLocator={targetLocator} />}
+            render={() => (
+              <CatalogCreateRoute
+                dispatch={dispatch}
+                targetLocator={targetLocator}
+                defaultCatalogId={state.defaultCatalogId}
+                shouldConfirmDefaultChange={state.shouldConfirmDefaultChange}
+              />
+            )}
           />
           <Route
             exact
@@ -174,6 +201,12 @@ CatalogEditRoute.propTypes = {
 CatalogCreateRoute.propTypes = {
   dispatch: PropTypes.func.isRequired,
   targetLocator: PropTypes.object.isRequired,
+  defaultCatalogId: PropTypes.number,
+  shouldConfirmDefaultChange: PropTypes.bool.isRequired,
+};
+
+CatalogCreateRoute.defaultProps = {
+  defaultCatalogId: null,
 };
 
 CatalogManagement.propTypes = {
@@ -182,6 +215,8 @@ CatalogManagement.propTypes = {
     inheritedCatalogs: PropTypes.array,
     defaultCatalogId: PropTypes.number,
     explicitDefaultCatalogId: PropTypes.number,
+    shouldConfirmDefaultChange: PropTypes.bool.isRequired,
+    inheritedDefaultCatalogId: PropTypes.number,
   }).isRequired,
   targetLocator: PropTypes.object.isRequired,
 };
