@@ -29,6 +29,7 @@ on:
           - registration_prefill
           - affiliation_extras
           - regform_passcode
+          - openapi
 
 permissions:
   contents: read
