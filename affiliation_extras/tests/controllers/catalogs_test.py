@@ -5,6 +5,8 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
+from operator import attrgetter
+
 import pytest
 
 from indico_affiliation_extras.models.catalogs import AffiliationCatalog
@@ -224,7 +226,7 @@ def test_toggle_default_catalog_logs_change(test_client, dummy_event, dummy_cate
 
     entries = target.log_entries.filter_by(module='Affiliation Catalogs').all()
     toggle_entries = [entry for entry in entries if entry.summary.startswith('Default affiliation catalog')]
-    set_entry, unset_entry = sorted(toggle_entries, key=lambda entry: entry.id)
+    set_entry, unset_entry = sorted(toggle_entries, key=attrgetter('id'))
     assert set_entry.summary == 'Default affiliation catalog changed to "Catalog"'
     assert set_entry.data == {'Previous default': 'None', 'New default': 'Catalog'}
     assert unset_entry.summary == 'Default affiliation catalog removed'
@@ -249,7 +251,7 @@ def test_unpin_default_catalog_logs_inherited_fallback(test_client, db, dummy_us
     response = test_client.post(url)
 
     assert response.json['default_catalog_id'] == inherited.id
-    entry = max(event.log_entries.filter_by(module='Affiliation Catalogs'), key=lambda entry: entry.id)
+    entry = max(event.log_entries.filter_by(module='Affiliation Catalogs'), key=attrgetter('id'))
     assert entry.summary == 'Default affiliation catalog changed to "Inherited"'
     assert entry.data == {'Previous default': 'Own', 'New default': 'Inherited (inherited)'}
 
