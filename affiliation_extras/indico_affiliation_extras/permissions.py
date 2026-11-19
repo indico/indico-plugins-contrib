@@ -5,8 +5,11 @@
 # redistribute them and/or modify them under the terms of the;
 # MIT License see the LICENSE file for more details.
 
-# Focal points get `FOCAL_POINT_PERMISSIONS` dynamically via `acl.can_manage` (no ACL entry), bounded
-# by the blacklist signals; any genuine registration grant prevails.
+# Focal points get the enabled registration permissions (`registration_edit`, `registration_moderation`)
+# dynamically via `acl.can_manage` (no ACL entry), bounded by the blacklist signals; any genuine registration
+# grant prevails. The permissions are toggled per event because core grants and bounds them event-wide: the
+# bounding filter is not permission-aware, so a per-form toggle of one permission would leak the other onto
+# that form.
 
 from indico.modules.events.registration import REGISTRATION_PERMISSIONS
 from indico.util.user import iter_acl
@@ -14,9 +17,6 @@ from indico.util.user import iter_acl
 from indico_affiliation_extras.fields import RepresentationField
 from indico_affiliation_extras.focal_points import focal_affiliations_for_event
 from indico_affiliation_extras.settings import event_settings
-
-
-FOCAL_POINT_PERMISSIONS = ('registration_edit', 'registration_moderation')
 
 
 def focal_point_management_enabled(regform):
@@ -33,6 +33,21 @@ def set_focal_point_management_enabled(regform, enabled):
     else:
         enabled_ids.discard(regform.id)
     event_settings.set(regform.event, 'focal_point_enabled_regform_ids', sorted(enabled_ids))
+
+
+def get_focal_point_permissions(event):
+    permissions = set()
+    if not event_settings.get(event, 'focal_point_editing_disabled'):
+        permissions.add('registration_edit')
+    if not event_settings.get(event, 'focal_point_moderation_disabled'):
+        permissions.add('registration_moderation')
+    return permissions
+
+
+def set_focal_point_permissions(event, *, editing=None, moderation=None):
+    """Turn focal-point permissions on or off for ``event``; ``None`` leaves one unchanged."""
+    values = {'focal_point_editing_disabled': editing, 'focal_point_moderation_disabled': moderation}
+    event_settings.set_multi(event, {name: not enabled for name, enabled in values.items() if enabled is not None})
 
 
 def regform_has_representation_field(regform):

@@ -9,7 +9,12 @@ from indico.modules.events.cloning import EventCloner
 
 from indico_affiliation_extras import _
 from indico_affiliation_extras.fields import RepresentationField
-from indico_affiliation_extras.permissions import focal_point_management_enabled, set_focal_point_management_enabled
+from indico_affiliation_extras.permissions import (
+    focal_point_management_enabled,
+    get_focal_point_permissions,
+    set_focal_point_management_enabled,
+    set_focal_point_permissions,
+)
 from indico_affiliation_extras.util import clone_affiliation_catalog, get_available_catalog
 
 
@@ -26,6 +31,12 @@ class RepresentationCatalogCloner(EventCloner):
     def run(self, new_event, cloners, shared_data, event_exists=False):
         if 'registration_forms' not in shared_data:
             return
+        permissions = get_focal_point_permissions(self.old_event)
+        set_focal_point_permissions(
+            new_event,
+            editing='registration_edit' in permissions,
+            moderation='registration_moderation' in permissions,
+        )
         catalogs = {}
         for old_form, new_form in shared_data['registration_forms']['form_map'].items():
             field_lists = {}
