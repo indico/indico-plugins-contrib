@@ -15,11 +15,13 @@ const dashboardColumns = [
   {
     key: 'affiliation-groups',
     label: Translate.string('Groups'),
+    flex: 0.3,
     cellRenderer: ({rowData}) => <GroupsDisplay groups={rowData.groups} />,
   },
   {
     key: 'affiliation-tags',
     label: Translate.string('Tags'),
+    flex: 0.3,
     cellRenderer: ({rowData}) => <TagsDisplay tags={rowData.tags} groupTags={rowData.group_tags} />,
   },
 ];

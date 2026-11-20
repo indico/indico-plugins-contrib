@@ -20,16 +20,17 @@ function GroupsItems({groups}: {groups: GroupInfo[]}) {
   return (
     <>
       {groups.map((group, idx) => (
-        <Popup
-          key={group.id}
-          content={group.name}
-          trigger={
-            <span styleName="code">
-              {group.code}
-              {idx < groups.length - 1 && ','}
-            </span>
-          }
-        />
+        <React.Fragment key={group.id}>
+          <Popup
+            content={group.name}
+            trigger={
+              <span styleName="code">
+                {group.code}
+                {idx < groups.length - 1 && ','}
+              </span>
+            }
+          />{' '}
+        </React.Fragment>
       ))}
     </>
   );
@@ -62,7 +63,7 @@ export function GroupsDisplay({groups}: {groups: GroupInfo[]}) {
   }
 
   return (
-    <div styleName="items-column-container">
+    <div styleName="groups-clamped">
       <GroupsItems groups={groups} />
     </div>
   );

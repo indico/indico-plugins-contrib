@@ -12,12 +12,20 @@
   flex-wrap: wrap;
   gap: 4px;
 
-  .code {
-    cursor: default;
-    text-decoration: dotted underline $gray;
-  }
-
   :global(.ui.label) {
     cursor: default;
   }
+}
+
+.groups-clamped {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  white-space: normal;
+}
+
+.code {
+  cursor: default;
+  text-decoration: dotted underline $gray;
 }
