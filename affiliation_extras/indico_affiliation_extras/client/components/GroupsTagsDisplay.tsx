@@ -26,7 +26,7 @@ function GroupsItems({groups}: {groups: GroupInfo[]}) {
           trigger={
             <span styleName="code">
               {group.code}
-              {idx < groups.length - 1 && ','}
+              {idx < groups.length - 1 && ', '}
             </span>
           }
         />
@@ -62,7 +62,7 @@ export function GroupsDisplay({groups}: {groups: GroupInfo[]}) {
   }
 
   return (
-    <div styleName="items-column-container">
+    <div styleName="groups-clamped">
       <GroupsItems groups={groups} />
     </div>
   );
