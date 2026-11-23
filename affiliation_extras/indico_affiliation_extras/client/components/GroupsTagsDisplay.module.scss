@@ -20,6 +20,7 @@
 .groups-clamped {
   display: -webkit-box;
   -webkit-box-orient: vertical;
+  // Keep the group list within the dashboard's fixed 50px rows.
   -webkit-line-clamp: 2;
   overflow: hidden;
   white-space: normal;
