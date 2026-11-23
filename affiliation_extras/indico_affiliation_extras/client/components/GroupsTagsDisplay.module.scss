@@ -24,7 +24,6 @@
   -webkit-line-clamp: 2;
   overflow: hidden;
   white-space: normal;
-  // break long codes without spaces so they reach the clamp instead of overflowing
   overflow-wrap: anywhere;
 }
 
