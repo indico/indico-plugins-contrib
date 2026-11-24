@@ -150,6 +150,8 @@ The dialog provides a preview and supports inline images embedded as CID attachm
 - Preserve focal point management settings when cloning events
 - Allow setting a new affiliation catalog as the default when creating it
 - Ask for confirmation before changing the default affiliation catalog when focal points may be affected
+- Show group names in the affiliations dashboard group filter,
+  give the groups and tags columns more room and cut long group lists off with an ellipsis
 
 ### 3.3.2
 

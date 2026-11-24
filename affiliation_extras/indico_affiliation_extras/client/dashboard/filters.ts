@@ -108,7 +108,7 @@ const buildGroupOptions = (affiliations: ExtendedAffiliation[]) => {
     .sort((a, b) => a.code.localeCompare(b.code))
     .map(group => ({
       value: group.id === -1 ? NO_ITEMS_VALUE : getSafeId(group),
-      text: group.code,
+      text: group.id === -1 ? group.code : `${group.code}: ${group.name}`,
       exclusive: group.id === -1,
     }));
 };
